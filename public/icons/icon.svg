@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#FFFFFF"/>
+  <text x="214" y="292" font-family="Helvetica, Arial, sans-serif" font-size="150" font-weight="bold" fill="#111111" text-anchor="middle">WIT</text>
+  <circle cx="350" cy="242" r="28" fill="#ED1C24"/>
+  <text x="256" y="360" font-family="Helvetica, Arial, sans-serif" font-size="42" letter-spacing="10" fill="#737373" text-anchor="middle">SPRINT OS</text>
+</svg>
