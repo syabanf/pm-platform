@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { StatusPill } from "@/components/StatusPill";
 import { RiskMatrix } from "@/components/RiskMatrix";
@@ -41,6 +42,19 @@ export default function HomePage() {
   } = usePrototype();
   const atRiskProducts = products.filter((p) => p.risk !== "low").length;
   const firstName = currentUser?.name.split(" ")[0] ?? "there";
+
+  // Portfolio tree: collapsed by default except the first client, so the page
+  // opens calm and you expand only what you want (progressive disclosure).
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(
+    () => new Set(clients[0] ? [clients[0].id] : [])
+  );
+  const toggleClient = (id: string) =>
+    setExpandedClients((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // ---- triage: what needs the PM right now ----
   const triage: TriageItem[] = [];
@@ -185,28 +199,52 @@ export default function HomePage() {
             const clientProjects = projects.filter(
               (p) => p.clientId === client.id
             );
+            const clientProducts = products.filter(
+              (p) => p.clientId === client.id
+            );
+            const isOpen = expandedClients.has(client.id);
+            const regionId = `portfolio-${client.id}`;
             return (
               <div key={client.id} className="border-b border-line last:border-b-0">
-                <Link
-                  href={clientPath(client.id)}
-                  className="group flex items-center gap-4 border-b border-line bg-soft px-4 py-3.5"
-                >
-                  <span className="text-sm font-semibold text-ink group-hover:underline">
+                <div className="flex items-center gap-2 bg-soft px-3 py-3">
+                  <button
+                    onClick={() => toggleClient(client.id)}
+                    aria-expanded={isOpen}
+                    aria-controls={regionId}
+                    aria-label={`${isOpen ? "Collapse" : "Expand"} ${client.name}`}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center text-muted hover:text-ink"
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                    >
+                      <path d="M6 4l4 4-4 4" />
+                    </svg>
+                  </button>
+                  <Link
+                    href={clientPath(client.id)}
+                    className="text-sm font-semibold text-ink hover:underline"
+                  >
                     {client.name}
-                  </span>
+                  </Link>
                   <span className="hidden text-xs text-muted md:inline">
                     {client.industry}
                   </span>
                   <span className="ml-auto flex items-center gap-3">
+                    <span className="hidden text-xs tabular-nums text-muted sm:inline">
+                      {clientProducts.length} products
+                    </span>
                     <span className="hidden sm:inline-flex">
                       <StatusPill status={client.health} />
                     </span>
                     <StatusPill status={client.risk} label={`${client.risk} risk`} />
-                    <span className="hidden text-xs text-muted group-hover:text-ink md:inline">
-                      View →
-                    </span>
                   </span>
-                </Link>
+                </div>
+                {isOpen && (
+                <div id={regionId} className="border-t border-line">
                 {clientProjects.map((project) => {
                   const projProducts = products.filter(
                     (p) => p.projectId === project.id
@@ -268,6 +306,8 @@ export default function HomePage() {
                     </div>
                   );
                 })}
+                </div>
+                )}
               </div>
             );
           })}

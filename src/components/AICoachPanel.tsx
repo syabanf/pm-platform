@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AIInsight } from "@/lib/types";
 import { Button } from "@/components/ui";
 import { usePrototype } from "@/lib/store";
@@ -85,6 +85,15 @@ export function AIInsightBlock({
 export function AICoachSlideOver({ insights }: { insights: AIInsight[] }) {
   const { aiPanelOpen, setAiPanelOpen } = usePrototype();
 
+  useEffect(() => {
+    if (!aiPanelOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAiPanelOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [aiPanelOpen, setAiPanelOpen]);
+
   return (
     <>
       <Button
@@ -102,7 +111,12 @@ export function AICoachSlideOver({ insights }: { insights: AIInsight[] }) {
         />
       )}
       {aiPanelOpen && (
-        <div className="animate-slide-in fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-line bg-paper shadow-none">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="AI Coach insights"
+          className="animate-slide-in fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-line bg-paper shadow-none"
+        >
           <div className="flex items-center justify-between border-b border-line px-6 py-4">
             <div>
               <div className="text-sm font-semibold text-ink">AI Coach</div>

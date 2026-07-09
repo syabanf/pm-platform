@@ -62,6 +62,7 @@ export function BottomNav() {
           <Link
             key={tab.href}
             href={tab.href}
+            aria-current={active ? "page" : undefined}
             className={`relative flex flex-1 flex-col items-center gap-0.5 pb-2 pt-2.5 text-[10px] font-medium uppercase tracking-wide ${
               active ? "font-semibold text-ink" : "text-muted"
             }`}

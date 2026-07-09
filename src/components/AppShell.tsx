@@ -147,13 +147,14 @@ function SidebarNav() {
 
 
   return (
-    <nav className="flex-1 overflow-y-auto px-3">
+    <nav className="flex-1 overflow-y-auto px-3" aria-label="Primary">
       {nav.map((item) => {
         const active = isParentActive(item.href);
         return (
           <div key={item.href} className="mb-1">
             <Link
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={`relative block px-3 py-2.5 text-sm transition-colors ${
                 active ? "font-semibold text-black" : "text-muted hover:text-ink"
               }`}
@@ -171,6 +172,7 @@ function SidebarNav() {
                     <Link
                       key={child.href}
                       href={child.href}
+                      aria-current={childActive ? "page" : undefined}
                       className={`relative block px-3 py-1.5 text-[13px] transition-colors ${
                         childActive
                           ? "font-semibold text-black"
@@ -304,6 +306,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      {/* Keyboard users: jump straight past the nav to page content. */}
+      <a
+        href="#main-content"
+        className="sr-only z-[100] border border-black bg-paper px-4 py-2 text-sm font-medium text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Skip to content
+      </a>
       <RouteTracker />
       <OnlineStatus />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
@@ -316,7 +325,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => router.back()}
               aria-label="Back"
-              className="flex h-9 w-9 shrink-0 items-center justify-center border border-line text-ink"
+              className="flex h-10 w-10 shrink-0 items-center justify-center border border-line text-ink"
             >
               <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M12.5 4.5 7 10l5.5 5.5" />
@@ -330,7 +339,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => setPaletteOpen(true)}
               aria-label="Search"
-              className="flex h-9 w-9 shrink-0 items-center justify-center border border-line text-ink"
+              className="flex h-10 w-10 shrink-0 items-center justify-center border border-line text-ink"
             >
               <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <circle cx="9" cy="9" r="5.5" />
@@ -347,7 +356,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setDrawerOpen(!drawerOpen)}
             aria-label="Toggle navigation"
-            className="flex h-9 w-9 flex-col items-center justify-center gap-1 border border-line"
+            aria-expanded={drawerOpen}
+            className="flex h-10 w-10 flex-col items-center justify-center gap-1 border border-line"
           >
             <span
               className={`h-0.5 w-4 bg-black transition-transform duration-200 ${drawerOpen ? "translate-y-1.5 rotate-45" : ""}`}
@@ -364,7 +374,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => setPaletteOpen(true)}
               aria-label="Search"
-              className="flex h-9 w-9 items-center justify-center border border-line text-ink"
+              className="flex h-10 w-10 items-center justify-center border border-line text-ink"
             >
               <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <circle cx="9" cy="9" r="5.5" />
@@ -428,7 +438,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="min-h-screen flex-1 bg-paper pb-20 pt-[calc(3.5rem+env(safe-area-inset-top))] lg:ml-56 lg:pb-0 lg:pt-0">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="min-h-screen flex-1 bg-paper pb-20 pt-[calc(3.5rem+env(safe-area-inset-top))] focus:outline-none lg:ml-56 lg:pb-0 lg:pt-0"
+      >
         {children}
       </main>
 

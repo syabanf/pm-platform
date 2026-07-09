@@ -12,7 +12,10 @@ export interface Tab {
 export function PageTabs({ tabs }: { tabs: Tab[] }) {
   const pathname = usePathname();
   return (
-    <div className="flex gap-6 border-b border-line overflow-x-auto">
+    <nav
+      aria-label="Section"
+      className="flex gap-6 border-b border-line overflow-x-auto"
+    >
       {tabs.map((tab) => {
         const active = tab.exact
           ? pathname === tab.href
@@ -21,6 +24,7 @@ export function PageTabs({ tabs }: { tabs: Tab[] }) {
           <Link
             key={tab.href}
             href={tab.href}
+            aria-current={active ? "page" : undefined}
             className={`-mb-px whitespace-nowrap border-b-2 pb-3 text-sm transition-colors ${
               active
                 ? "border-brand font-semibold text-ink"
@@ -31,6 +35,6 @@ export function PageTabs({ tabs }: { tabs: Tab[] }) {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
