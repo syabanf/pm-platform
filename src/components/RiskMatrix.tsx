@@ -13,14 +13,31 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
 
   const width = 640;
-  const height = compact ? 220 : 300;
-  const pad = { top: 16, right: 20, bottom: 30, left: 92 };
+  const height = compact ? 240 : 360;
+  const pad = { top: 20, right: 20, bottom: 30, left: 92 };
   const innerW = width - pad.left - pad.right;
   const innerH = height - pad.top - pad.bottom;
 
   const x = (health: number) => pad.left + (health / 100) * innerW;
   const bandH = innerH / 3;
-  const y = (risk: string) => pad.top + (riskY[risk] ?? 2) * bandH + bandH / 2;
+
+  // Give every product its own vertical lane within its risk band so dots in
+  // the same band (e.g. several low-risk products) never stack on one point.
+  const bandsOrder = ["high", "medium", "low"] as const;
+  const placed = bandsOrder.flatMap((band) => {
+    const items = products
+      .filter((p) => p.risk === band)
+      .sort((a, b) => a.health - b.health);
+    const bandTop = pad.top + (riskY[band] ?? 2) * bandH;
+    return items.map((p, i) => ({
+      product: p,
+      cx: x(p.health),
+      cy: bandTop + (bandH * (i + 1)) / (items.length + 1),
+      // Label on the side with more room: right for low-health (left of chart),
+      // left for high-health (right of chart), so text never runs off-canvas.
+      labelSide: p.health <= 55 ? ("right" as const) : ("left" as const),
+    }));
+  });
 
   return (
     <div className="border border-line p-4 md:p-6">
@@ -101,21 +118,21 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
           Health →
         </text>
 
-        {/* product dots */}
-        {products.map((product) => {
+        {/* product dots — one per lane, label beside the dot on its own line */}
+        {placed.map(({ product, cx, cy, labelSide }) => {
           const blocked = product.blockedCount > 1;
+          const r = compact ? 5 : 6;
+          const label =
+            product.name.length > 20
+              ? product.name.slice(0, 18) + "…"
+              : product.name;
           return (
             <g
               key={product.id}
               className="cursor-pointer"
               onClick={() => router.push(productPath(product))}
             >
-              <circle
-                cx={x(product.health)}
-                cy={y(product.risk)}
-                r={compact ? 5 : 6}
-                fill={blocked ? "#D92D20" : "#000000"}
-              >
+              <circle cx={cx} cy={cy} r={r} fill={blocked ? "#D92D20" : "#000000"}>
                 <title>
                   {product.name} — health {product.health}%, {product.risk} risk
                   {blocked ? ", blocked" : ""}
@@ -123,15 +140,13 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
               </circle>
               {!compact && (
                 <text
-                  x={x(product.health)}
-                  y={y(product.risk) - 10}
-                  textAnchor="middle"
+                  x={labelSide === "right" ? cx + r + 5 : cx - r - 5}
+                  y={cy + 3}
+                  textAnchor={labelSide === "right" ? "start" : "end"}
                   fontSize={10}
                   fill="#111111"
                 >
-                  {product.name.length > 22
-                    ? product.name.slice(0, 20) + "…"
-                    : product.name}
+                  {label}
                 </text>
               )}
             </g>
