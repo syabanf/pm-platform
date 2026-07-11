@@ -1,19 +1,41 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { use } from "react";
+import Link from "next/link";
 import { PageTabs } from "@/components/PageTabs";
 import { StatusPill } from "@/components/StatusPill";
-import { getSprint, sprintPath } from "@/lib/data";
+import { usePrototype, useSprint } from "@/lib/store";
 
-export default async function SprintLayout({
+export default function SprintLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ productId: string; sprintId: string }>;
+  params: Promise<{
+    clientId: string;
+    projectId: string;
+    productId: string;
+    sprintId: string;
+  }>;
 }) {
-  const { productId, sprintId } = await params;
-  const sprint = getSprint(sprintId);
-  if (!sprint || sprint.productId !== productId) notFound();
-  const base = sprintPath(sprint);
+  const { clientId, projectId, productId, sprintId } = use(params);
+  const sprint = useSprint(sprintId);
+  const { products } = usePrototype();
+
+  if (!sprint || sprint.productId !== productId) {
+    return (
+      <div className="text-sm text-muted">
+        Sprint not found — it may have been removed in this session.{" "}
+        <Link href="/clients" className="text-ink underline">
+          Back to clients
+        </Link>
+      </div>
+    );
+  }
+
+  const base = `/clients/${clientId}/projects/${projectId}/products/${productId}/sprints/${sprintId}`;
+  const product = products.find((p) => p.id === productId);
+  const component = product?.modules.find((m) => m.id === sprint.moduleId);
 
   return (
     <div>
@@ -21,6 +43,7 @@ export default async function SprintLayout({
         <div>
           <div className="label">
             Sprint {String(sprint.number).padStart(2, "0")} — Sprint Goal
+            {component ? ` · ${component.name}` : ""}
           </div>
           <p className="mt-1 text-base font-medium text-ink">{sprint.goal}</p>
         </div>

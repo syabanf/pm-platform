@@ -13,7 +13,6 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import type { BacklogItem, BoardColumn, Task } from "@/lib/types";
-import { getSprint, sprintBacklogItems } from "@/lib/data";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { newId, usePrototype } from "@/lib/store";
 
@@ -421,16 +420,20 @@ export function KanbanBoard({ sprintId }: { sprintId: string }) {
 }
 
 export function SprintBoard({ sprintId }: { sprintId: string }) {
-  const { tasks, moveTask, showToast } = usePrototype();
+  const { tasks, moveTask, showToast, sprints, backlog } = usePrototype();
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
   );
 
-  const sprint = getSprint(sprintId);
+  const sprint = sprints.find((s) => s.id === sprintId);
   const sprintTasks = tasks.filter((t) => t.sprintId === sprintId);
   const activeTask = sprintTasks.find((t) => t.id === activeId);
-  const lanes = sprint ? sprintBacklogItems(sprint) : [];
+  const lanes = sprint
+    ? sprint.backlogItemIds
+        .map((id) => backlog.find((b) => b.id === id))
+        .filter((b): b is BacklogItem => !!b)
+    : [];
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));

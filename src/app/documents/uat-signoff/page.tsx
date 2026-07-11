@@ -71,7 +71,7 @@ export default function UatSignoffPage() {
       description="Record acceptance test results per scope item and produce the sign-off document — the acceptance record for the sprint increment."
       form={
         <>
-          <Field label="Product">
+          <Field label="Module">
             <div className="flex flex-wrap gap-1.5">
               {products.slice(0, 4).map((p) => (
                 <ToggleButton

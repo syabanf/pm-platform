@@ -31,7 +31,7 @@ export const workspaceDefaults = {
 export const permissionCapabilities = [
   "Manage workspace",
   "Manage clients & projects",
-  "Manage products & sprints",
+  "Manage modules & sprints",
   "Edit backlog",
   "Update tasks & daily updates",
   "Manage QA status",
@@ -130,7 +130,7 @@ export const reportTemplateMaster: ReportTemplateDef[] = [
     visibility: "internal",
     formats: ["Markdown", "PDF"],
     sections: [
-      "Product Health",
+      "Module Health",
       "Timeline Risk",
       "Resource Utilization",
       "Delivery Confidence",
@@ -182,7 +182,7 @@ export const masterListMeta: Record<
   contractTypes: { title: "Contract Types", usedBy: "Client profile" },
   jobRoles: { title: "Job Roles", usedBy: "Member master" },
   skillTags: { title: "Skill Tags", usedBy: "Member master" },
-  workItemTypes: { title: "Work Item Types", usedBy: "Product backlog" },
+  workItemTypes: { title: "Work Item Types", usedBy: "Module backlog" },
   priorities: { title: "Priorities", usedBy: "Backlog & tasks" },
   impactAreas: { title: "Impact Areas", usedBy: "Change requests" },
 };
@@ -218,7 +218,7 @@ export const clients: Client[] = [
     health: "healthy",
     risk: "low",
     notes: "Rental Management Platform in steady delivery.",
-    actionNeeded: ["Review Sprint 04 product report"],
+    actionNeeded: ["Review Sprint 04 module report"],
     aiInsight: "Delivery is stable. Keep sprint commitment within velocity.",
   },
   {
@@ -338,7 +338,7 @@ export const members: Member[] = [
 
 const oeeInsight: AIInsight = {
   insight:
-    "The product is progressing, but data readiness is the main risk.",
+    "The module is progressing, but data readiness is the main risk.",
   reason:
     "Three of the last four blockers were caused by missing or unvalidated machine data from the client.",
   recommendations: [
@@ -495,7 +495,7 @@ export const products: Product[] = [
     aiInsight: {
       insight: "Sprint 04 report is ready for review.",
       reason: "All report data sources are complete.",
-      recommendations: ["Review and send the product report to BSM"],
+      recommendations: ["Review and send the module report to BSM"],
       confidence: "high",
     },
   },
@@ -530,6 +530,7 @@ export const sprints: Sprint[] = [
   {
     id: "sprint-03",
     productId: "oee-intelligence",
+    moduleId: "mda",
     number: 3,
     name: "Machine Data Validation",
     goal: "Validate OEE data source from selected pilot machines.",
@@ -553,6 +554,7 @@ export const sprints: Sprint[] = [
   {
     id: "sprint-02",
     productId: "oee-intelligence",
+    moduleId: "oee-dash",
     number: 2,
     name: "OEE Dashboard Foundation",
     goal: "Ship the first OEE dashboard with static data.",
@@ -575,6 +577,7 @@ export const sprints: Sprint[] = [
   {
     id: "sprint-01",
     productId: "oee-intelligence",
+    moduleId: "mda",
     number: 1,
     name: "Data Acquisition Setup",
     goal: "Connect the first pilot machine to the platform.",
@@ -1110,10 +1113,10 @@ export const reportQueueSeed = [
   },
   {
     id: "rq2",
-    title: "BSM Rental — Product Report",
+    title: "BSM Rental — Module Report",
     productId: "bsm-rental-platform",
     client: "BSM",
-    type: "Product Report",
+    type: "Module Report",
     template: "Client Facing",
     due: "2026-07-08",
     status: "open" as const,
@@ -1142,7 +1145,7 @@ export const reportQueueSeed = [
 
 export const todaysPriorities = [
   "Resolve blocker in OEE Intelligence Sprint 03",
-  "Review BSM Rental Product Report",
+  "Review BSM Rental Module Report",
   "Confirm scope change for AI QC Camera",
 ];
 
@@ -1191,6 +1194,9 @@ export const productPathById = (productId: string) => {
   const product = getProduct(productId);
   return product ? productPath(product) : "/clients";
 };
+
+export const modulePath = (product: Product, moduleId: string) =>
+  `${productPath(product)}/modules/${moduleId}`;
 
 export const sprintPath = (sprint: Sprint) =>
   `${productPathById(sprint.productId)}/sprints/${sprint.id}`;

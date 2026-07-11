@@ -1,4 +1,6 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { use } from "react";
 import { BurndownChart } from "@/components/BurndownChart";
 import { VelocityChart } from "@/components/VelocityChart";
 import { CfdChart } from "@/components/CfdChart";
@@ -6,19 +8,19 @@ import { AIInsightBlock } from "@/components/AICoachPanel";
 import {
   burndown,
   burndownInsight,
-  getSprint,
   velocity,
   velocityInsight,
 } from "@/lib/data";
+import { useSprint } from "@/lib/store";
 
-export default async function BurndownPage({
+export default function BurndownPage({
   params,
 }: {
   params: Promise<{ sprintId: string }>;
 }) {
-  const { sprintId } = await params;
-  const sprint = getSprint(sprintId);
-  if (!sprint) notFound();
+  const { sprintId } = use(params);
+  const sprint = useSprint(sprintId);
+  if (!sprint) return null;
 
   const remaining = sprint.committed - sprint.completed;
   const avgVelocity =

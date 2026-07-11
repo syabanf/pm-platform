@@ -53,7 +53,7 @@ export default function StatusUpdatePage() {
       description="Turn quick notes into a structured weekly update: what's done, what's in flight, what's blocked, and what you need from the client."
       form={
         <>
-          <Field label="Product">
+          <Field label="Module">
             <div className="flex flex-wrap gap-1.5">
               {products.slice(0, 4).map((p) => (
                 <ToggleButton

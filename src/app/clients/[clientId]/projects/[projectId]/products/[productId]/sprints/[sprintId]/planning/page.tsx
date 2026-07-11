@@ -4,8 +4,7 @@ import { use, useState } from "react";
 import { AIBadge } from "@/components/AICoachPanel";
 import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui";
-import { getSprint } from "@/lib/data";
-import { usePrototype } from "@/lib/store";
+import { usePrototype, useSprint } from "@/lib/store";
 
 const steps = [
   "Sprint Goal",
@@ -22,7 +21,7 @@ export default function SprintPlanningPage({
   params: Promise<{ productId: string; sprintId: string }>;
 }) {
   const { productId, sprintId } = use(params);
-  const sprint = getSprint(sprintId);
+  const sprint = useSprint(sprintId);
   const { backlog, members, showToast, commitSprint, committedSprint } =
     usePrototype();
   const backlogItems = backlog.filter((b) => b.productId === productId);

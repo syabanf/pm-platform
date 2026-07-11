@@ -7,7 +7,6 @@ import {
   productPath,
   projectPath,
   sprintPath,
-  sprints,
 } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
@@ -41,7 +40,7 @@ export function CommandPalette({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { clients, projects, products } = usePrototype();
+  const { clients, projects, products, sprints } = usePrototype();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,8 +67,8 @@ export function CommandPalette({
     products.forEach((p) =>
       list.push({
         label: p.name,
-        hint: "Product",
-        group: "Products",
+        hint: "Module",
+        group: "Modules",
         path: productPath(p),
       })
     );
@@ -100,7 +99,7 @@ export function CommandPalette({
       { label: "Report Templates", path: "/settings/report-templates" },
     ].forEach((a) => list.push({ ...a, hint: "Go to", group: "Actions" }));
     return list;
-  }, [clients, projects, products]);
+  }, [clients, projects, products, sprints]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -169,7 +168,7 @@ export function CommandPalette({
           aria-controls="cmdk-listbox"
           aria-activedescendant={activeId}
           aria-autocomplete="list"
-          aria-label="Search clients, products, sprints, and documents"
+          aria-label="Search clients, modules, sprints, and documents"
           onKeyDown={(e) => {
             if (e.key === "Escape") onClose();
             if (e.key === "ArrowDown") {
@@ -182,7 +181,7 @@ export function CommandPalette({
             }
             if (e.key === "Enter" && results[cursor]) go(results[cursor]);
           }}
-          placeholder="Search clients, products, sprints, documents…"
+          placeholder="Search clients, modules, sprints, documents…"
           className="w-full border-b border-line bg-paper px-4 py-3.5 text-sm text-ink placeholder:text-muted focus:outline-none"
         />
         <div

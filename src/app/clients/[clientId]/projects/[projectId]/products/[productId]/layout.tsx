@@ -4,6 +4,8 @@ import { use } from "react";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { PageTabs } from "@/components/PageTabs";
+import { StatusPill } from "@/components/StatusPill";
+import { PageHeader } from "@/components/ui";
 import { clientPath, productPath, projectPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
@@ -50,17 +52,21 @@ export default function ProductLayout({
           { label: product.name },
         ]}
       />
-      <h1 className="mt-6 text-2xl font-semibold tracking-tight md:text-3xl text-ink">
-        {product.name}
-      </h1>
-      <p className="mt-1 text-sm text-muted">{product.goal}</p>
+      <div className="mt-6">
+        <PageHeader
+          eyebrow="Module"
+          title={product.name}
+          description={product.goal}
+          actions={<StatusPill status={product.status} />}
+        />
+      </div>
 
       <div className="mt-8">
         <PageTabs
           tabs={[
             { label: "Overview", href: base, exact: true },
             { label: "Members", href: `${base}/members` },
-            { label: "Modules", href: `${base}/modules` },
+            { label: "Components", href: `${base}/modules` },
             { label: "Backlog", href: `${base}/backlog` },
             { label: "Sprints", href: `${base}/sprints` },
             { label: "Reports", href: `${base}/reports` },

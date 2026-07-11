@@ -1,11 +1,13 @@
 "use client";
 
 import { use, useState } from "react";
+import Link from "next/link";
 import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field } from "@/components/Document";
 import { Button, EmptyState, Input, Panel, SectionHeader } from "@/components/ui";
+import { modulePath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
 
 export default function ModulesPage({
@@ -14,7 +16,8 @@ export default function ModulesPage({
   params: Promise<{ productId: string }>;
 }) {
   const { productId } = use(params);
-  const { products, backlog, productsCrud, showToast } = usePrototype();
+  const { products, backlog, sprints, productsCrud, sprintsCrud, showToast } =
+    usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState({ name: "", owner: "" });
 
@@ -24,7 +27,7 @@ export default function ModulesPage({
 
   const addModule = () => {
     if (!draft.name.trim()) {
-      showToast("Module name is required.", "warning");
+      showToast("Component name is required.", "warning");
       return;
     }
     productsCrud.update(product.id, {
@@ -40,14 +43,17 @@ export default function ModulesPage({
     });
     setDraft({ name: "", owner: "" });
     setPanelOpen(false);
-    showToast("Module added.", "success");
+    showToast("Component added.", "success");
   };
 
   const removeModule = (moduleId: string) => {
     productsCrud.update(product.id, {
       modules: product.modules.filter((m) => m.id !== moduleId),
     });
-    showToast("Module removed.", "info");
+    sprints
+      .filter((s) => s.productId === product.id && s.moduleId === moduleId)
+      .forEach((s) => sprintsCrud.remove(s.id));
+    showToast("Component removed.", "info");
   };
 
   const cycleStatus = (moduleId: string) => {
@@ -64,11 +70,11 @@ export default function ModulesPage({
   return (
     <div>
       <SectionHeader
-        title="Modules"
-        description="Functional parts of the product. Click a status to change it."
+        title="Components"
+        description="Functional parts of this module. Open a component to manage its sprints; click a status to change it."
         actions={
           <Button size="sm" onClick={() => setPanelOpen(!panelOpen)}>
-            Add Module
+            Add Component
           </Button>
         }
       />
@@ -76,7 +82,7 @@ export default function ModulesPage({
       {panelOpen && (
         <Panel className="mt-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Module Name">
+            <Field label="Component Name">
               <Input
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -91,7 +97,7 @@ export default function ModulesPage({
             </Field>
           </div>
           <div className="mt-4 flex gap-2">
-            <Button onClick={addModule}>Add Module</Button>
+            <Button onClick={addModule}>Add Component</Button>
             <Button variant="secondary" onClick={() => setPanelOpen(false)}>
               Cancel
             </Button>
@@ -102,18 +108,31 @@ export default function ModulesPage({
       <div className="mt-6">
         {product.modules.length === 0 ? (
           <EmptyState>
-            No modules yet. Backlog items attach to modules, so add these first.
+            No components yet. Backlog items attach to components, so add these first.
           </EmptyState>
         ) : (
-          <DataTable headers={["Module", "Owner", "Backlog Items", "Status", ""]}>
+          <DataTable
+            headers={["Component", "Owner", "Sprints", "Backlog Items", "Status", ""]}
+          >
             {product.modules.map((module) => {
               const items = productBacklog.filter(
                 (b) => b.moduleId === module.id
               );
+              const moduleSprints = sprints.filter(
+                (s) => s.productId === product.id && s.moduleId === module.id
+              );
               return (
                 <tr key={module.id} className="group">
-                  <td className="py-4 pr-6 font-medium text-ink">{module.name}</td>
+                  <td className="py-4 pr-6">
+                    <Link
+                      href={modulePath(product, module.id)}
+                      className="font-medium text-ink hover:underline"
+                    >
+                      {module.name}
+                    </Link>
+                  </td>
                   <td className="py-4 pr-6 text-muted">{module.owner}</td>
+                  <td className="py-4 pr-6 tabular-nums">{moduleSprints.length}</td>
                   <td className="py-4 pr-6 tabular-nums">
                     {items.length}
                     {items.length > 0 && (

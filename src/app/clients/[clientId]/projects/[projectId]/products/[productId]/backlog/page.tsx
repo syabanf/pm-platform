@@ -150,7 +150,7 @@ export default function BacklogPage({
         <div>
           <div className="space-y-3 border-b border-line pb-4">
             <div>
-              <div className="label mb-1.5">Module</div>
+              <div className="label mb-1.5">Component</div>
               <div className="flex flex-wrap gap-1.5">
                 <ToggleButton active={moduleFilter === "all"} onClick={() => setModuleFilter("all")}>
                   All
@@ -246,7 +246,7 @@ export default function BacklogPage({
                   />
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Module">
+                  <Field label="Component">
                     <select
                       value={draft.moduleId}
                       onChange={(e) => setDraft({ ...draft, moduleId: e.target.value })}
@@ -329,7 +329,7 @@ export default function BacklogPage({
                 </div>
               </div>
               <div className="mt-2 text-xs text-muted">
-                Module: {product.modules.find((m) => m.id === selected.moduleId)?.name ?? "—"} ·{" "}
+                Component: {product.modules.find((m) => m.id === selected.moduleId)?.name ?? "—"} ·{" "}
                 {selected.type} ·{" "}
                 {selected.estimate > 0 ? `${selected.estimate} pts` : "not estimated"}
               </div>

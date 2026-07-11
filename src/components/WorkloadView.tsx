@@ -1,6 +1,5 @@
 "use client";
 
-import { getSprint } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
 const TODO_COLUMNS = ["selected", "ready", "blocked"];
@@ -8,8 +7,8 @@ const FLIGHT_COLUMNS = ["in-progress", "in-review", "qa"];
 
 /** Points per sprint member across the three broad states — who carries how much. */
 export function WorkloadView({ sprintId }: { sprintId: string }) {
-  const { tasks, members } = usePrototype();
-  const sprint = getSprint(sprintId);
+  const { tasks, members, sprints } = usePrototype();
+  const sprint = sprints.find((s) => s.id === sprintId);
   const sprintTasks = tasks.filter((t) => t.sprintId === sprintId);
 
   const memberIds =

@@ -4,8 +4,8 @@ import { use, useState } from "react";
 import { AIInsightBlock } from "@/components/AICoachPanel";
 import { StatusPill } from "@/components/StatusPill";
 import { Button, Input } from "@/components/ui";
-import { getSprint, reviewData } from "@/lib/data";
-import { usePrototype } from "@/lib/store";
+import { reviewData } from "@/lib/data";
+import { usePrototype, useSprint } from "@/lib/store";
 
 export default function SprintReviewPage({
   params,
@@ -13,7 +13,7 @@ export default function SprintReviewPage({
   params: Promise<{ sprintId: string }>;
 }) {
   const { sprintId } = use(params);
-  const sprint = getSprint(sprintId);
+  const sprint = useSprint(sprintId);
   const { tasks, showToast } = usePrototype();
   const [checklist, setChecklist] = useState(reviewData.demoChecklist);
   const [feedback, setFeedback] = useState(reviewData.clientFeedback);

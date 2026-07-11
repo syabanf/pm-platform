@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { StatusPill } from "@/components/StatusPill";
+import { DataTable } from "@/components/DataTable";
 import { AIBadge } from "@/components/AICoachPanel";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field, inputClass } from "@/components/Document";
@@ -68,7 +69,7 @@ export default function ClientDetailPage({
     });
     setDraft({ name: "", objective: "" });
     setPanelOpen(false);
-    showToast("Project created. Add a product to start delivery.", "success");
+    showToast("Project created. Add a module to start delivery.", "success");
   };
 
   return (
@@ -96,7 +97,7 @@ export default function ClientDetailPage({
           { value: clientProjects.length, label: "Projects" },
           {
             value: atRisk,
-            label: "Products At Risk",
+            label: "Modules At Risk",
             tone: atRisk > 0 ? "warning" : "neutral",
           },
           { value: activeSprints, label: "Active Sprints" },
@@ -142,63 +143,62 @@ export default function ClientDetailPage({
           </Panel>
         )}
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {clientProjects.length === 0 && (
-            <EmptyState className="lg:col-span-2">
+        <div className="mt-4">
+          {clientProjects.length === 0 ? (
+            <EmptyState>
               No projects yet. Add the first project for {client.name}.
             </EmptyState>
-          )}
-          {clientProjects.map((project) => {
-            const projProducts = products.filter(
-              (p) => p.projectId === project.id
-            );
-            const projAtRisk = projProducts.filter((p) => p.risk !== "low");
-            return (
-              <div
-                key={project.id}
-                className="group relative border border-line p-6 transition-colors hover:border-black"
-              >
-                <Link href={projectPath(project)} className="block">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-base font-semibold text-ink group-hover:underline">
+          ) : (
+            <DataTable
+              headers={["Project", "Status", "Modules", "At Risk", ""]}
+            >
+              {clientProjects.map((project) => {
+                const projProducts = products.filter(
+                  (p) => p.projectId === project.id
+                );
+                const projAtRisk = projProducts.filter((p) => p.risk !== "low");
+                return (
+                  <tr key={project.id} className="group">
+                    <td className="py-4 pr-6">
+                      <Link
+                        href={projectPath(project)}
+                        className="font-medium text-ink hover:underline"
+                      >
                         {project.name}
-                      </div>
-                      <p className="mt-1 text-sm text-muted">
+                      </Link>
+                      <div className="text-xs text-muted">
                         {project.objective}
-                      </p>
-                    </div>
-                    <StatusPill status={project.status} />
-                  </div>
-                  <div className="mt-5 flex items-center gap-6 border-t border-line pt-4 text-sm">
-                    <span className="tabular-nums text-ink">
-                      {projProducts.length}{" "}
-                      <span className="text-muted">products</span>
-                    </span>
-                    <span
-                      className={`tabular-nums ${projAtRisk.length > 0 ? "text-warning" : "text-muted"}`}
+                      </div>
+                    </td>
+                    <td className="py-4 pr-6">
+                      <StatusPill status={project.status} />
+                    </td>
+                    <td className="py-4 pr-6 tabular-nums">
+                      {projProducts.length}
+                    </td>
+                    <td
+                      className={`py-4 pr-6 tabular-nums ${projAtRisk.length > 0 ? "text-warning" : "text-muted"}`}
                     >
-                      {projAtRisk.length} at risk
-                    </span>
-                    <span className="ml-auto text-xs text-muted group-hover:text-ink">
-                      View →
-                    </span>
-                  </div>
-                </Link>
-                <div className="absolute bottom-4 right-20 opacity-0 transition-opacity group-hover:opacity-100">
-                  <ConfirmButton
-                    onConfirm={() => {
-                      removeProjectCascade(project.id);
-                      showToast(
-                        `${project.name} and its products were removed.`,
-                        "info"
-                      );
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+                      {projAtRisk.length}
+                    </td>
+                    <td className="py-4 text-right">
+                      <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <ConfirmButton
+                          onConfirm={() => {
+                            removeProjectCascade(project.id);
+                            showToast(
+                              `${project.name} and its modules were removed.`,
+                              "info"
+                            );
+                          }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </DataTable>
+          )}
         </div>
       </section>
 

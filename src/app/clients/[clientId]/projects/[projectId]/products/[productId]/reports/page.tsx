@@ -4,7 +4,6 @@ import { use, useState } from "react";
 import { ReportPreview } from "@/components/ReportPreview";
 import { StatusPill } from "@/components/StatusPill";
 import { articleToMarkdown, downloadFile, slugify } from "@/lib/export";
-import { sprintsOfProduct } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
 import type { ReportConfig, ReportType } from "@/lib/types";
 import {
@@ -16,7 +15,7 @@ import {
 
 const reportTypes: ReportType[] = [
   "Sprint Report",
-  "Product Report",
+  "Module Report",
   "Client Report",
   "Member Performance Report",
   "Risk Report",
@@ -32,6 +31,7 @@ export default function ReportsPage({
   const { productId } = use(params);
   const {
     products,
+    sprints: allSprints,
     reportTemplates,
     generatedReports,
     saveGeneratedReport,
@@ -39,9 +39,9 @@ export default function ReportsPage({
     showToast,
   } = usePrototype();
   const product = products.find((p) => p.id === productId);
-  const sprints = sprintsOfProduct(productId);
+  const sprints = allSprints.filter((s) => s.productId === productId);
 
-  const [type, setType] = useState<ReportType>("Product Report");
+  const [type, setType] = useState<ReportType>("Module Report");
   const [template, setTemplate] = useState("Client Facing");
   const [period, setPeriod] = useState("Current Sprint");
   const [generated, setGenerated] = useState<ReportConfig | null>(null);

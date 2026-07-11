@@ -5,8 +5,8 @@ import { KanbanBoard, SprintBoard } from "@/components/SprintBoard";
 import { WorkloadView } from "@/components/WorkloadView";
 import { ViewSwitcher } from "@/components/ViewSwitcher";
 import { AICoachSlideOver } from "@/components/AICoachPanel";
-import { dailyInsight, getSprint } from "@/lib/data";
-import { usePrototype } from "@/lib/store";
+import { dailyInsight } from "@/lib/data";
+import { usePrototype, useSprint } from "@/lib/store";
 
 export default function SprintBoardPage({
   params,
@@ -14,7 +14,7 @@ export default function SprintBoardPage({
   params: Promise<{ sprintId: string }>;
 }) {
   const { sprintId } = use(params);
-  const sprint = getSprint(sprintId);
+  const sprint = useSprint(sprintId);
   const { tasks, viewPrefs, setViewPref } = usePrototype();
   const view = viewPrefs.board;
   if (!sprint) return null;

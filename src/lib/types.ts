@@ -122,6 +122,7 @@ export interface SprintMember {
 export interface Sprint {
   id: string;
   productId: string;
+  moduleId: string; // the Component (product.modules[]) that owns this sprint
   number: number;
   name: string;
   goal: string;
@@ -176,7 +177,7 @@ export interface AIInsight {
 
 export type ReportType =
   | "Sprint Report"
-  | "Product Report"
+  | "Module Report"
   | "Client Report"
   | "Member Performance Report"
   | "Risk Report";

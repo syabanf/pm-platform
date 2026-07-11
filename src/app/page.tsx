@@ -8,7 +8,6 @@ import { AIInsightBlock, AICoachSlideOver } from "@/components/AICoachPanel";
 import { PageContainer, PageHeader, KpiStrip } from "@/components/ui";
 import {
   clientPath,
-  getSprint,
   homeInsight,
   productPath,
   productPathById,
@@ -35,6 +34,7 @@ export default function HomePage() {
     clients,
     projects,
     products,
+    sprints,
     tasks,
     members,
     decisions,
@@ -61,7 +61,7 @@ export default function HomePage() {
   tasks
     .filter((t) => t.column === "blocked")
     .forEach((task) => {
-      const sprint = getSprint(task.sprintId);
+      const sprint = sprints.find((s) => s.id === task.sprintId);
       if (!sprint) return;
       triage.push({
         severity: 100 + (task.blockedDays ?? 0),
@@ -164,8 +164,8 @@ export default function HomePage() {
         className="mt-10"
         items={[
           { value: clients.length, label: "Active Clients" },
-          { value: products.length, label: "Active Products" },
-          { value: atRiskProducts, label: "At Risk Products", tone: "warning" },
+          { value: products.length, label: "Active Modules" },
+          { value: atRiskProducts, label: "At Risk Modules", tone: "warning" },
           { value: 2, label: "Reports Due" },
         ]}
       />
@@ -189,7 +189,7 @@ export default function HomePage() {
       {/* 3. Portfolio tree */}
       <section id="portfolio" className="mt-12 scroll-mt-8">
         <div className="flex items-baseline justify-between">
-          <h2 className="label">Portfolio — Clients / Projects / Products</h2>
+          <h2 className="label">Portfolio — Clients / Projects / Modules</h2>
           <Link href="/clients" className="text-xs text-muted hover:text-ink">
             All clients →
           </Link>
@@ -268,7 +268,7 @@ export default function HomePage() {
                       </Link>
                       {projProducts.map((product) => {
                         const sprint = product.currentSprintId
-                          ? getSprint(product.currentSprintId)
+                          ? sprints.find((s) => s.id === product.currentSprintId)
                           : undefined;
                         return (
                           <Link

@@ -18,8 +18,8 @@ const emptyDraft = {
 };
 
 export function MembersMaster({
-  heading = "Product Member Master",
-  description = "The resource pool for this product. Sprint members are selected from this list during sprint planning.",
+  heading = "Module Member Master",
+  description = "The resource pool for this module. Sprint members are selected from this list during sprint planning.",
 }: {
   heading?: string;
   description?: string;
@@ -85,7 +85,7 @@ export function MembersMaster({
         workload: 0,
         status: "active",
       });
-      showToast("Member added to the product pool.", "success");
+      showToast("Member added to the module pool.", "success");
     }
     setPanelOpen(false);
   };

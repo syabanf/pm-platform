@@ -50,6 +50,17 @@ describe("seed data integrity", () => {
     });
   });
 
+  it("sprints reference an existing component (moduleId) of their product", () => {
+    sprints.forEach((s) => {
+      const product = products.find((p) => p.id === s.productId);
+      expect(product, `sprint ${s.id} product`).toBeTruthy();
+      expect(
+        product?.modules.some((m) => m.id === s.moduleId),
+        `sprint ${s.id} component ${s.moduleId}`
+      ).toBe(true);
+    });
+  });
+
   it("sprint backlogItemIds reference existing backlog items", () => {
     sprints.forEach((s) =>
       s.backlogItemIds.forEach((id) => expect(backlogIds).toContain(id))

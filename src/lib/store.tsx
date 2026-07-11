@@ -19,6 +19,7 @@ import type {
   Project,
   QueuedReport,
   ReportConfig,
+  Sprint,
   Task,
 } from "./types";
 import {
@@ -33,6 +34,7 @@ import {
   reportQueueSeed,
   reportTemplateMaster,
   roleMatrix,
+  sprints as seedSprints,
   tasks as seedTasks,
   workspaceDefaults,
   type MasterListKey,
@@ -93,6 +95,7 @@ interface PrototypeState {
   products: Product[];
   members: Member[];
   backlog: BacklogItem[];
+  sprints: Sprint[];
   tasks: Task[];
   decisions: Decision[];
   clientsCrud: Crud<Client>;
@@ -100,6 +103,7 @@ interface PrototypeState {
   productsCrud: Crud<Product>;
   membersCrud: Crud<Member>;
   backlogCrud: Crud<BacklogItem>;
+  sprintsCrud: Crud<Sprint>;
   tasksCrud: Crud<Task>;
   decisionsCrud: Crud<Decision>;
   removeClientCascade: (clientId: string) => void;
@@ -146,6 +150,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
   const [products, productsCrud, setProducts] = useCollection<Product>(seedProducts);
   const [members, membersCrud, setMembers] = useCollection<Member>(seedMembers);
   const [backlog, backlogCrud, setBacklog] = useCollection<BacklogItem>(seedBacklog);
+  const [sprints, sprintsCrud, setSprints] = useCollection<Sprint>(seedSprints);
 
   // Mock auth: the "session" is just a member id in localStorage. Read it
   // after mount to stay SSR-safe (authHydrated gates the redirect logic).
@@ -353,32 +358,44 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     (productId: string) => {
       setProducts((prev) => prev.filter((p) => p.id !== productId));
       setBacklog((prev) => prev.filter((b) => b.productId !== productId));
+      setSprints((prev) => prev.filter((s) => s.productId !== productId));
     },
-    [setProducts, setBacklog]
+    [setProducts, setBacklog, setSprints]
   );
 
   const removeProjectCascade = useCallback(
     (projectId: string) => {
-      setProducts((prev) => {
-        prev
-          .filter((p) => p.projectId === projectId)
-          .forEach((p) =>
-            setBacklog((b) => b.filter((item) => item.productId !== p.id))
-          );
-        return prev.filter((p) => p.projectId !== projectId);
-      });
+      const removedProductIds = products
+        .filter((p) => p.projectId === projectId)
+        .map((p) => p.id);
+      setProducts((prev) => prev.filter((p) => p.projectId !== projectId));
+      setBacklog((prev) =>
+        prev.filter((b) => !removedProductIds.includes(b.productId))
+      );
+      setSprints((prev) =>
+        prev.filter((s) => !removedProductIds.includes(s.productId))
+      );
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
     },
-    [setProducts, setProjects, setBacklog]
+    [products, setProducts, setProjects, setBacklog, setSprints]
   );
 
   const removeClientCascade = useCallback(
     (clientId: string) => {
+      const removedProductIds = products
+        .filter((p) => p.clientId === clientId)
+        .map((p) => p.id);
       setProjects((prev) => prev.filter((p) => p.clientId !== clientId));
       setProducts((prev) => prev.filter((p) => p.clientId !== clientId));
+      setBacklog((prev) =>
+        prev.filter((b) => !removedProductIds.includes(b.productId))
+      );
+      setSprints((prev) =>
+        prev.filter((s) => !removedProductIds.includes(s.productId))
+      );
       setClients((prev) => prev.filter((c) => c.id !== clientId));
     },
-    [setClients, setProjects, setProducts]
+    [products, setClients, setProjects, setProducts, setBacklog, setSprints]
   );
 
   const moveTask = useCallback(
@@ -437,6 +454,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         products,
         members,
         backlog,
+        sprints,
         tasks,
         decisions,
         clientsCrud,
@@ -444,6 +462,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         productsCrud,
         membersCrud,
         backlogCrud,
+        sprintsCrud,
         tasksCrud,
         decisionsCrud,
         removeClientCascade,
@@ -491,4 +510,10 @@ export function usePrototype() {
   const ctx = useContext(PrototypeContext);
   if (!ctx) throw new Error("usePrototype must be used within PrototypeProvider");
   return ctx;
+}
+
+/** Look up a sprint from the live store (so runtime-created sprints resolve). */
+export function useSprint(sprintId: string): Sprint | null {
+  const { sprints } = usePrototype();
+  return sprints.find((s) => s.id === sprintId) ?? null;
 }

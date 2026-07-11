@@ -96,7 +96,7 @@ export default function GlobalReportsPage({
       {panelOpen && (
         <Panel className="mt-6">
           <div className="grid gap-4 md:grid-cols-4">
-            <Field label="Product">
+            <Field label="Module">
               <select
                 value={draft.productId}
                 onChange={(e) => setDraft({ ...draft, productId: e.target.value })}
@@ -113,7 +113,7 @@ export default function GlobalReportsPage({
                 onChange={(e) => setDraft({ ...draft, type: e.target.value })}
                 className={inputClass}
               >
-                {["Sprint Report", "Product Report", "Client Report", "Member Performance Report", "Risk Report"].map((t) => (
+                {["Sprint Report", "Module Report", "Client Report", "Member Performance Report", "Risk Report"].map((t) => (
                   <option key={t}>{t}</option>
                 ))}
               </select>
@@ -188,7 +188,7 @@ export default function GlobalReportsPage({
         {generatedReports.length === 0 ? (
           <EmptyState className="mt-3">
             Nothing generated yet. Reports you generate appear here and can be
-            reopened from the product&apos;s Reports tab.
+            reopened from the module&apos;s Reports tab.
           </EmptyState>
         ) : (
           <ul className="mt-3 divide-y divide-line border-y border-line">

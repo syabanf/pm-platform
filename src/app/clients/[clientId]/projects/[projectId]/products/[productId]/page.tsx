@@ -5,7 +5,7 @@ import Link from "next/link";
 import { StatusPill } from "@/components/StatusPill";
 import { AIInsightBlock, AICoachSlideOver } from "@/components/AICoachPanel";
 import { EmptyState, KpiStrip } from "@/components/ui";
-import { getSprint, sprintPath } from "@/lib/data";
+import { modulePath, sprintPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
 export default function ProductOverviewPage({
@@ -14,11 +14,11 @@ export default function ProductOverviewPage({
   params: Promise<{ productId: string }>;
 }) {
   const { productId } = use(params);
-  const { products } = usePrototype();
+  const { products, sprints } = usePrototype();
   const product = products.find((p) => p.id === productId);
   if (!product) return null;
   const sprint = product.currentSprintId
-    ? getSprint(product.currentSprintId)
+    ? sprints.find((s) => s.id === product.currentSprintId)
     : undefined;
 
   return (
@@ -51,7 +51,7 @@ export default function ProductOverviewPage({
       <KpiStrip
         className="mt-8"
         items={[
-          { value: `${product.health}%`, label: "Product Health" },
+          { value: `${product.health}%`, label: "Module Health" },
           { value: product.velocity, label: "Velocity" },
           {
             value: product.blockedCount,
@@ -74,17 +74,22 @@ export default function ProductOverviewPage({
 
       <section className="mt-12 grid gap-12 md:grid-cols-2">
         <div>
-          <h2 className="label">Modules</h2>
+          <h2 className="label">Components</h2>
           <ul className="mt-4 divide-y divide-line border-y border-line">
             {product.modules.length === 0 && (
               <li className="py-4 text-sm text-muted">
-                No modules yet — add them from the Modules tab.
+                No components yet — add them from the Components tab.
               </li>
             )}
             {product.modules.map((module) => (
               <li key={module.id} className="flex items-center justify-between py-4">
                 <div>
-                  <div className="text-sm font-medium text-ink">{module.name}</div>
+                  <Link
+                    href={modulePath(product, module.id)}
+                    className="text-sm font-medium text-ink hover:underline"
+                  >
+                    {module.name}
+                  </Link>
                   <div className="text-xs text-muted">Owner: {module.owner}</div>
                 </div>
                 <StatusPill status={module.status} />
@@ -93,7 +98,7 @@ export default function ProductOverviewPage({
           </ul>
         </div>
         <div>
-          <h2 className="label">AI Product Insight</h2>
+          <h2 className="label">AI Module Insight</h2>
           <div className="mt-4">
             <AIInsightBlock insight={product.aiInsight} />
           </div>

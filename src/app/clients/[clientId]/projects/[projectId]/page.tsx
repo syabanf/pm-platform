@@ -15,7 +15,7 @@ import {
   EmptyState,
   KpiStrip,
 } from "@/components/ui";
-import { clientPath, getSprint, productPath } from "@/lib/data";
+import { clientPath, productPath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
 
 export default function ProjectDetailPage({
@@ -28,6 +28,7 @@ export default function ProjectDetailPage({
     clients,
     projects,
     products,
+    sprints,
     productsCrud,
     removeProductCascade,
     showToast,
@@ -55,7 +56,7 @@ export default function ProjectDetailPage({
 
   const createProduct = () => {
     if (!draft.name.trim()) {
-      showToast("Product name is required.", "warning");
+      showToast("Module name is required.", "warning");
       return;
     }
     productsCrud.add({
@@ -63,7 +64,7 @@ export default function ProjectDetailPage({
       projectId: project.id,
       clientId: client.id,
       name: draft.name.trim(),
-      goal: draft.goal.trim() || "Product goal to be defined.",
+      goal: draft.goal.trim() || "Module goal to be defined.",
       owner: client.clientPic,
       deliveryLead: "Fahmi",
       status: "discovery",
@@ -74,10 +75,10 @@ export default function ProjectDetailPage({
       modules: [],
       currentSprintId: undefined,
       aiInsight: {
-        insight: "New product — start by defining modules and initial backlog.",
+        insight: "New module — start by defining components and initial backlog.",
         reason: "No delivery data exists yet.",
         recommendations: [
-          "Add modules from the Modules tab",
+          "Add components from the Components tab",
           "Generate the initial backlog with AI refinement",
         ],
         confidence: "high",
@@ -85,7 +86,7 @@ export default function ProjectDetailPage({
     });
     setDraft({ name: "", goal: "" });
     setPanelOpen(false);
-    showToast("Product created. Define its modules next.", "success");
+    showToast("Module created. Define its components next.", "success");
   };
 
   return (
@@ -109,7 +110,7 @@ export default function ProjectDetailPage({
       <KpiStrip
         className="mt-10"
         items={[
-          { value: projectProducts.length, label: "Products" },
+          { value: projectProducts.length, label: "Modules" },
           {
             value: atRisk,
             label: "At Risk",
@@ -126,16 +127,16 @@ export default function ProjectDetailPage({
 
       <section className="mt-12">
         <div className="flex items-center justify-between">
-          <h2 className="label">Products — drill down</h2>
+          <h2 className="label">Modules — drill down</h2>
           <Button size="sm" onClick={() => setPanelOpen(!panelOpen)}>
-            Add Product
+            Add Module
           </Button>
         </div>
 
         {panelOpen && (
           <Panel className="mt-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Product Name">
+              <Field label="Module Name">
                 <input
                   value={draft.name}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -143,7 +144,7 @@ export default function ProjectDetailPage({
                   placeholder="e.g. Inventory Intelligence"
                 />
               </Field>
-              <Field label="Product Goal">
+              <Field label="Module Goal">
                 <input
                   value={draft.goal}
                   onChange={(e) => setDraft({ ...draft, goal: e.target.value })}
@@ -152,7 +153,7 @@ export default function ProjectDetailPage({
               </Field>
             </div>
             <div className="mt-4 flex gap-2">
-              <Button onClick={createProduct}>Create Product</Button>
+              <Button onClick={createProduct}>Create Module</Button>
               <Button variant="secondary" onClick={() => setPanelOpen(false)}>
                 Cancel
               </Button>
@@ -163,15 +164,15 @@ export default function ProjectDetailPage({
         <div className="mt-4">
           {projectProducts.length === 0 ? (
             <EmptyState>
-              No products yet. Add the first product for this project.
+              No modules yet. Add the first module for this project.
             </EmptyState>
           ) : (
             <DataTable
-              headers={["Product", "Status", "Health", "Velocity", "Current Sprint", "Risk", ""]}
+              headers={["Module", "Status", "Health", "Velocity", "Current Sprint", "Risk", ""]}
             >
               {projectProducts.map((product) => {
                 const sprint = product.currentSprintId
-                  ? getSprint(product.currentSprintId)
+                  ? sprints.find((s) => s.id === product.currentSprintId)
                   : undefined;
                 return (
                   <tr key={product.id} className="group">

@@ -213,7 +213,7 @@ export default function MomGeneratorPage() {
               extra={[
                 {
                   label: "Send Decisions to Decision Log",
-                  toast: "Decisions sent to the product Decision Log (prototype).",
+                  toast: "Decisions sent to the module Decision Log (prototype).",
                 },
               ]}
             />

@@ -74,7 +74,7 @@ export default function KickoffCharterPage() {
               ))}
             </div>
           </Field>
-          <Field label="Project / Product Title">
+          <Field label="Project / Module Title">
             <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
           </Field>
           <Field label="Objective">

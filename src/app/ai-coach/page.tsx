@@ -39,8 +39,8 @@ export default function AICoachPage() {
         </div>
       </section>
 
-      <section id="products" className="mt-12 scroll-mt-8">
-        <h2 className="label">Product Insights</h2>
+      <section id="modules" className="mt-12 scroll-mt-8">
+        <h2 className="label">Module Insights</h2>
         <div className="mt-4 grid gap-6 md:grid-cols-2">
           {productInsights.map(({ product, insight }) => (
             <div key={product}>

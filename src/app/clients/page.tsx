@@ -152,7 +152,7 @@ export default function ClientsPage() {
             "Client",
             "Industry",
             "Projects",
-            "Products",
+            "Modules",
             "Contract",
             "Health",
             "Risk",

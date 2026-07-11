@@ -41,7 +41,7 @@ const staticNavBottom: NavItem[] = [
     children: [
       { label: "All Reports", href: "/reports" },
       { label: "Sprint Reports", href: "/reports?type=Sprint+Report" },
-      { label: "Product Reports", href: "/reports?type=Product+Report" },
+      { label: "Module Reports", href: "/reports?type=Module+Report" },
       { label: "Client Reports", href: "/reports?type=Client+Report" },
     ],
   },
@@ -61,7 +61,7 @@ const staticNavBottom: NavItem[] = [
     href: "/ai-coach",
     children: [
       { label: "Portfolio Insights", href: "/ai-coach#portfolio" },
-      { label: "Product Insights", href: "/ai-coach#products" },
+      { label: "Module Insights", href: "/ai-coach#modules" },
     ],
   },
   {
@@ -198,6 +198,7 @@ function SidebarNav() {
 const TAB_ROOTS = ["/", "/clients", "/reports", "/documents", "/ai-coach", "/settings"];
 
 const SEGMENT_LABELS: Record<string, string> = {
+  modules: "Components",
   mom: "MoM",
   "status-update": "Status Update",
   "change-request": "Change Request",

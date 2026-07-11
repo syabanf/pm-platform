@@ -60,7 +60,7 @@ export default function ChangeRequestPage() {
       description="Log a scope change with its business reason and impact — the scope-change log the spec requires, in client-approvable form."
       form={
         <>
-          <Field label="Product">
+          <Field label="Module">
             <div className="flex flex-wrap gap-1.5">
               {products.slice(0, 4).map((p) => (
                 <ToggleButton

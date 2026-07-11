@@ -1,13 +1,17 @@
-import { notFound, redirect } from "next/navigation";
-import { getSprint, sprintPath } from "@/lib/data";
+import { redirect } from "next/navigation";
 
 export default async function SprintIndexPage({
   params,
 }: {
-  params: Promise<{ sprintId: string }>;
+  params: Promise<{
+    clientId: string;
+    projectId: string;
+    productId: string;
+    sprintId: string;
+  }>;
 }) {
-  const { sprintId } = await params;
-  const sprint = getSprint(sprintId);
-  if (!sprint) notFound();
-  redirect(`${sprintPath(sprint)}/board`);
+  const { clientId, projectId, productId, sprintId } = await params;
+  redirect(
+    `/clients/${clientId}/projects/${projectId}/products/${productId}/sprints/${sprintId}/board`
+  );
 }

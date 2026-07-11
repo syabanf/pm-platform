@@ -45,7 +45,7 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"
         role="img"
-        aria-label="Portfolio risk matrix: product health versus risk"
+        aria-label="Portfolio risk matrix: module health versus risk"
       >
         {/* attention quadrant: health < 60 and high/medium risk */}
         <rect
@@ -154,7 +154,7 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
         })}
       </svg>
       <p className="mt-2 text-xs text-muted">
-        Each dot is a product{compact ? "" : " — click to open it"}. Red dots
+        Each dot is a module{compact ? "" : " — click to open it"}. Red dots
         have active blockers. The shaded zone (low health, elevated risk) is
         where attention pays off most.
       </p>

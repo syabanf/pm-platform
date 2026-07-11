@@ -326,7 +326,7 @@ function ManagementBody({ product, sprint }: { product: Product; sprint: Sprint 
     <Sections
       items={[
         [
-          "Product Health",
+          "Module Health",
           <table key="t" className="w-full max-w-md text-sm">
             <tbody className="divide-y divide-line">
               <MetricRow label="Health Score" value={`${product.health}%`} />
@@ -630,7 +630,7 @@ export function ReportPreview({
         <div className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-muted md:grid-cols-3">
           <div>Client: <span className="text-ink">{client?.name}</span></div>
           <div>Project: <span className="text-ink">{project?.name}</span></div>
-          <div>Product: <span className="text-ink">{product.name}</span></div>
+          <div>Module: <span className="text-ink">{product.name}</span></div>
           <div>Sprint: <span className="text-ink">Sprint {String(sprint.number).padStart(2, "0")}</span></div>
           <div>Period: <span className="text-ink">{sprint.startDate} → {sprint.endDate}</span></div>
           <div>Prepared by: <span className="text-ink">Fahmi</span></div>
