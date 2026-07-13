@@ -6,7 +6,6 @@ import {
   clientPath,
   productPath,
   projectPath,
-  sprintPath,
 } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
@@ -78,7 +77,9 @@ export function CommandPalette({
         label: `Sprint ${String(s.number).padStart(2, "0")} — ${s.name}`,
         hint: `${product?.name ?? ""} · Board`,
         group: "Sprints",
-        path: `${sprintPath(s)}/board`,
+        path: product
+          ? `${productPath(product)}/sprints/${s.id}/board`
+          : "/clients",
       });
     });
     [

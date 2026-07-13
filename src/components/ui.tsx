@@ -324,7 +324,12 @@ export function KpiStrip({
   return (
     <div
       className={cx(
-        "grid grid-cols-2 gap-px border border-line bg-line md:grid-cols-4",
+        "grid gap-px border border-line bg-line",
+        items.length === 1
+          ? "grid-cols-1"
+          : items.length === 3
+            ? "grid-cols-2 md:grid-cols-3"
+            : "grid-cols-2 md:grid-cols-4",
         className
       )}
     >

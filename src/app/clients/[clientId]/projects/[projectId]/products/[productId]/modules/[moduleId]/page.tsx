@@ -73,6 +73,15 @@ export default function ComponentDetailPage({
       sprints
         .filter((s) => s.productId === productId)
         .reduce((max, s) => Math.max(max, s.number), 0) + 1;
+    // Real ISO dates so the sprint schedules on the Gantt/Calendar (a "TBD"
+    // string parses to Invalid Date and collapses the whole Gantt to NaN).
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+        d.getDate()
+      ).padStart(2, "0")}`;
+    const start = new Date();
+    const end = new Date(start);
+    end.setDate(end.getDate() + 13); // ~2 calendar weeks ≈ 10 working days
     sprintsCrud.add({
       id: newId("sprint"),
       productId,
@@ -80,8 +89,8 @@ export default function ComponentDetailPage({
       number: nextNumber,
       name: draft.name.trim(),
       goal: draft.goal.trim() || "Sprint goal to be defined.",
-      startDate: "TBD",
-      endDate: "TBD",
+      startDate: iso(start),
+      endDate: iso(end),
       workingDays: 10,
       daysLeft: 10,
       status: "planning",

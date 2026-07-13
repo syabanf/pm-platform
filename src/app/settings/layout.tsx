@@ -12,7 +12,7 @@ export default function SettingsLayout({
         Master Data
       </h1>
       <p className="mt-1 max-w-xl text-sm text-muted">
-        Workspace-level configuration used across every client, product, and
+        Workspace-level configuration used across every client, module, and
         sprint.
       </p>
       <div className="mt-8">

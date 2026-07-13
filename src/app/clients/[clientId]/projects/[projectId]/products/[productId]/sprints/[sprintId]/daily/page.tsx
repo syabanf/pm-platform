@@ -21,14 +21,19 @@ export default function DailyScrumPage({
   const sprint = useSprint(sprintId);
   if (!sprint) return null;
 
+  const started = sprint.daysLeft < sprint.workingDays;
   const day = sprint.workingDays - sprint.daysLeft;
+  // Only show standups for members actually on this sprint (a freshly
+  // created sprint has none → empty state rather than seed members).
+  const memberIds = new Set(sprint.members.map((m) => m.memberId));
+  const updates = dailyUpdates.filter((u) => memberIds.has(u.memberId));
 
   return (
     <div>
       <div className="flex items-baseline justify-between">
         <div>
           <h3 className="text-xl font-semibold tracking-tight text-ink">
-            Daily Scrum — Day {day}
+            Daily Scrum — {started ? `Day ${day}` : "Not started yet"}
           </h3>
           <p className="mt-1 text-sm text-muted">
             Inspect progress toward the Sprint Goal, then adapt the plan.
@@ -49,7 +54,15 @@ export default function DailyScrumPage({
         <DataTable
           headers={["Member", "Yesterday", "Today", "Blocker", "Confidence"]}
         >
-          {dailyUpdates.map((update) => {
+          {updates.length === 0 && (
+            <tr>
+              <td colSpan={5} className="py-8 text-center text-sm text-muted">
+                No daily updates yet — no members are assigned to this sprint.
+                Add members from Planning.
+              </td>
+            </tr>
+          )}
+          {updates.map((update) => {
             const member = getMember(update.memberId);
             return (
               <tr key={update.memberId}>

@@ -1155,29 +1155,12 @@ export const getClient = (id: string) => clients.find((c) => c.id === id);
 export const getProject = (id: string) => projects.find((p) => p.id === id);
 export const getProduct = (id: string) => products.find((p) => p.id === id);
 export const getMember = (id: string) => members.find((m) => m.id === id);
-export const getSprint = (id: string) => sprints.find((s) => s.id === id);
-export const productsOfClient = (clientId: string) =>
-  products.filter((p) => p.clientId === clientId);
-export const projectsOfClient = (clientId: string) =>
-  projects.filter((p) => p.clientId === clientId);
-export const sprintsOfProduct = (productId: string) =>
-  sprints.filter((s) => s.productId === productId);
 export const tasksOfSprint = (sprintId: string) =>
   tasks.filter((t) => t.sprintId === sprintId);
-export const backlogOfProduct = (productId: string) =>
-  backlog.filter((b) => b.productId === productId);
-export const sprintCapacity = (sprint: Sprint) =>
-  sprint.members.reduce((sum, m) => sum + m.capacityDays, 0);
-export const productsOfProject = (projectId: string) =>
-  products.filter((p) => p.projectId === projectId);
 export const sprintBacklogItems = (sprint: Sprint) =>
   sprint.backlogItemIds
     .map((id) => backlog.find((b) => b.id === id))
     .filter((b): b is BacklogItem => !!b);
-export const tasksOfBacklogItem = (sprintId: string, backlogItemId: string) =>
-  tasks.filter(
-    (t) => t.sprintId === sprintId && t.backlogItemId === backlogItemId
-  );
 
 // ---------- hierarchy path builders ----------
 // Single source of truth for drill-down URLs so pages never hand-assemble them.

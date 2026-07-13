@@ -7,7 +7,7 @@ import { DataTable } from "@/components/DataTable";
 import { ViewSwitcher } from "@/components/ViewSwitcher";
 import { SprintGantt } from "@/components/SprintGantt";
 import { SprintCalendar } from "@/components/SprintCalendar";
-import { sprintPath } from "@/lib/data";
+import { productPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 import { SectionHeader } from "@/components/ui";
 
@@ -20,6 +20,7 @@ export default function SprintsListPage({
   const { products, sprints: allSprints, viewPrefs, setViewPref } =
     usePrototype();
   const product = products.find((p) => p.id === productId);
+  const base = product ? productPath(product) : "";
   const sprints = allSprints
     .filter((s) => s.productId === productId)
     .sort((a, b) => b.number - a.number);
@@ -51,7 +52,7 @@ export default function SprintsListPage({
             No sprints yet. Add one from a component on the Components tab.
           </p>
         ) : view === "gantt" ? (
-          <SprintGantt sprints={sprints} />
+          <SprintGantt sprints={sprints} basePath={base} />
         ) : view === "calendar" ? (
           <SprintCalendar sprints={sprints} />
         ) : (
@@ -62,7 +63,7 @@ export default function SprintsListPage({
               <tr key={sprint.id}>
                 <td className="py-4 pr-6">
                   <Link
-                    href={`${sprintPath(sprint)}/board`}
+                    href={`${base}/sprints/${sprint.id}/board`}
                     className="font-medium text-ink hover:underline"
                   >
                     Sprint {String(sprint.number).padStart(2, "0")}

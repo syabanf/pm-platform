@@ -39,6 +39,7 @@ export default function HomePage() {
     members,
     decisions,
     recentPaths,
+    reportQueue,
   } = usePrototype();
   const atRiskProducts = products.filter((p) => p.risk !== "low").length;
   const firstName = currentUser?.name.split(" ")[0] ?? "there";
@@ -166,7 +167,10 @@ export default function HomePage() {
           { value: clients.length, label: "Active Clients" },
           { value: products.length, label: "Active Modules" },
           { value: atRiskProducts, label: "At Risk Modules", tone: "warning" },
-          { value: 2, label: "Reports Due" },
+          {
+            value: reportQueue.filter((r) => r.status !== "done").length,
+            label: "Reports Due",
+          },
         ]}
       />
 
@@ -235,7 +239,7 @@ export default function HomePage() {
                   </span>
                   <span className="ml-auto flex items-center gap-3">
                     <span className="hidden text-xs tabular-nums text-muted sm:inline">
-                      {clientProducts.length} products
+                      {clientProducts.length} modules
                     </span>
                     <span className="hidden sm:inline-flex">
                       <StatusPill status={client.health} />
@@ -261,7 +265,7 @@ export default function HomePage() {
                         </span>
                         <span className="ml-auto flex items-center gap-3">
                           <span className="hidden text-xs tabular-nums text-muted sm:inline">
-                            {projProducts.length} products
+                            {projProducts.length} modules
                           </span>
                           <StatusPill status={project.status} />
                         </span>

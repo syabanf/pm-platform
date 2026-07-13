@@ -2,14 +2,19 @@
 
 import Link from "next/link";
 import type { Sprint } from "@/lib/types";
-import { sprintPath } from "@/lib/data";
 
 const TODAY = "2026-07-08"; // fixed prototype date
 
 const toDate = (s: string) => new Date(`${s}T00:00:00`);
 const DAY = 24 * 60 * 60 * 1000;
 
-export function SprintGantt({ sprints }: { sprints: Sprint[] }) {
+export function SprintGantt({
+  sprints,
+  basePath,
+}: {
+  sprints: Sprint[];
+  basePath: string;
+}) {
   if (sprints.length === 0) return null;
   const ordered = [...sprints].sort((a, b) => a.number - b.number);
 
@@ -74,9 +79,10 @@ export function SprintGantt({ sprints }: { sprints: Sprint[] }) {
             const left = pct(toDate(sprint.startDate).getTime());
             const width =
               pct(toDate(sprint.endDate).getTime() + DAY) - left;
-            const progress = Math.round(
-              (sprint.completed / sprint.committed) * 100
-            );
+            const progress =
+              sprint.committed > 0
+                ? Math.round((sprint.completed / sprint.committed) * 100)
+                : 0;
             return (
               <div key={sprint.id} className="flex items-center border-b border-line py-4">
                 <div className="w-44 shrink-0 pr-4">
@@ -87,7 +93,7 @@ export function SprintGantt({ sprints }: { sprints: Sprint[] }) {
                 </div>
                 <div className="relative h-7 flex-1">
                   <Link
-                    href={`${sprintPath(sprint)}/board`}
+                    href={`${basePath}/sprints/${sprint.id}/board`}
                     title={`${sprint.goal} — ${progress}% complete`}
                     className={`absolute inset-y-0 flex items-center overflow-hidden border px-2 text-[11px] font-medium transition-colors ${
                       sprint.status === "done"

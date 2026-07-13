@@ -5,7 +5,7 @@ import Link from "next/link";
 import { StatusPill } from "@/components/StatusPill";
 import { AIInsightBlock, AICoachSlideOver } from "@/components/AICoachPanel";
 import { EmptyState, KpiStrip } from "@/components/ui";
-import { modulePath, sprintPath } from "@/lib/data";
+import { modulePath, productPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
 export default function ProductOverviewPage({
@@ -34,7 +34,7 @@ export default function ProductOverviewPage({
             <span>·</span>
             <span>{sprint.daysLeft} days left</span>
             <Link
-              href={`${sprintPath(sprint)}/board`}
+              href={`${productPath(product)}/sprints/${sprint.id}/board`}
               className="ml-auto font-medium text-ink hover:underline"
             >
               Open Sprint Board →

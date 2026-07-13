@@ -32,7 +32,7 @@ export default function ProductLayout({
   ) {
     return (
       <div className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-12 text-sm text-muted">
-        Product not found — it may have been removed in this session.{" "}
+        Module not found — it may have been removed in this session.{" "}
         <Link href="/clients" className="text-ink underline">
           Back to clients
         </Link>

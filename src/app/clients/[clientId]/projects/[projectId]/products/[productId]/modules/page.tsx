@@ -16,8 +16,16 @@ export default function ModulesPage({
   params: Promise<{ productId: string }>;
 }) {
   const { productId } = use(params);
-  const { products, backlog, sprints, productsCrud, sprintsCrud, showToast } =
-    usePrototype();
+  const {
+    products,
+    backlog,
+    sprints,
+    tasks,
+    productsCrud,
+    sprintsCrud,
+    tasksCrud,
+    showToast,
+  } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState({ name: "", owner: "" });
 
@@ -50,9 +58,13 @@ export default function ModulesPage({
     productsCrud.update(product.id, {
       modules: product.modules.filter((m) => m.id !== moduleId),
     });
-    sprints
+    const removedSprintIds = sprints
       .filter((s) => s.productId === product.id && s.moduleId === moduleId)
-      .forEach((s) => sprintsCrud.remove(s.id));
+      .map((s) => s.id);
+    removedSprintIds.forEach((id) => sprintsCrud.remove(id));
+    tasks
+      .filter((t) => removedSprintIds.includes(t.sprintId))
+      .forEach((t) => tasksCrud.remove(t.id));
     showToast("Component removed.", "info");
   };
 
@@ -142,7 +154,12 @@ export default function ModulesPage({
                     )}
                   </td>
                   <td className="py-4 pr-6">
-                    <button onClick={() => cycleStatus(module.id)} title="Click to change status">
+                    <button
+                      onClick={() => cycleStatus(module.id)}
+                      aria-label={`Change status — currently ${module.status}`}
+                      title="Click to change status"
+                      className="hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+                    >
                       <StatusPill status={module.status} />
                     </button>
                   </td>

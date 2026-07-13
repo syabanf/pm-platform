@@ -120,7 +120,7 @@ export default function ChangeRequestPage() {
               title={title}
               meta={[
                 { label: "Client", value: client?.name ?? "—" },
-                { label: "Product", value: product.name },
+                { label: "Module", value: product.name },
                 { label: "Requested by", value: requestedBy },
                 { label: "Prepared by", value: "Fahmi" },
                 { label: "Status", value: "Awaiting approval" },

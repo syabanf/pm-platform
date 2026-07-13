@@ -37,7 +37,15 @@ export default function SprintBoardPage({
           <div className="label mt-0.5">Progress</div>
         </div>
         <div>
-          <div className="text-2xl font-semibold capitalize text-warning">
+          <div
+            className={`text-2xl font-semibold capitalize ${
+              sprint.risk === "high"
+                ? "text-danger"
+                : sprint.risk === "low"
+                  ? "text-success"
+                  : "text-warning"
+            }`}
+          >
             {sprint.risk}
           </div>
           <div className="label mt-0.5">Risk</div>

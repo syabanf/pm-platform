@@ -356,11 +356,17 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
 
   const removeProductCascade = useCallback(
     (productId: string) => {
+      const removedSprintIds = sprints
+        .filter((s) => s.productId === productId)
+        .map((s) => s.id);
       setProducts((prev) => prev.filter((p) => p.id !== productId));
       setBacklog((prev) => prev.filter((b) => b.productId !== productId));
       setSprints((prev) => prev.filter((s) => s.productId !== productId));
+      setTasks((prev) =>
+        prev.filter((t) => !removedSprintIds.includes(t.sprintId))
+      );
     },
-    [setProducts, setBacklog, setSprints]
+    [sprints, setProducts, setBacklog, setSprints, setTasks]
   );
 
   const removeProjectCascade = useCallback(
@@ -368,6 +374,9 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       const removedProductIds = products
         .filter((p) => p.projectId === projectId)
         .map((p) => p.id);
+      const removedSprintIds = sprints
+        .filter((s) => removedProductIds.includes(s.productId))
+        .map((s) => s.id);
       setProducts((prev) => prev.filter((p) => p.projectId !== projectId));
       setBacklog((prev) =>
         prev.filter((b) => !removedProductIds.includes(b.productId))
@@ -375,9 +384,12 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       setSprints((prev) =>
         prev.filter((s) => !removedProductIds.includes(s.productId))
       );
+      setTasks((prev) =>
+        prev.filter((t) => !removedSprintIds.includes(t.sprintId))
+      );
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
     },
-    [products, setProducts, setProjects, setBacklog, setSprints]
+    [products, sprints, setProducts, setProjects, setBacklog, setSprints, setTasks]
   );
 
   const removeClientCascade = useCallback(
@@ -385,6 +397,9 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       const removedProductIds = products
         .filter((p) => p.clientId === clientId)
         .map((p) => p.id);
+      const removedSprintIds = sprints
+        .filter((s) => removedProductIds.includes(s.productId))
+        .map((s) => s.id);
       setProjects((prev) => prev.filter((p) => p.clientId !== clientId));
       setProducts((prev) => prev.filter((p) => p.clientId !== clientId));
       setBacklog((prev) =>
@@ -393,9 +408,12 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       setSprints((prev) =>
         prev.filter((s) => !removedProductIds.includes(s.productId))
       );
+      setTasks((prev) =>
+        prev.filter((t) => !removedSprintIds.includes(t.sprintId))
+      );
       setClients((prev) => prev.filter((c) => c.id !== clientId));
     },
-    [products, setClients, setProjects, setProducts, setBacklog, setSprints]
+    [products, sprints, setClients, setProjects, setProducts, setBacklog, setSprints, setTasks]
   );
 
   const moveTask = useCallback(
