@@ -1,7 +1,6 @@
 import type {
   AIInsight,
   BacklogItem,
-  BurndownPoint,
   Client,
   DailyUpdate,
   Decision,
@@ -882,19 +881,6 @@ export const dailyUpdates: DailyUpdate[] = [
     blocker: "Waiting client PIC",
     confidence: "low",
   },
-];
-
-export const burndown: BurndownPoint[] = [
-  { day: 1, ideal: 100, actual: 100 },
-  { day: 2, ideal: 90, actual: 96 },
-  { day: 3, ideal: 80, actual: 88 },
-  { day: 4, ideal: 70, actual: 84 },
-  { day: 5, ideal: 60, actual: 72 },
-  { day: 6, ideal: 50, actual: 60 },
-  { day: 7, ideal: 40, actual: null },
-  { day: 8, ideal: 30, actual: null },
-  { day: 9, ideal: 20, actual: null },
-  { day: 10, ideal: 0, actual: null },
 ];
 
 // Cumulative flow (points per state per day) — consistent with the burndown:

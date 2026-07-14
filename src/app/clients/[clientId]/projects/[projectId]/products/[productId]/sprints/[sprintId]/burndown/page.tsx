@@ -6,7 +6,6 @@ import { VelocityChart } from "@/components/VelocityChart";
 import { CfdChart } from "@/components/CfdChart";
 import { AIInsightBlock } from "@/components/AICoachPanel";
 import {
-  burndown,
   burndownInsight,
   velocity,
   velocityInsight,
@@ -25,6 +24,22 @@ export default function BurndownPage({
   const remaining = sprint.committed - sprint.completed;
   const avgVelocity =
     velocity.reduce((sum, v) => sum + v.completed, 0) / velocity.length;
+
+  // Burndown derived from this sprint's real committed/completed so the chart
+  // matches the header numbers (was static sprint-03 seed for every sprint).
+  const wd = sprint.workingDays;
+  const elapsed = Math.min(wd, Math.max(0, wd - sprint.daysLeft));
+  const sprintBurndown = Array.from({ length: wd + 1 }, (_, dayIndex) => ({
+    day: dayIndex + 1,
+    ideal: Math.round(sprint.committed * (1 - dayIndex / wd)),
+    actual:
+      dayIndex <= elapsed
+        ? Math.round(
+            sprint.committed -
+              sprint.completed * (elapsed > 0 ? dayIndex / elapsed : 0)
+          )
+        : null,
+  }));
 
   return (
     <div className="space-y-16">
@@ -62,7 +77,7 @@ export default function BurndownPage({
         </div>
         <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_320px]">
           <div className="border border-line p-6">
-            <BurndownChart data={burndown} />
+            <BurndownChart data={sprintBurndown} />
           </div>
           <AIInsightBlock insight={burndownInsight} />
         </div>

@@ -137,7 +137,7 @@ export default function SprintPlanningPage({
                     <span className="text-sm tabular-nums text-muted">
                       {member.allocation}% ={" "}
                       {((workingDays * member.allocation) / 100).toFixed(1)}{" "}
-                      mandays
+                      pts
                     </span>
                   </label>
                 </li>
@@ -152,14 +152,14 @@ export default function SprintPlanningPage({
               Check Capacity
             </h3>
             <p className="mt-1 text-sm text-muted">
-              Member Capacity = Working Days × Allocation %
+              Member Capacity = Working Days × Allocation % · 1 pt ≈ 1 manday
             </p>
             <div className="mt-8 border border-line p-8 text-center max-w-xl">
               <div className="text-6xl font-semibold tabular-nums tracking-tight text-ink">
                 {capacity.toFixed(1)}
               </div>
               <div className="label mt-2">
-                Total Sprint Capacity (mandays) — {workingDays} working days,{" "}
+                Total Sprint Capacity (pts) — {workingDays} working days,{" "}
                 {selectedMembers.length} members
               </div>
             </div>
@@ -180,7 +180,7 @@ export default function SprintPlanningPage({
                   selectedWork > capacity ? "text-danger" : "text-ink"
                 }`}
               >
-                {selectedWork} / {capacity.toFixed(1)} mandays
+                {selectedWork} / {capacity.toFixed(1)} pts
               </span>
             </div>
             <ul className="mt-6 max-w-xl divide-y divide-line border-y border-line">
@@ -208,7 +208,7 @@ export default function SprintPlanningPage({
                       </div>
                     </div>
                     <span className="text-sm tabular-nums text-muted">
-                      {item.estimate > 0 ? `${item.estimate} md` : "—"}
+                      {item.estimate > 0 ? `${item.estimate} pts` : "—"}
                     </span>
                   </label>
                 </li>
@@ -227,13 +227,13 @@ export default function SprintPlanningPage({
               {overcommit > 0 ? (
                 <>
                   <p className="mt-3 text-sm font-medium text-ink">
-                    Risk: Overcommit by {overcommit.toFixed(1)} mandays.
+                    Risk: Overcommit by {overcommit.toFixed(1)} pts.
                   </p>
                   <div className="mt-3">
                     <div className="label">Why</div>
                     <p className="mt-1 text-sm text-muted">
-                      Selected backlog ({selectedWork} mandays) exceeds available
-                      capacity ({capacity.toFixed(1)} mandays). This sprint may
+                      Selected backlog ({selectedWork} pts) exceeds available
+                      capacity ({capacity.toFixed(1)} pts). This sprint may
                       be too heavy for the selected team capacity.
                     </p>
                   </div>
@@ -252,8 +252,8 @@ export default function SprintPlanningPage({
                     Commitment looks realistic.
                   </p>
                   <p className="mt-2 text-sm text-muted">
-                    Selected work ({selectedWork} mandays) fits within available
-                    capacity ({capacity.toFixed(1)} mandays).
+                    Selected work ({selectedWork} pts) fits within available
+                    capacity ({capacity.toFixed(1)} pts).
                   </p>
                 </>
               )}
