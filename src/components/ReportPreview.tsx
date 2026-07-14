@@ -2,18 +2,21 @@
 
 import { AIBadge } from "@/components/AICoachPanel";
 import { StatusPill } from "@/components/StatusPill";
-import type { Product, ReportConfig, Sprint, Task } from "@/lib/types";
+import type {
+  BacklogItem,
+  Product,
+  ReportConfig,
+  Sprint,
+  Task,
+} from "@/lib/types";
 import {
   burndownInsight,
   dailyUpdates,
-  decisions,
   getClient,
   getMember,
   getProject,
   members,
   reportExtras,
-  sprintBacklogItems,
-  tasksOfSprint,
   velocity,
 } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
@@ -58,10 +61,18 @@ function Sections({ items }: { items: [string, React.ReactNode][] }) {
   );
 }
 
-function buildReportData(product: Product, sprint: Sprint) {
-  const tasks = tasksOfSprint(sprint.id);
+// Reads live store data so reports reflect this-session board moves and
+// runtime-created sprints (not the frozen seed). Safe as a hook: every body
+// is a component and calls it unconditionally at the top.
+function useReportData(product: Product, sprint: Sprint) {
+  const { tasks: allTasks, backlog, decisions } = usePrototype();
+  const tasks = allTasks.filter((t) => t.sprintId === sprint.id);
+  const backlogItems = sprint.backlogItemIds
+    .map((id) => backlog.find((b) => b.id === id))
+    .filter((b): b is BacklogItem => !!b);
   return {
     tasks,
+    backlogItems,
     completed: tasks.filter((t) => t.column === "done"),
     inProgress: tasks.filter((t) =>
       ["in-progress", "in-review", "qa"].includes(t.column)
@@ -70,8 +81,13 @@ function buildReportData(product: Product, sprint: Sprint) {
       ["selected", "ready", "blocked"].includes(t.column)
     ),
     blocked: tasks.filter((t) => t.column === "blocked"),
-    completionRate: Math.round((sprint.completed / sprint.committed) * 100),
-    openDecisions: decisions.filter((d) => d.status === "open"),
+    completionRate:
+      sprint.committed > 0
+        ? Math.round((sprint.completed / sprint.committed) * 100)
+        : 0,
+    openDecisions: decisions.filter(
+      (d) => d.status === "open" && d.productId === product.id
+    ),
   };
 }
 
@@ -88,7 +104,7 @@ function TaskList({ tasks }: { tasks: Task[] }) {
 
 /* ---------- 1. Internal PM: sprint health, workload, risk, capacity ---------- */
 function InternalPmBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = buildReportData(product, sprint);
+  const d = useReportData(product, sprint);
   const capacity = sprint.members.reduce((s, m) => s + m.capacityDays, 0);
   return (
     <Sections
@@ -171,7 +187,7 @@ function InternalPmBody({ product, sprint }: { product: Product; sprint: Sprint 
 
 /* ---------- 2. Client Facing: summary, scope, demo, decisions, client actions ---------- */
 function ClientFacingBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = buildReportData(product, sprint);
+  const d = useReportData(product, sprint);
   const client = getClient(product.clientId);
   return (
     <Sections
@@ -234,8 +250,8 @@ function ClientFacingBody({ product, sprint }: { product: Product; sprint: Sprin
 
 /* ---------- 3. Technical Team: backlog detail, blockers, QA, deploy, debt ---------- */
 function TechnicalBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = buildReportData(product, sprint);
-  const items = sprintBacklogItems(sprint);
+  const d = useReportData(product, sprint);
+  const items = d.backlogItems;
   const qa = reportExtras.qaSummary;
   return (
     <Sections
@@ -318,7 +334,7 @@ function TechnicalBody({ product, sprint }: { product: Product; sprint: Sprint }
 
 /* ---------- 4. Management: health, timeline risk, utilization, confidence ---------- */
 function ManagementBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = buildReportData(product, sprint);
+  const d = useReportData(product, sprint);
   const avgUtilization = Math.round(
     members.reduce((s, m) => s + m.workload, 0) / members.length
   );
@@ -381,7 +397,7 @@ function ManagementBody({ product, sprint }: { product: Product; sprint: Sprint 
 /* ---------- type-override bodies ---------- */
 
 function MemberPerformanceBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = buildReportData(product, sprint);
+  const d = useReportData(product, sprint);
   return (
     <Sections
       items={[
@@ -443,7 +459,7 @@ function MemberPerformanceBody({ product, sprint }: { product: Product; sprint: 
 }
 
 function RiskBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = buildReportData(product, sprint);
+  const d = useReportData(product, sprint);
   const client = getClient(product.clientId);
   return (
     <Sections
@@ -502,7 +518,7 @@ function GenericTemplateBody({
   sprint: Sprint;
   sections: string[];
 }) {
-  const d = buildReportData(product, sprint);
+  const d = useReportData(product, sprint);
   const known: Record<string, React.ReactNode> = {
     "executive summary": (
       <p>

@@ -918,6 +918,7 @@ export const velocity: VelocityEntry[] = [
 export const decisions: Decision[] = [
   {
     id: "d1",
+    productId: "oee-intelligence",
     date: "2026-07-01",
     title: "Pilot machines limited to Line 1",
     detail:
@@ -927,6 +928,7 @@ export const decisions: Decision[] = [
   },
   {
     id: "d2",
+    productId: "oee-intelligence",
     date: "2026-07-03",
     title: "OEE formula validation",
     detail: "Client to validate the OEE formula against their manual calculation.",
@@ -935,6 +937,7 @@ export const decisions: Decision[] = [
   },
   {
     id: "d3",
+    productId: "oee-intelligence",
     date: "2026-07-05",
     title: "Downtime category ownership",
     detail: "Client must assign an owner for downtime category definitions.",
@@ -1155,12 +1158,6 @@ export const getClient = (id: string) => clients.find((c) => c.id === id);
 export const getProject = (id: string) => projects.find((p) => p.id === id);
 export const getProduct = (id: string) => products.find((p) => p.id === id);
 export const getMember = (id: string) => members.find((m) => m.id === id);
-export const tasksOfSprint = (sprintId: string) =>
-  tasks.filter((t) => t.sprintId === sprintId);
-export const sprintBacklogItems = (sprint: Sprint) =>
-  sprint.backlogItemIds
-    .map((id) => backlog.find((b) => b.id === id))
-    .filter((b): b is BacklogItem => !!b);
 
 // ---------- hierarchy path builders ----------
 // Single source of truth for drill-down URLs so pages never hand-assemble them.

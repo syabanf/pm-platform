@@ -102,7 +102,7 @@ export default function HomePage() {
         kind: "Decision",
         title: decision.title,
         detail: `Owner: ${decision.owner}`,
-        href: `${productPathById("oee-intelligence")}/decisions`,
+        href: `${productPathById(decision.productId)}/decisions`,
       });
     });
   triage.sort((a, b) => b.severity - a.severity);

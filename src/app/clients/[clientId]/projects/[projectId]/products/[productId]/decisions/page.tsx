@@ -1,14 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { StatusPill } from "@/components/StatusPill";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field } from "@/components/Document";
-import { Button, Input, Panel, SectionHeader } from "@/components/ui";
+import { Button, EmptyState, Input, Panel, SectionHeader } from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
 
-export default function DecisionLogPage() {
+export default function DecisionLogPage({
+  params,
+}: {
+  params: Promise<{ productId: string }>;
+}) {
+  const { productId } = use(params);
   const { decisions, decisionsCrud, showToast } = usePrototype();
+  const productDecisions = decisions.filter((d) => d.productId === productId);
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState({ title: "", detail: "", owner: "Fahmi" });
 
@@ -19,6 +25,7 @@ export default function DecisionLogPage() {
     }
     decisionsCrud.add({
       id: newId("decision"),
+      productId,
       date: "2026-07-08",
       title: draft.title.trim(),
       detail: draft.detail.trim(),
@@ -73,8 +80,17 @@ export default function DecisionLogPage() {
         </Panel>
       )}
 
-      <ul className="mt-6 divide-y divide-line border-y border-line">
-        {decisions.map((decision) => (
+      {productDecisions.length === 0 && (
+        <div className="mt-6">
+          <EmptyState>
+            No decisions logged for this module yet. Capture the first one.
+          </EmptyState>
+        </div>
+      )}
+
+      {productDecisions.length > 0 && (
+        <ul className="mt-6 divide-y divide-line border-y border-line">
+          {productDecisions.map((decision) => (
           <li
             key={decision.id}
             className="group grid gap-2 py-5 md:grid-cols-[100px_1fr_auto] md:gap-6"
@@ -92,7 +108,9 @@ export default function DecisionLogPage() {
                     status: decision.status === "open" ? "decided" : "open",
                   })
                 }
+                aria-label={`Toggle status — currently ${decision.status}`}
                 title="Toggle status"
+                className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
               >
                 <StatusPill status={decision.status} />
               </button>
@@ -106,8 +124,9 @@ export default function DecisionLogPage() {
               </div>
             </div>
           </li>
-        ))}
-      </ul>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

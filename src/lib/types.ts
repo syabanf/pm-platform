@@ -161,6 +161,7 @@ export interface VelocityEntry {
 
 export interface Decision {
   id: string;
+  productId: string; // the Module this decision belongs to
   date: string;
   title: string;
   detail: string;

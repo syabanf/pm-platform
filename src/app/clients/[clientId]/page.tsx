@@ -53,7 +53,10 @@ export default function ClientDetailPage({
   const clientProducts = products.filter((p) => p.clientId === client.id);
   const atRisk = clientProducts.filter((p) => p.risk !== "low").length;
   const activeSprints = clientProducts.filter((p) => p.currentSprintId).length;
-  const openDecisions = decisions.filter((d) => d.status === "open").length;
+  const clientProductIds = new Set(clientProducts.map((p) => p.id));
+  const openDecisions = decisions.filter(
+    (d) => d.status === "open" && clientProductIds.has(d.productId)
+  ).length;
 
   const createProject = () => {
     if (!draft.name.trim()) {
