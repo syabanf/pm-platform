@@ -42,8 +42,8 @@ const tabs = [
   { label: "Home", href: "/" },
   { label: "Clients", href: "/clients" },
   { label: "Reports", href: "/reports" },
-  { label: "Docs", href: "/documents" },
   { label: "AI Coach", href: "/ai-coach" },
+  { label: "Docs", href: "/documents" },
 ];
 
 export function BottomNav() {

@@ -63,14 +63,16 @@ export default function ProductLayout({
 
       <div className="mt-8">
         <PageTabs
+          // Jira project order: work first (Summary → Backlog → Board →
+          // Reports), then taxonomy/config (Components → pages → people).
           tabs={[
             { label: "Overview", href: base, exact: true },
-            { label: "Members", href: `${base}/members` },
-            { label: "Components", href: `${base}/modules` },
             { label: "Backlog", href: `${base}/backlog` },
             { label: "Sprints", href: `${base}/sprints` },
             { label: "Reports", href: `${base}/reports` },
+            { label: "Components", href: `${base}/modules` },
             { label: "Decision Log", href: `${base}/decisions` },
+            { label: "Members", href: `${base}/members` },
           ]}
         />
       </div>

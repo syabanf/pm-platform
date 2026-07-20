@@ -46,6 +46,14 @@ const staticNavBottom: NavItem[] = [
     ],
   },
   {
+    label: "AI Coach",
+    href: "/ai-coach",
+    children: [
+      { label: "Portfolio Insights", href: "/ai-coach#portfolio" },
+      { label: "Module Insights", href: "/ai-coach#modules" },
+    ],
+  },
+  {
     label: "Documents",
     href: "/documents",
     children: [
@@ -54,14 +62,6 @@ const staticNavBottom: NavItem[] = [
       { label: "Change Request", href: "/documents/change-request" },
       { label: "UAT Sign-off", href: "/documents/uat-signoff" },
       { label: "Kickoff Charter", href: "/documents/kickoff" },
-    ],
-  },
-  {
-    label: "AI Coach",
-    href: "/ai-coach",
-    children: [
-      { label: "Portfolio Insights", href: "/ai-coach#portfolio" },
-      { label: "Module Insights", href: "/ai-coach#modules" },
     ],
   },
   {
