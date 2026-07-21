@@ -19,6 +19,30 @@ import {
 } from "@/components/ui";
 import { clientPath, productPath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
+import type { Product } from "@/lib/types";
+
+type ProductDraft = {
+  name: string;
+  goal: string;
+  owner: string;
+  deliveryLead: string;
+  status: Product["status"];
+};
+
+const emptyDraft: ProductDraft = {
+  name: "",
+  goal: "",
+  owner: "",
+  deliveryLead: "",
+  status: "discovery",
+};
+
+const statusOptions: { value: Product["status"]; label: string }[] = [
+  { value: "discovery", label: "Discovery" },
+  { value: "development", label: "Development" },
+  { value: "release", label: "Release" },
+  { value: "maintenance", label: "Maintenance" },
+];
 
 export default function ProjectDetailPage({
   params,
@@ -36,7 +60,8 @@ export default function ProjectDetailPage({
     showToast,
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
-  const [draft, setDraft] = useState({ name: "", goal: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState(emptyDraft);
   const [statusFilter, setStatusFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
 
@@ -64,9 +89,41 @@ export default function ProjectDetailPage({
       (riskFilter === "all" || p.risk === riskFilter)
   );
 
-  const createProduct = () => {
+  const openCreate = () => {
+    setEditingId(null);
+    setDraft(emptyDraft);
+    setPanelOpen(true);
+  };
+
+  const openEdit = (product: Product) => {
+    setEditingId(product.id);
+    setDraft({
+      name: product.name,
+      goal: product.goal,
+      owner: product.owner,
+      deliveryLead: product.deliveryLead,
+      status: product.status,
+    });
+    setPanelOpen(true);
+  };
+
+  const save = () => {
     if (!draft.name.trim()) {
       showToast("Module name is required.", "warning");
+      return;
+    }
+    if (editingId) {
+      productsCrud.update(editingId, {
+        name: draft.name.trim(),
+        goal: draft.goal.trim() || "Module goal to be defined.",
+        owner: draft.owner.trim(),
+        deliveryLead: draft.deliveryLead.trim(),
+        status: draft.status,
+      });
+      setDraft(emptyDraft);
+      setEditingId(null);
+      setPanelOpen(false);
+      showToast("Module updated.", "success");
       return;
     }
     productsCrud.add({
@@ -94,7 +151,7 @@ export default function ProjectDetailPage({
         confidence: "high",
       },
     });
-    setDraft({ name: "", goal: "" });
+    setDraft(emptyDraft);
     setPanelOpen(false);
     showToast("Module created. Define its components next.", "success");
   };
@@ -138,13 +195,16 @@ export default function ProjectDetailPage({
       <section className="mt-12">
         <div className="flex items-center justify-between">
           <h2 className="label">Modules — drill down</h2>
-          <Button size="sm" onClick={() => setPanelOpen(!panelOpen)}>
+          <Button
+            size="sm"
+            onClick={() => (panelOpen ? setPanelOpen(false) : openCreate())}
+          >
             Add Module
           </Button>
         </div>
 
         {panelOpen && (
-          <Panel className="mt-4">
+          <Panel title={editingId ? "Edit Module" : undefined} className="mt-4">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Module Name">
                 <input
@@ -161,9 +221,51 @@ export default function ProjectDetailPage({
                   className={inputClass}
                 />
               </Field>
+              {editingId && (
+                <>
+                  <Field label="Owner">
+                    <input
+                      value={draft.owner}
+                      onChange={(e) =>
+                        setDraft({ ...draft, owner: e.target.value })
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Delivery Lead">
+                    <input
+                      value={draft.deliveryLead}
+                      onChange={(e) =>
+                        setDraft({ ...draft, deliveryLead: e.target.value })
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Status">
+                    <select
+                      value={draft.status}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          status: e.target.value as Product["status"],
+                        })
+                      }
+                      className={inputClass}
+                    >
+                      {statusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </>
+              )}
             </div>
             <div className="mt-4 flex gap-2">
-              <Button onClick={createProduct}>Create Module</Button>
+              <Button onClick={save}>
+                {editingId ? "Save Changes" : "Create Module"}
+              </Button>
               <Button variant="secondary" onClick={() => setPanelOpen(false)}>
                 Cancel
               </Button>
@@ -243,6 +345,12 @@ export default function ProjectDetailPage({
                         </td>
                         <td className="py-4 text-right">
                           <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                            <button
+                              onClick={() => openEdit(product)}
+                              className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                            >
+                              Edit
+                            </button>
                             <ConfirmButton
                               onConfirm={() => {
                                 removeProductCascade(product.id);

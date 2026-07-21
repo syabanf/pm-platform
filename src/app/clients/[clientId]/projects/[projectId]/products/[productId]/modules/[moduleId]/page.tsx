@@ -15,6 +15,22 @@ import {
   allOf,
 } from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
+import type { Sprint } from "@/lib/types";
+
+const sprintStatuses: Sprint["status"][] = [
+  "planning",
+  "active",
+  "review",
+  "done",
+];
+
+const emptyDraft = {
+  name: "",
+  goal: "",
+  status: "planning" as Sprint["status"],
+  startDate: "",
+  endDate: "",
+};
 
 const readinessLabel: Record<string, string> = {
   ready: "Ready",
@@ -46,7 +62,8 @@ export default function ComponentDetailPage({
   const component = product?.modules.find((m) => m.id === moduleId);
 
   const [panelOpen, setPanelOpen] = useState(false);
-  const [draft, setDraft] = useState({ name: "", goal: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState(emptyDraft);
   const [sprintStatusFilter, setSprintStatusFilter] = useState("all");
 
   if (!product || !component) {
@@ -70,9 +87,39 @@ export default function ComponentDetailPage({
     (b) => b.productId === productId && b.moduleId === moduleId
   );
 
-  const addSprint = () => {
+  const openCreate = () => {
+    setEditingId(null);
+    setDraft(emptyDraft);
+    setPanelOpen(true);
+  };
+
+  const openEdit = (sprint: Sprint) => {
+    setEditingId(sprint.id);
+    setDraft({
+      name: sprint.name,
+      goal: sprint.goal,
+      status: sprint.status,
+      startDate: sprint.startDate,
+      endDate: sprint.endDate,
+    });
+    setPanelOpen(true);
+  };
+
+  const save = () => {
     if (!draft.name.trim()) {
       showToast("Sprint name is required.", "warning");
+      return;
+    }
+    if (editingId) {
+      sprintsCrud.update(editingId, {
+        name: draft.name.trim(),
+        goal: draft.goal.trim(),
+        status: draft.status,
+        startDate: draft.startDate,
+        endDate: draft.endDate,
+      });
+      setPanelOpen(false);
+      showToast("Sprint updated.", "success");
       return;
     }
     const nextNumber =
@@ -107,7 +154,7 @@ export default function ComponentDetailPage({
       progress: 0,
       risk: "low",
     });
-    setDraft({ name: "", goal: "" });
+    setDraft(emptyDraft);
     setPanelOpen(false);
     showToast(`Sprint added to ${component.name}. Plan it next.`, "success");
   };
@@ -150,13 +197,21 @@ export default function ComponentDetailPage({
       <section className="mt-12">
         <div className="flex items-center justify-between">
           <h3 className="label">Sprints — this component</h3>
-          <Button size="sm" onClick={() => setPanelOpen(!panelOpen)}>
+          <Button
+            size="sm"
+            onClick={() =>
+              panelOpen && !editingId ? setPanelOpen(false) : openCreate()
+            }
+          >
             Add Sprint
           </Button>
         </div>
 
         {panelOpen && (
-          <Panel className="animate-in mt-4">
+          <Panel
+            title={editingId ? "Edit Sprint" : undefined}
+            className="animate-in mt-4"
+          >
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Sprint Name">
                 <input
@@ -173,9 +228,53 @@ export default function ComponentDetailPage({
                   className={inputClass}
                 />
               </Field>
+              {editingId && (
+                <>
+                  <Field label="Status">
+                    <select
+                      value={draft.status}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          status: e.target.value as Sprint["status"],
+                        })
+                      }
+                      className={inputClass}
+                    >
+                      {sprintStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Start Date">
+                    <input
+                      type="date"
+                      value={draft.startDate}
+                      onChange={(e) =>
+                        setDraft({ ...draft, startDate: e.target.value })
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="End Date">
+                    <input
+                      type="date"
+                      value={draft.endDate}
+                      onChange={(e) =>
+                        setDraft({ ...draft, endDate: e.target.value })
+                      }
+                      className={inputClass}
+                    />
+                  </Field>
+                </>
+              )}
             </div>
             <div className="mt-4 flex gap-2">
-              <Button onClick={addSprint}>Create Sprint</Button>
+              <Button onClick={save}>
+                {editingId ? "Save Changes" : "Create Sprint"}
+              </Button>
               <Button variant="secondary" onClick={() => setPanelOpen(false)}>
                 Cancel
               </Button>
@@ -245,7 +344,13 @@ export default function ComponentDetailPage({
                         {sprint.completed} pts
                       </td>
                       <td className="py-4 text-right">
-                        <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            onClick={() => openEdit(sprint)}
+                            className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                          >
+                            Edit
+                          </button>
                           <ConfirmButton
                             onConfirm={() => {
                               sprintsCrud.remove(sprint.id);

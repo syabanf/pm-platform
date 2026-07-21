@@ -17,6 +17,9 @@ import {
 } from "@/components/ui";
 import { modulePath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
+import type { Module } from "@/lib/types";
+
+const emptyDraft = { name: "", owner: "" };
 
 export default function ModulesPage({
   params,
@@ -35,7 +38,8 @@ export default function ModulesPage({
     showToast,
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
-  const [draft, setDraft] = useState({ name: "", owner: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState(emptyDraft);
   const [statusFilter, setStatusFilter] = useState("all");
 
   const product = products.find((p) => p.id === productId);
@@ -45,25 +49,53 @@ export default function ModulesPage({
     (m) => statusFilter === "all" || m.status === statusFilter
   );
 
-  const addModule = () => {
+  const openCreate = () => {
+    setEditingId(null);
+    setDraft(emptyDraft);
+    setPanelOpen(true);
+  };
+
+  const openEdit = (module: Module) => {
+    setEditingId(module.id);
+    setDraft({ name: module.name, owner: module.owner });
+    setPanelOpen(true);
+  };
+
+  const save = () => {
     if (!draft.name.trim()) {
       showToast("Component name is required.", "warning");
       return;
     }
-    productsCrud.update(product.id, {
-      modules: [
-        ...product.modules,
-        {
-          id: newId("module"),
-          name: draft.name.trim(),
-          owner: draft.owner.trim() || "Unassigned",
-          status: "planned",
-        },
-      ],
-    });
-    setDraft({ name: "", owner: "" });
+    if (editingId) {
+      productsCrud.update(product.id, {
+        modules: product.modules.map((m) =>
+          m.id === editingId
+            ? {
+                ...m,
+                name: draft.name.trim(),
+                owner: draft.owner.trim() || "Unassigned",
+              }
+            : m
+        ),
+      });
+      showToast("Component updated.", "success");
+    } else {
+      productsCrud.update(product.id, {
+        modules: [
+          ...product.modules,
+          {
+            id: newId("module"),
+            name: draft.name.trim(),
+            owner: draft.owner.trim() || "Unassigned",
+            status: "planned",
+          },
+        ],
+      });
+      showToast("Component added.", "success");
+    }
+    setDraft(emptyDraft);
+    setEditingId(null);
     setPanelOpen(false);
-    showToast("Component added.", "success");
   };
 
   const removeModule = (moduleId: string) => {
@@ -97,14 +129,22 @@ export default function ModulesPage({
         title="Components"
         description="Functional parts of this module. Open a component to manage its sprints; click a status to change it."
         actions={
-          <Button size="sm" onClick={() => setPanelOpen(!panelOpen)}>
+          <Button
+            size="sm"
+            onClick={() =>
+              panelOpen && !editingId ? setPanelOpen(false) : openCreate()
+            }
+          >
             Add Component
           </Button>
         }
       />
 
       {panelOpen && (
-        <Panel className="animate-in mt-4">
+        <Panel
+          title={editingId ? "Edit Component" : undefined}
+          className="animate-in mt-4"
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Component Name">
               <Input
@@ -121,7 +161,9 @@ export default function ModulesPage({
             </Field>
           </div>
           <div className="mt-4 flex gap-2">
-            <Button onClick={addModule}>Add Component</Button>
+            <Button onClick={save}>
+              {editingId ? "Save Changes" : "Add Component"}
+            </Button>
             <Button variant="secondary" onClick={() => setPanelOpen(false)}>
               Cancel
             </Button>
@@ -197,7 +239,13 @@ export default function ModulesPage({
                     </button>
                   </td>
                   <td className="py-4 text-right">
-                    <div className="opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        onClick={() => openEdit(module)}
+                        className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                      >
+                        Edit
+                      </button>
                       <ConfirmButton onConfirm={() => removeModule(module.id)} />
                     </div>
                   </td>

@@ -13,6 +13,7 @@ import {
   PageHeader,
   Panel,
   Button,
+  Select,
   EmptyState,
   KpiStrip,
   FilterBar,
@@ -20,6 +21,20 @@ import {
 } from "@/components/ui";
 import { projectPath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
+import type { Project } from "@/lib/types";
+
+const emptyDraft = {
+  name: "",
+  objective: "",
+  status: "discovery" as Project["status"],
+};
+
+const projectStatuses: { value: Project["status"]; label: string }[] = [
+  { value: "discovery", label: "Discovery" },
+  { value: "active", label: "Active" },
+  { value: "done", label: "Done" },
+  { value: "on-hold", label: "On Hold" },
+];
 
 export default function ClientDetailPage({
   params,
@@ -37,7 +52,8 @@ export default function ClientDetailPage({
     showToast,
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
-  const [draft, setDraft] = useState({ name: "", objective: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState(emptyDraft);
   const [statusFilter, setStatusFilter] = useState("all");
 
   const client = clients.find((c) => c.id === clientId);
@@ -64,21 +80,46 @@ export default function ClientDetailPage({
     (d) => d.status === "open" && clientProductIds.has(d.productId)
   ).length;
 
-  const createProject = () => {
+  const openCreate = () => {
+    setEditingId(null);
+    setDraft(emptyDraft);
+    setPanelOpen(true);
+  };
+
+  const openEdit = (project: Project) => {
+    setEditingId(project.id);
+    setDraft({
+      name: project.name,
+      objective: project.objective,
+      status: project.status,
+    });
+    setPanelOpen(true);
+  };
+
+  const save = () => {
     if (!draft.name.trim()) {
       showToast("Project name is required.", "warning");
       return;
     }
-    projectsCrud.add({
-      id: newId("project"),
-      clientId: client.id,
-      name: draft.name.trim(),
-      objective: draft.objective.trim() || "Objective to be defined.",
-      status: "discovery",
-    });
-    setDraft({ name: "", objective: "" });
+    if (editingId) {
+      projectsCrud.update(editingId, {
+        name: draft.name.trim(),
+        objective: draft.objective.trim() || "Objective to be defined.",
+        status: draft.status,
+      });
+      showToast("Project updated.", "success");
+    } else {
+      projectsCrud.add({
+        id: newId("project"),
+        clientId: client.id,
+        name: draft.name.trim(),
+        objective: draft.objective.trim() || "Objective to be defined.",
+        status: draft.status,
+      });
+      showToast("Project created. Add a module to start delivery.", "success");
+    }
+    setDraft(emptyDraft);
     setPanelOpen(false);
-    showToast("Project created. Add a module to start delivery.", "success");
   };
 
   return (
@@ -117,13 +158,13 @@ export default function ClientDetailPage({
       <section className="mt-12">
         <div className="flex items-center justify-between">
           <h2 className="label">Projects — drill down</h2>
-          <Button size="sm" onClick={() => setPanelOpen(!panelOpen)}>
+          <Button size="sm" onClick={openCreate}>
             Add Project
           </Button>
         </div>
 
         {panelOpen && (
-          <Panel className="mt-4">
+          <Panel title={editingId ? "Edit Project" : undefined} className="mt-4">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Project Name">
                 <input
@@ -142,9 +183,28 @@ export default function ClientDetailPage({
                   className={inputClass}
                 />
               </Field>
+              <Field label="Status">
+                <Select
+                  value={draft.status}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      status: e.target.value as Project["status"],
+                    })
+                  }
+                >
+                  {projectStatuses.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
             </div>
             <div className="mt-4 flex gap-2">
-              <Button onClick={createProject}>Create Project</Button>
+              <Button onClick={save}>
+                {editingId ? "Save Changes" : "Create Project"}
+              </Button>
               <Button variant="secondary" onClick={() => setPanelOpen(false)}>
                 Cancel
               </Button>
@@ -217,6 +277,12 @@ export default function ClientDetailPage({
                           </td>
                           <td className="py-4 text-right">
                             <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                              <button
+                                onClick={() => openEdit(project)}
+                                className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                              >
+                                Edit
+                              </button>
                               <ConfirmButton
                                 onConfirm={() => {
                                   removeProjectCascade(project.id);
