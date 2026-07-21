@@ -6,8 +6,10 @@ export function DataTable({
   children: React.ReactNode;
 }) {
   return (
+    // break-words on cells so one pathologically long unbroken value (a pasted
+    // id, a URL) wraps instead of stretching its column off-screen.
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm [&_td]:break-words">
         <thead>
           <tr className="border-b border-black">
             {headers.map((h) => (

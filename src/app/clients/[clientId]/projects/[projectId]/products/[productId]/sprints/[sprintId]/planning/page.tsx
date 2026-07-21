@@ -299,7 +299,7 @@ export default function SprintPlanningPage({
                 </p>
               )}
             </div>
-            {committedSprint && (
+            {committedSprint?.sprintId === sprintId && (
               <p className="mt-4 text-sm text-success">
                 Sprint committed. The team can start executing from the Board.
               </p>
@@ -340,7 +340,7 @@ export default function SprintPlanningPage({
               )}
               <Button
                 onClick={() => {
-                  commitSprint({
+                  commitSprint(sprintId, {
                     goal,
                     memberIds: selectedMembers,
                     backlogIds: selectedBacklog,

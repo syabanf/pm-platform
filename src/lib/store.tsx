@@ -138,8 +138,16 @@ interface PrototypeState {
   setAiPanelOpen: (open: boolean) => void;
   reportConfig: ReportConfig | null;
   setReportConfig: (config: ReportConfig | null) => void;
-  committedSprint: { goal: string; memberIds: string[]; backlogIds: string[] } | null;
-  commitSprint: (data: { goal: string; memberIds: string[]; backlogIds: string[] }) => void;
+  committedSprint: {
+    sprintId: string;
+    goal: string;
+    memberIds: string[];
+    backlogIds: string[];
+  } | null;
+  commitSprint: (
+    sprintId: string,
+    data: { goal: string; memberIds: string[]; backlogIds: string[] }
+  ) => void;
 }
 
 const PrototypeContext = createContext<PrototypeState | null>(null);
@@ -453,11 +461,43 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     [setTasks]
   );
 
+  // Committing a sprint must actually write the plan onto the sprint —
+  // otherwise planning is a dead end and the board/burndown stay empty.
   const commitSprint = useCallback(
-    (data: { goal: string; memberIds: string[]; backlogIds: string[] }) => {
-      setCommittedSprint(data);
+    (
+      sprintId: string,
+      data: { goal: string; memberIds: string[]; backlogIds: string[] }
+    ) => {
+      const sprintMembers = data.memberIds.map((memberId) => {
+        const member = members.find((m) => m.id === memberId);
+        return {
+          memberId,
+          allocation: member?.allocation ?? 100,
+          capacityDays: member?.capacityDays ?? 0,
+        };
+      });
+      const committed = data.backlogIds.reduce(
+        (sum, id) => sum + (backlog.find((b) => b.id === id)?.estimate ?? 0),
+        0
+      );
+      setSprints((prev) =>
+        prev.map((s) =>
+          s.id === sprintId
+            ? {
+                ...s,
+                goal: data.goal.trim() || s.goal,
+                members: sprintMembers,
+                backlogItemIds: data.backlogIds,
+                committed,
+                // a committed sprint starts running
+                status: s.status === "planning" ? "active" : s.status,
+              }
+            : s
+        )
+      );
+      setCommittedSprint({ sprintId, ...data });
     },
-    []
+    [members, backlog, setSprints]
   );
 
   return (

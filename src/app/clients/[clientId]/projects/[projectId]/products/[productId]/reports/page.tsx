@@ -62,6 +62,15 @@ export default function ReportsPage({
   const currentReport = history.find((r) => r.id === reportId);
 
   const generate = () => {
+    // Every report body is built from a sprint; without one we would persist a
+    // report that renders nothing. Refuse instead of saving a phantom.
+    if (!sprint) {
+      showToast(
+        "This module has no sprints yet — add one before generating a report.",
+        "warning"
+      );
+      return;
+    }
     const config = { type, template, period };
     setGenerated(config);
     const id = newId("report");
