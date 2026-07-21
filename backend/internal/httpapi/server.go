@@ -3,10 +3,12 @@ package httpapi
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -80,9 +82,37 @@ func errorHandler(err error, c echo.Context) {
 		}
 	case errors.Is(err, pgx.ErrNoRows):
 		status, msg = http.StatusNotFound, "not found"
+	default:
+		if s, m, ok := constraintError(err); ok {
+			status, msg = s, m
+		}
 	}
 
 	_ = c.JSON(status, apiError{Error: msg})
+}
+
+// constraintError maps a Postgres integrity violation onto a 4xx. These are
+// caused by bad client input, so answering 500 would be a lie.
+func constraintError(err error) (int, string, bool) {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return 0, "", false
+	}
+	switch pgErr.Code {
+	case "23505": // unique_violation
+		return http.StatusConflict, "a record with that id already exists", true
+	case "23503": // foreign_key_violation
+		return http.StatusBadRequest, "referenced record does not exist", true
+	case "23514": // check_violation
+		return http.StatusBadRequest,
+			fmt.Sprintf("value not allowed by %s", pgErr.ConstraintName), true
+	case "23502": // not_null_violation
+		return http.StatusBadRequest,
+			fmt.Sprintf("%s is required", pgErr.ColumnName), true
+	case "22001": // string_data_right_truncation
+		return http.StatusBadRequest, "a value is too long for its column", true
+	}
+	return 0, "", false
 }
 
 // bind decodes and validates the JSON body into dst.
@@ -99,7 +129,19 @@ func dbErr(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusNotFound, "not found")
 	}
+	if status, msg, ok := constraintError(err); ok {
+		return echo.NewHTTPError(status, msg)
+	}
 	return err
+}
+
+// orDefault falls back when a client omits an optional constrained field, so
+// the insert uses the column's intended default instead of tripping a CHECK.
+func orDefault(v, fallback string) string {
+	if strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	return v
 }
 
 // param returns a required path parameter.

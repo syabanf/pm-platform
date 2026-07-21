@@ -148,8 +148,6 @@ func (q *Queries) CreateBacklogItem(ctx context.Context, arg CreateBacklogItemPa
 }
 
 const createSprint = `-- name: CreateSprint :one
-
-
 INSERT INTO sprints (
     id,
     product_id,
@@ -190,15 +188,105 @@ type CreateSprintParams struct {
 	Risk        string     `json:"risk"`
 }
 
-// Sprints, sprint membership, sprint backlog and the product backlog.
-// Naming note: products = UI "Module", modules = UI "Component".
-// ---------------------------------------------------------------- sprints ---
 func (q *Queries) CreateSprint(ctx context.Context, arg CreateSprintParams) (Sprint, error) {
 	row := q.db.QueryRow(ctx, createSprint,
 		arg.ID,
 		arg.ProductID,
 		arg.ModuleID,
 		arg.Number,
+		arg.Name,
+		arg.Goal,
+		arg.StartDate,
+		arg.EndDate,
+		arg.WorkingDays,
+		arg.DaysLeft,
+		arg.Status,
+		arg.Committed,
+		arg.Completed,
+		arg.Progress,
+		arg.Risk,
+	)
+	var i Sprint
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.ModuleID,
+		&i.Number,
+		&i.Name,
+		&i.Goal,
+		&i.StartDate,
+		&i.EndDate,
+		&i.WorkingDays,
+		&i.DaysLeft,
+		&i.Status,
+		&i.Committed,
+		&i.Completed,
+		&i.Progress,
+		&i.Risk,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createSprintAutoNumber = `-- name: CreateSprintAutoNumber :one
+
+
+INSERT INTO sprints (
+    id,
+    product_id,
+    module_id,
+    number,
+    name,
+    goal,
+    start_date,
+    end_date,
+    working_days,
+    days_left,
+    status,
+    committed,
+    completed,
+    progress,
+    risk
+) VALUES (
+    $1,
+    $2,
+    $3,
+    (SELECT COALESCE(MAX(number), 0) + 1 FROM sprints WHERE product_id = $2),
+    $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+)
+RETURNING id, product_id, module_id, number, name, goal, start_date, end_date, working_days, days_left, status, committed, completed, progress, risk, created_at, updated_at
+`
+
+type CreateSprintAutoNumberParams struct {
+	ID          string     `json:"id"`
+	ProductID   string     `json:"productId"`
+	ModuleID    *string    `json:"moduleId"`
+	Name        string     `json:"name"`
+	Goal        string     `json:"goal"`
+	StartDate   *time.Time `json:"startDate"`
+	EndDate     *time.Time `json:"endDate"`
+	WorkingDays int32      `json:"workingDays"`
+	DaysLeft    int32      `json:"daysLeft"`
+	Status      string     `json:"status"`
+	Committed   int32      `json:"committed"`
+	Completed   int32      `json:"completed"`
+	Progress    int32      `json:"progress"`
+	Risk        string     `json:"risk"`
+}
+
+// Sprints, sprint membership, sprint backlog and the product backlog.
+// Naming note: products = UI "Module", modules = UI "Component".
+// ---------------------------------------------------------------- sprints ---
+// Assigns the next sprint number for the product inside the INSERT itself, so
+// concurrent creates cannot both read the same MAX(number). The UNIQUE
+// (product_id, number) constraint is still the final arbiter; the caller
+// retries on a unique violation.
+func (q *Queries) CreateSprintAutoNumber(ctx context.Context, arg CreateSprintAutoNumberParams) (Sprint, error) {
+	row := q.db.QueryRow(ctx, createSprintAutoNumber,
+		arg.ID,
+		arg.ProductID,
+		arg.ModuleID,
 		arg.Name,
 		arg.Goal,
 		arg.StartDate,

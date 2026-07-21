@@ -142,6 +142,13 @@ func (s *Server) createProduct(c echo.Context) error {
 		id = newProductScopedID("prd")
 	}
 
+	// health has a CHECK (0..100) and DEFAULT 100; an absent value must not
+	// become 0, which would silently record a failing product.
+	health := int32(100)
+	if req.Health != nil {
+		health = *req.Health
+	}
+
 	arg := db.CreateProductParams{
 		ID:              id,
 		ProjectID:       req.ProjectID,
@@ -150,9 +157,9 @@ func (s *Server) createProduct(c echo.Context) error {
 		Goal:            deref(req.Goal),
 		Owner:           deref(req.Owner),
 		DeliveryLead:    deref(req.DeliveryLead),
-		Status:          deref(req.Status),
-		Health:          deref(req.Health),
-		Risk:            deref(req.Risk),
+		Status:          orDefault(deref(req.Status), "discovery"),
+		Health:          health,
+		Risk:            orDefault(deref(req.Risk), "low"),
 		Velocity:        deref(req.Velocity),
 		BlockedCount:    deref(req.BlockedCount),
 		CurrentSprintID: req.CurrentSprintID,
@@ -321,8 +328,8 @@ func (s *Server) createModule(c echo.Context) error {
 		ID:        id,
 		ProductID: productID,
 		Name:      req.Name,
-		Owner:     deref(req.Owner),
-		Status:    deref(req.Status),
+		Owner:     orDefault(deref(req.Owner), "Unassigned"),
+		Status:    orDefault(deref(req.Status), "planned"),
 		Position:  deref(req.Position),
 	})
 	if err != nil {

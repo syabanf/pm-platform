@@ -138,12 +138,12 @@ func (s *Server) createClient(c echo.Context) error {
 		ID:           id,
 		Name:         req.Name,
 		Industry:     deref(req.Industry),
-		Status:       deref(req.Status),
+		Status:       orDefault(deref(req.Status), "active"),
 		ClientPic:    deref(req.ClientPic),
 		WitOwner:     deref(req.WitOwner),
 		ContractType: deref(req.ContractType),
-		Health:       deref(req.Health),
-		Risk:         deref(req.Risk),
+		Health:       orDefault(deref(req.Health), "healthy"),
+		Risk:         orDefault(deref(req.Risk), "low"),
 		Notes:        deref(req.Notes),
 		ActionNeeded: actionNeeded,
 		AiInsight:    rawToClientBytes(req.AiInsight, nil),
@@ -187,6 +187,9 @@ func (s *Server) updateClient(c echo.Context) error {
 	actionNeeded := cur.ActionNeeded
 	if req.ActionNeeded != nil {
 		actionNeeded = req.ActionNeeded
+	}
+	if actionNeeded == nil {
+		actionNeeded = []string{}
 	}
 
 	arg := db.UpdateClientParams{
@@ -266,7 +269,7 @@ func (s *Server) createProject(c echo.Context) error {
 		ClientID:  req.ClientID,
 		Name:      req.Name,
 		Objective: deref(req.Objective),
-		Status:    deref(req.Status),
+		Status:    orDefault(deref(req.Status), "discovery"),
 	}
 
 	row, err := s.q.CreateProject(c.Request().Context(), arg)

@@ -3,10 +3,12 @@ package httpapi
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/labstack/echo/v4"
 
 	"github.com/syabanf/pm-platform/backend/internal/db"
@@ -164,49 +166,82 @@ func (s *Server) createSprint(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
 	}
 
-	number := deref(req.Number)
-	if req.Number == nil {
-		number, err = s.q.NextSprintNumber(ctx, productID)
-		if err != nil {
-			return dbErr(err)
-		}
-	}
-
 	id := deref(req.ID)
 	if id == "" {
 		id = newSprintScopedID("spr")
 	}
 
-	status := deref(req.Status)
-	if status == "" {
-		status = "planned"
+	workingDays := int32(10)
+	if req.WorkingDays != nil {
+		workingDays = *req.WorkingDays
 	}
-	risk := deref(req.Risk)
-	if risk == "" {
-		risk = "low"
+	daysLeft := int32(10)
+	if req.DaysLeft != nil {
+		daysLeft = *req.DaysLeft
 	}
 
-	row, err := s.q.CreateSprint(ctx, db.CreateSprintParams{
-		ID:          id,
-		ProductID:   productID,
-		ModuleID:    req.ModuleID,
-		Number:      number,
-		Name:        req.Name,
-		Goal:        req.Goal,
-		StartDate:   req.StartDate,
-		EndDate:     req.EndDate,
-		WorkingDays: deref(req.WorkingDays),
-		DaysLeft:    deref(req.DaysLeft),
-		Status:      status,
-		Committed:   deref(req.Committed),
-		Completed:   deref(req.Completed),
-		Progress:    deref(req.Progress),
-		Risk:        risk,
-	})
-	if err != nil {
-		return dbErr(err)
+	status := orDefault(deref(req.Status), "planning")
+	risk := orDefault(deref(req.Risk), "low")
+
+	// Explicit number: the caller owns it, so a clash is genuinely a conflict.
+	if req.Number != nil {
+		row, err := s.q.CreateSprint(ctx, db.CreateSprintParams{
+			ID:          id,
+			ProductID:   productID,
+			ModuleID:    req.ModuleID,
+			Number:      *req.Number,
+			Name:        req.Name,
+			Goal:        req.Goal,
+			StartDate:   req.StartDate,
+			EndDate:     req.EndDate,
+			WorkingDays: workingDays,
+			DaysLeft:    daysLeft,
+			Status:      status,
+			Committed:   deref(req.Committed),
+			Completed:   deref(req.Completed),
+			Progress:    deref(req.Progress),
+			Risk:        risk,
+		})
+		if err != nil {
+			return dbErr(err)
+		}
+		return c.JSON(http.StatusCreated, row)
 	}
-	return c.JSON(http.StatusCreated, row)
+
+	// Auto-numbered: the number is computed inside the INSERT. Concurrent
+	// creates can still collide on UNIQUE (product_id, number), so retry —
+	// otherwise a burst of simultaneous creates would fail with 409s.
+	var lastErr error
+	for attempt := 0; attempt < 8; attempt++ {
+		row, err := s.q.CreateSprintAutoNumber(ctx, db.CreateSprintAutoNumberParams{
+			ID:          id,
+			ProductID:   productID,
+			ModuleID:    req.ModuleID,
+			Name:        req.Name,
+			Goal:        req.Goal,
+			StartDate:   req.StartDate,
+			EndDate:     req.EndDate,
+			WorkingDays: workingDays,
+			DaysLeft:    daysLeft,
+			Status:      status,
+			Committed:   deref(req.Committed),
+			Completed:   deref(req.Completed),
+			Progress:    deref(req.Progress),
+			Risk:        risk,
+		})
+		if err == nil {
+			return c.JSON(http.StatusCreated, row)
+		}
+		lastErr = err
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+			return dbErr(err)
+		}
+		if ctx.Err() != nil {
+			return dbErr(ctx.Err())
+		}
+	}
+	return dbErr(lastErr)
 }
 
 func (s *Server) getSprint(c echo.Context) error {
@@ -478,19 +513,6 @@ func (s *Server) createBacklogItem(c echo.Context) error {
 		id = newSprintScopedID("bli")
 	}
 
-	itemType := deref(req.Type)
-	if itemType == "" {
-		itemType = "story"
-	}
-	priority := deref(req.Priority)
-	if priority == "" {
-		priority = "medium"
-	}
-	readiness := deref(req.Readiness)
-	if readiness == "" {
-		readiness = "draft"
-	}
-
 	acceptance := req.AcceptanceCriteria
 	if acceptance == nil {
 		acceptance = []string{}
@@ -507,9 +529,9 @@ func (s *Server) createBacklogItem(c echo.Context) error {
 		Title:              req.Title,
 		Story:              req.Story,
 		AcceptanceCriteria: acceptance,
-		Type:               itemType,
-		Priority:           priority,
-		Readiness:          readiness,
+		Type:               orDefault(deref(req.Type), "story"),
+		Priority:           orDefault(deref(req.Priority), "medium"),
+		Readiness:          orDefault(deref(req.Readiness), "draft"),
 		Estimate:           deref(req.Estimate),
 		AiSuggestions:      suggestions,
 	})

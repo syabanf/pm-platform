@@ -35,10 +35,15 @@ type Querier interface {
 	// --------------------------------------------------------------- projects ---
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
 	CreateReportQueueItem(ctx context.Context, arg CreateReportQueueItemParams) (ReportQueue, error)
+	CreateSprint(ctx context.Context, arg CreateSprintParams) (Sprint, error)
 	// Sprints, sprint membership, sprint backlog and the product backlog.
 	// Naming note: products = UI "Module", modules = UI "Component".
 	// ---------------------------------------------------------------- sprints ---
-	CreateSprint(ctx context.Context, arg CreateSprintParams) (Sprint, error)
+	// Assigns the next sprint number for the product inside the INSERT itself, so
+	// concurrent creates cannot both read the same MAX(number). The UNIQUE
+	// (product_id, number) constraint is still the final arbiter; the caller
+	// retries on a unique violation.
+	CreateSprintAutoNumber(ctx context.Context, arg CreateSprintAutoNumberParams) (Sprint, error)
 	// ------------------------------------------------------------------ tasks ---
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	DeleteBacklogItem(ctx context.Context, id string) error

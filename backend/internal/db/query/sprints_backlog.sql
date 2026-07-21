@@ -3,6 +3,36 @@
 
 -- ---------------------------------------------------------------- sprints ---
 
+-- name: CreateSprintAutoNumber :one
+-- Assigns the next sprint number for the product inside the INSERT itself, so
+-- concurrent creates cannot both read the same MAX(number). The UNIQUE
+-- (product_id, number) constraint is still the final arbiter; the caller
+-- retries on a unique violation.
+INSERT INTO sprints (
+    id,
+    product_id,
+    module_id,
+    number,
+    name,
+    goal,
+    start_date,
+    end_date,
+    working_days,
+    days_left,
+    status,
+    committed,
+    completed,
+    progress,
+    risk
+) VALUES (
+    $1,
+    $2,
+    $3,
+    (SELECT COALESCE(MAX(number), 0) + 1 FROM sprints WHERE product_id = $2),
+    $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+)
+RETURNING *;
+
 -- name: CreateSprint :one
 INSERT INTO sprints (
     id,

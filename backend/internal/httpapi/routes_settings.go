@@ -104,7 +104,7 @@ func (s *Server) upsertReportTemplate(c echo.Context) error {
 		ID:         req.ID,
 		Name:       req.Name,
 		Audience:   req.Audience,
-		Visibility: req.Visibility,
+		Visibility: orDefault(req.Visibility, "internal"),
 		Sections:   req.Sections,
 	})
 	if err != nil {
@@ -170,9 +170,6 @@ func (s *Server) createReportQueueItem(c echo.Context) error {
 	if req.ID == "" {
 		req.ID = newSettingsID("rq")
 	}
-	if req.Status == "" {
-		req.Status = "queued"
-	}
 
 	row, err := s.q.CreateReportQueueItem(c.Request().Context(), db.CreateReportQueueItemParams{
 		ID:        req.ID,
@@ -182,7 +179,7 @@ func (s *Server) createReportQueueItem(c echo.Context) error {
 		Type:      req.Type,
 		Template:  req.Template,
 		Due:       due,
-		Status:    req.Status,
+		Status:    orDefault(req.Status, "open"),
 	})
 	if err != nil {
 		return dbErr(err)
@@ -271,9 +268,6 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 	if req.ID == "" {
 		req.ID = newSettingsID("rep")
 	}
-	if req.Status == "" {
-		req.Status = "draft"
-	}
 
 	row, err := s.q.CreateGeneratedReport(c.Request().Context(), db.CreateGeneratedReportParams{
 		ID:          req.ID,
@@ -283,7 +277,7 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 		Template:    req.Template,
 		Period:      req.Period,
 		GeneratedOn: deref(generatedOn),
-		Status:      req.Status,
+		Status:      orDefault(req.Status, "draft"),
 	})
 	if err != nil {
 		return dbErr(err)

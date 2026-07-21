@@ -128,14 +128,8 @@ func (s *Server) createTask(c echo.Context) error {
 	if id == "" {
 		id = newTaskScopedID("tsk")
 	}
-	boardColumn := deref(req.BoardColumn)
-	if boardColumn == "" {
-		boardColumn = "todo"
-	}
-	priority := deref(req.Priority)
-	if priority == "" {
-		priority = "medium"
-	}
+	boardColumn := orDefault(deref(req.BoardColumn), "selected")
+	priority := orDefault(deref(req.Priority), "medium")
 
 	row, err := s.q.CreateTask(c.Request().Context(), db.CreateTaskParams{
 		ID:            id,
@@ -394,13 +388,14 @@ func (s *Server) createMember(c echo.Context) error {
 	if roleLabel == "" {
 		roleLabel = req.Role
 	}
-	status := deref(req.Status)
-	if status == "" {
-		status = "active"
-	}
+	status := orDefault(deref(req.Status), "active")
 	tags := req.SkillTags
 	if tags == nil {
 		tags = []string{}
+	}
+	allocation := int32(100)
+	if req.Allocation != nil {
+		allocation = *req.Allocation
 	}
 
 	row, err := s.q.CreateMember(c.Request().Context(), db.CreateMemberParams{
@@ -410,7 +405,7 @@ func (s *Server) createMember(c echo.Context) error {
 		Role:         req.Role,
 		RoleLabel:    roleLabel,
 		SkillTags:    tags,
-		Allocation:   deref(req.Allocation),
+		Allocation:   allocation,
 		CapacityDays: deref(req.CapacityDays),
 		Workload:     deref(req.Workload),
 		Status:       status,
@@ -569,10 +564,7 @@ func (s *Server) createDecision(c echo.Context) error {
 	if id == "" {
 		id = newTaskScopedID("dec")
 	}
-	status := deref(req.Status)
-	if status == "" {
-		status = "open"
-	}
+	status := orDefault(deref(req.Status), "open")
 
 	row, err := s.q.CreateDecision(c.Request().Context(), db.CreateDecisionParams{
 		ID:        id,
