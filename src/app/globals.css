@@ -18,6 +18,13 @@
   --color-brand-dark: #c8151c;
 
   --font-sans: var(--font-inter), "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Tailwind's own `transition-*` utilities default to `ease` at 150ms, which
+     would override the base rule below on every element that uses them — i.e.
+     most interactive controls. Pointing the framework defaults at the same
+     curve keeps the whole app on one motion feel. */
+  --default-transition-duration: 160ms;
+  --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
@@ -65,10 +72,25 @@ body {
 
 /* ---------- motion ---------- */
 
+/* One scale for the whole app. Durations are a rhythm, not arbitrary numbers,
+   and the curves are tuned rather than the browser's generic keywords:
+   `ease-out` decelerates almost linearly and reads as a stop, while an
+   expo-style settle starts fast and eases in gently — that is what makes a
+   transition feel smooth rather than mechanical. */
+:root {
+  --dur-fast: 160ms; /* hover, colour, press */
+  --dur-base: 240ms; /* panels, disclosure */
+  --dur-slow: 380ms; /* page + list entrances */
+
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1); /* entrances: fast in, soft landing */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1); /* symmetric, for state changes */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1); /* leaving: accelerate away */
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -107,24 +129,24 @@ body {
 
 /* page-level transition (applied by app/template.tsx on every navigation) */
 .animate-page {
-  animation: fade-up 0.28s ease-out both;
+  animation: fade-up var(--dur-slow) var(--ease-settle) both;
 }
 
 /* conditional panels (create/edit forms) */
 .animate-in {
-  animation: fade-up 0.2s ease-out both;
+  animation: fade-up var(--dur-base) var(--ease-settle) both;
 }
 
 .animate-slide-in {
-  animation: slide-in-right 0.25s ease-out both;
+  animation: slide-in-right var(--dur-base) var(--ease-settle) both;
 }
 
 .animate-toast {
-  animation: toast-up 0.2s ease-out both;
+  animation: toast-up var(--dur-base) var(--ease-settle) both;
 }
 
 .animate-fade {
-  animation: fade-in 0.2s ease-out both;
+  animation: fade-in var(--dur-base) var(--ease-soft) both;
 }
 
 /* Staggered entrance for list/table children. Delays are capped at 10 so a
@@ -141,7 +163,7 @@ body {
 }
 
 .animate-stagger > * {
-  animation: stagger-in 0.3s ease-out both;
+  animation: stagger-in var(--dur-slow) var(--ease-settle) both;
 }
 .animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
 .animate-stagger > *:nth-child(2) { animation-delay: 30ms; }
@@ -167,7 +189,7 @@ body {
 
 .animate-draw {
   stroke-dasharray: var(--draw-len, 2000);
-  animation: draw-line 0.9s ease-out both;
+  animation: draw-line 1s var(--ease-settle) both;
 }
 
 /* Bars and progress fills grow from their leading edge. */
@@ -182,31 +204,37 @@ body {
 
 .animate-grow-x {
   transform-origin: left;
-  animation: grow-x 0.45s ease-out both;
+  animation: grow-x var(--dur-slow) var(--ease-settle) both;
 }
 
 /* Height-animated disclosure without measuring: 0fr -> 1fr on a grid row. */
 .animate-collapse {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.25s ease;
+  transition: grid-template-rows var(--dur-base) var(--ease-soft);
 }
 .animate-collapse[data-open="true"] {
   grid-template-rows: 1fr;
 }
+/* Fading alongside the height stops the content from visibly squashing. */
 .animate-collapse > * {
   overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-soft);
+}
+.animate-collapse[data-open="true"] > * {
+  opacity: 1;
 }
 
 /* quiet micro-interactions everywhere */
 button,
 a {
   transition:
-    color 0.15s ease,
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    opacity 0.15s ease,
-    transform 0.15s ease;
+    color var(--dur-fast) var(--ease-soft),
+    background-color var(--dur-fast) var(--ease-soft),
+    border-color var(--dur-fast) var(--ease-soft),
+    opacity var(--dur-fast) var(--ease-soft),
+    transform var(--dur-fast) var(--ease-settle);
 }
 
 button:active {
@@ -214,7 +242,7 @@ button:active {
 }
 
 tr {
-  transition: background-color 0.15s ease;
+  transition: background-color var(--dur-fast) var(--ease-soft);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -235,7 +263,8 @@ tr {
   button,
   a,
   tr,
-  .animate-collapse {
+  .animate-collapse,
+  .animate-collapse > * {
     transition: none;
   }
 }
