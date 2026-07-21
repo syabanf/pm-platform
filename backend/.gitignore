@@ -1,0 +1,10 @@
+# Local env — never commit real credentials
+.env
+
+# Build output
+bin/
+*.exe
+
+# Go test/coverage artifacts
+*.out
+coverage.*
