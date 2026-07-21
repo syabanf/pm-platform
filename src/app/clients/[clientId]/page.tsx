@@ -15,6 +15,8 @@ import {
   Button,
   EmptyState,
   KpiStrip,
+  FilterBar,
+  allOf,
 } from "@/components/ui";
 import { projectPath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
@@ -36,6 +38,7 @@ export default function ClientDetailPage({
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState({ name: "", objective: "" });
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const client = clients.find((c) => c.id === clientId);
   if (!client) {
@@ -50,6 +53,9 @@ export default function ClientDetailPage({
   }
 
   const clientProjects = projects.filter((p) => p.clientId === client.id);
+  const filteredProjects = clientProjects.filter(
+    (p) => statusFilter === "all" || p.status === statusFilter
+  );
   const clientProducts = products.filter((p) => p.clientId === client.id);
   const atRisk = clientProducts.filter((p) => p.risk !== "low").length;
   const activeSprints = clientProducts.filter((p) => p.currentSprintId).length;
@@ -152,55 +158,83 @@ export default function ClientDetailPage({
               No projects yet. Add the first project for {client.name}.
             </EmptyState>
           ) : (
-            <DataTable
-              headers={["Project", "Status", "Modules", "At Risk", ""]}
-            >
-              {clientProjects.map((project) => {
-                const projProducts = products.filter(
-                  (p) => p.projectId === project.id
-                );
-                const projAtRisk = projProducts.filter((p) => p.risk !== "low");
-                return (
-                  <tr key={project.id} className="group">
-                    <td className="py-4 pr-6">
-                      <Link
-                        href={projectPath(project)}
-                        className="font-medium text-ink hover:underline"
-                      >
-                        {project.name}
-                      </Link>
-                      <div className="text-xs text-muted">
-                        {project.objective}
-                      </div>
-                    </td>
-                    <td className="py-4 pr-6">
-                      <StatusPill status={project.status} />
-                    </td>
-                    <td className="py-4 pr-6 tabular-nums">
-                      {projProducts.length}
-                    </td>
-                    <td
-                      className={`py-4 pr-6 tabular-nums ${projAtRisk.length > 0 ? "text-warning" : "text-muted"}`}
-                    >
-                      {projAtRisk.length}
-                    </td>
-                    <td className="py-4 text-right">
-                      <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                        <ConfirmButton
-                          onConfirm={() => {
-                            removeProjectCascade(project.id);
-                            showToast(
-                              `${project.name} and its modules were removed.`,
-                              "info"
-                            );
-                          }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </DataTable>
+            <>
+              <FilterBar
+                groups={[
+                  {
+                    label: "Status",
+                    value: statusFilter,
+                    onChange: setStatusFilter,
+                    options: allOf([
+                      { value: "discovery", label: "Discovery" },
+                      { value: "active", label: "Active" },
+                      { value: "done", label: "Done" },
+                      { value: "on-hold", label: "On Hold" },
+                    ]),
+                  },
+                ]}
+                summary={`${filteredProjects.length} of ${clientProjects.length}`}
+              />
+              {filteredProjects.length === 0 ? (
+                <EmptyState className="mt-4">
+                  No projects match the filters.
+                </EmptyState>
+              ) : (
+                <div className="mt-4">
+                  <DataTable
+                    headers={["Project", "Status", "Modules", "At Risk", ""]}
+                  >
+                    {filteredProjects.map((project) => {
+                      const projProducts = products.filter(
+                        (p) => p.projectId === project.id
+                      );
+                      const projAtRisk = projProducts.filter(
+                        (p) => p.risk !== "low"
+                      );
+                      return (
+                        <tr key={project.id} className="group">
+                          <td className="py-4 pr-6">
+                            <Link
+                              href={projectPath(project)}
+                              className="font-medium text-ink hover:underline"
+                            >
+                              {project.name}
+                            </Link>
+                            <div className="text-xs text-muted">
+                              {project.objective}
+                            </div>
+                          </td>
+                          <td className="py-4 pr-6">
+                            <StatusPill status={project.status} />
+                          </td>
+                          <td className="py-4 pr-6 tabular-nums">
+                            {projProducts.length}
+                          </td>
+                          <td
+                            className={`py-4 pr-6 tabular-nums ${projAtRisk.length > 0 ? "text-warning" : "text-muted"}`}
+                          >
+                            {projAtRisk.length}
+                          </td>
+                          <td className="py-4 text-right">
+                            <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                              <ConfirmButton
+                                onConfirm={() => {
+                                  removeProjectCascade(project.id);
+                                  showToast(
+                                    `${project.name} and its modules were removed.`,
+                                    "info"
+                                  );
+                                }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </DataTable>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>

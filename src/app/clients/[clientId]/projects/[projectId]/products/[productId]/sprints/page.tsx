@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
@@ -9,7 +9,7 @@ import { SprintGantt } from "@/components/SprintGantt";
 import { SprintCalendar } from "@/components/SprintCalendar";
 import { productPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
-import { SectionHeader } from "@/components/ui";
+import { FilterBar, SectionHeader, allOf } from "@/components/ui";
 
 export default function SprintsListPage({
   params,
@@ -27,6 +27,13 @@ export default function SprintsListPage({
   const componentName = (moduleId: string) =>
     product?.modules.find((m) => m.id === moduleId)?.name ?? "—";
   const view = viewPrefs.sprints;
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [componentFilter, setComponentFilter] = useState("all");
+  const filtered = sprints.filter(
+    (s) =>
+      (statusFilter === "all" || s.status === statusFilter) &&
+      (componentFilter === "all" || s.moduleId === componentFilter)
+  );
 
   return (
     <div>
@@ -46,20 +53,55 @@ export default function SprintsListPage({
         }
       />
 
+      {sprints.length > 0 && (
+        <FilterBar
+          className="mt-6"
+          groups={[
+            {
+              label: "Status",
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: allOf([
+                { value: "planning", label: "Planning" },
+                { value: "active", label: "Active" },
+                { value: "review", label: "Review" },
+                { value: "done", label: "Done" },
+              ]),
+            },
+            {
+              label: "Component",
+              value: componentFilter,
+              onChange: setComponentFilter,
+              options: allOf(
+                (product?.modules ?? []).map((m) => ({
+                  value: m.id,
+                  label: m.name,
+                }))
+              ),
+            },
+          ]}
+          summary={`${filtered.length} of ${sprints.length}`}
+        />
+      )}
+
       <div className="mt-6">
         {sprints.length === 0 ? (
           <p className="border-y border-line py-8 text-center text-sm text-muted">
             No sprints yet. Add one from a component on the Components tab.
           </p>
+        ) : filtered.length === 0 ? (
+          <p className="border-y border-line py-8 text-center text-sm text-muted">
+            No sprints match the filters.
+          </p>
         ) : view === "gantt" ? (
-          <SprintGantt sprints={sprints} basePath={base} />
+          <SprintGantt sprints={filtered} basePath={base} />
         ) : view === "calendar" ? (
-          <SprintCalendar sprints={sprints} />
+          <SprintCalendar sprints={filtered} />
         ) : (
           <DataTable
             headers={["Sprint", "Component", "Goal", "Period", "Committed", "Completed", "Status"]}
           >
-            {sprints.map((sprint) => (
+            {filtered.map((sprint) => (
               <tr key={sprint.id}>
                 <td className="py-4 pr-6">
                   <Link

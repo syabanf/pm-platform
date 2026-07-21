@@ -4,7 +4,15 @@ import { use, useState } from "react";
 import { StatusPill } from "@/components/StatusPill";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field } from "@/components/Document";
-import { Button, EmptyState, Input, Panel, SectionHeader } from "@/components/ui";
+import {
+  allOf,
+  Button,
+  EmptyState,
+  FilterBar,
+  Input,
+  Panel,
+  SectionHeader,
+} from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
 
 export default function DecisionLogPage({
@@ -15,6 +23,10 @@ export default function DecisionLogPage({
   const { productId } = use(params);
   const { decisions, decisionsCrud, showToast } = usePrototype();
   const productDecisions = decisions.filter((d) => d.productId === productId);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const filteredDecisions = productDecisions.filter(
+    (d) => statusFilter === "all" || d.status === statusFilter
+  );
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState({ title: "", detail: "", owner: "Fahmi" });
 
@@ -89,8 +101,32 @@ export default function DecisionLogPage({
       )}
 
       {productDecisions.length > 0 && (
+        <FilterBar
+          className="mt-6"
+          groups={[
+            {
+              label: "Status",
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: allOf([
+                { value: "open", label: "Open" },
+                { value: "decided", label: "Decided" },
+              ]),
+            },
+          ]}
+          summary={`${filteredDecisions.length} of ${productDecisions.length}`}
+        />
+      )}
+
+      {productDecisions.length > 0 && filteredDecisions.length === 0 && (
+        <div className="mt-6">
+          <EmptyState>No decisions match the filters.</EmptyState>
+        </div>
+      )}
+
+      {filteredDecisions.length > 0 && (
         <ul className="mt-6 divide-y divide-line border-y border-line">
-          {productDecisions.map((decision) => (
+          {filteredDecisions.map((decision) => (
           <li
             key={decision.id}
             className="group grid gap-2 py-5 md:grid-cols-[100px_1fr_auto] md:gap-6"

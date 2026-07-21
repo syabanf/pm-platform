@@ -12,6 +12,8 @@ import {
   Panel,
   Button,
   ToggleButton,
+  FilterBar,
+  allOf,
 } from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
 import type { Client } from "@/lib/types";
@@ -36,6 +38,16 @@ export default function ClientsPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [healthFilter, setHealthFilter] = useState("all");
+  const [riskFilter, setRiskFilter] = useState("all");
+
+  const filteredClients = clients.filter(
+    (client) =>
+      (statusFilter === "all" || client.status === statusFilter) &&
+      (healthFilter === "all" || client.health === healthFilter) &&
+      (riskFilter === "all" || client.risk === riskFilter)
+  );
 
   const openCreate = () => {
     setEditingId(null);
@@ -146,6 +158,43 @@ export default function ClientsPage() {
         </Panel>
       )}
 
+      <FilterBar
+        className="mt-10"
+        groups={[
+          {
+            label: "Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: allOf([
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+              { value: "prospect", label: "Prospect" },
+            ]),
+          },
+          {
+            label: "Health",
+            value: healthFilter,
+            onChange: setHealthFilter,
+            options: allOf([
+              { value: "healthy", label: "Healthy" },
+              { value: "warning", label: "Warning" },
+              { value: "at-risk", label: "At Risk" },
+            ]),
+          },
+          {
+            label: "Risk",
+            value: riskFilter,
+            onChange: setRiskFilter,
+            options: allOf([
+              { value: "low", label: "Low" },
+              { value: "medium", label: "Medium" },
+              { value: "high", label: "High" },
+            ]),
+          },
+        ]}
+        summary={`${filteredClients.length} of ${clients.length}`}
+      />
+
       <div className="mt-10">
         <DataTable
           headers={[
@@ -159,7 +208,14 @@ export default function ClientsPage() {
             "",
           ]}
         >
-          {clients.map((client) => (
+          {filteredClients.length === 0 && (
+            <tr>
+              <td colSpan={8} className="py-6 text-sm text-muted">
+                No clients match the filters.
+              </td>
+            </tr>
+          )}
+          {filteredClients.map((client) => (
             <tr key={client.id} className="group">
               <td className="py-4 pr-6 font-medium text-ink">
                 <Link href={`/clients/${client.id}`} className="hover:underline">

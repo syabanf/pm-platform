@@ -6,7 +6,15 @@ import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field } from "@/components/Document";
-import { Button, EmptyState, Input, Panel, SectionHeader } from "@/components/ui";
+import {
+  allOf,
+  Button,
+  EmptyState,
+  FilterBar,
+  Input,
+  Panel,
+  SectionHeader,
+} from "@/components/ui";
 import { modulePath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
 
@@ -28,10 +36,14 @@ export default function ModulesPage({
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState({ name: "", owner: "" });
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const product = products.find((p) => p.id === productId);
   if (!product) return null;
   const productBacklog = backlog.filter((b) => b.productId === productId);
+  const filteredModules = product.modules.filter(
+    (m) => statusFilter === "all" || m.status === statusFilter
+  );
 
   const addModule = () => {
     if (!draft.name.trim()) {
@@ -117,16 +129,37 @@ export default function ModulesPage({
         </Panel>
       )}
 
+      {product.modules.length > 0 && (
+        <FilterBar
+          className="mt-6"
+          groups={[
+            {
+              label: "Status",
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: allOf([
+                { value: "planned", label: "Planned" },
+                { value: "in-progress", label: "In Progress" },
+                { value: "done", label: "Done" },
+              ]),
+            },
+          ]}
+          summary={`${filteredModules.length} of ${product.modules.length}`}
+        />
+      )}
+
       <div className="mt-6">
         {product.modules.length === 0 ? (
           <EmptyState>
             No components yet. Backlog items attach to components, so add these first.
           </EmptyState>
+        ) : filteredModules.length === 0 ? (
+          <EmptyState>No components match the filters.</EmptyState>
         ) : (
           <DataTable
             headers={["Component", "Owner", "Sprints", "Backlog Items", "Status", ""]}
           >
-            {product.modules.map((module) => {
+            {filteredModules.map((module) => {
               const items = productBacklog.filter(
                 (b) => b.moduleId === module.id
               );

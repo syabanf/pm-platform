@@ -6,7 +6,15 @@ import { DataTable } from "@/components/DataTable";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { AIInsightBlock } from "@/components/AICoachPanel";
 import { Field } from "@/components/Document";
-import { Button, Input, Panel, Select, SectionHeader } from "@/components/ui";
+import {
+  allOf,
+  Button,
+  FilterBar,
+  Input,
+  Panel,
+  Select,
+  SectionHeader,
+} from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
 import type { Member } from "@/lib/types";
 
@@ -28,8 +36,20 @@ export function MembersMaster({
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const overloaded = members.filter((m) => m.workload > 100);
+
+  const roleOptions = Array.from(
+    new Set(members.map((m) => m.roleLabel))
+  ).sort();
+
+  const filtered = members.filter(
+    (m) =>
+      (roleFilter === "all" || m.roleLabel === roleFilter) &&
+      (statusFilter === "all" || m.status === statusFilter)
+  );
 
   const openCreate = () => {
     setEditingId(null);
@@ -167,6 +187,31 @@ export function MembersMaster({
         </Panel>
       )}
 
+      <FilterBar
+        className="mt-6"
+        groups={[
+          {
+            label: "Role",
+            value: roleFilter,
+            onChange: setRoleFilter,
+            options: allOf(
+              roleOptions.map((role) => ({ value: role, label: role }))
+            ),
+          },
+          {
+            label: "Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: allOf([
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+              { value: "temporary", label: "Temporary" },
+            ]),
+          },
+        ]}
+        summary={`${filtered.length} of ${members.length}`}
+      />
+
       <div className="mt-6">
         <DataTable
           headers={[
@@ -179,7 +224,14 @@ export function MembersMaster({
             "",
           ]}
         >
-          {members.map((member) => {
+          {filtered.length === 0 && (
+            <tr>
+              <td colSpan={7} className="py-6 text-sm text-muted">
+                No members match the filters.
+              </td>
+            </tr>
+          )}
+          {filtered.map((member) => {
             const isOverloaded = member.workload > 100;
             return (
               <tr key={member.id} className="group">

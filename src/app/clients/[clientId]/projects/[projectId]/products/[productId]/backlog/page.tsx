@@ -7,7 +7,7 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field, inputClass } from "@/components/Document";
 import { newId, usePrototype } from "@/lib/store";
 import type { BacklogItem, Priority, Readiness } from "@/lib/types";
-import { Button, SectionHeader, ToggleButton } from "@/components/ui";
+import { allOf, Button, FilterBar, SectionHeader } from "@/components/ui";
 
 const readinessLabel: Record<Readiness, string> = {
   ready: "Ready",
@@ -25,9 +25,9 @@ export default function BacklogPage({
   const product = products.find((p) => p.id === productId);
   const items = backlog.filter((b) => b.productId === productId);
 
-  const [moduleFilter, setModuleFilter] = useState<string>("all");
-  const [priorityFilter, setPriorityFilter] = useState<Priority | "all">("all");
-  const [readinessFilter, setReadinessFilter] = useState<Readiness | "all">("all");
+  const [moduleFilter, setModuleFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [readinessFilter, setReadinessFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(items[0]?.id ?? null);
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -148,41 +148,42 @@ export default function BacklogPage({
       <div className="mt-6 grid gap-8 md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr_320px]">
         {/* Left: list + filters */}
         <div>
-          <div className="space-y-3 border-b border-line pb-4">
-            <div>
-              <div className="label mb-1.5">Component</div>
-              <div className="flex flex-wrap gap-1.5">
-                <ToggleButton active={moduleFilter === "all"} onClick={() => setModuleFilter("all")}>
-                  All
-                </ToggleButton>
-                {product.modules.map((m) => (
-                  <ToggleButton key={m.id} active={moduleFilter === m.id} onClick={() => setModuleFilter(m.id)}>
-                    {m.name}
-                  </ToggleButton>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="label mb-1.5">Priority</div>
-              <div className="flex flex-wrap gap-1.5">
-                {(["all", "high", "medium", "low"] as const).map((p) => (
-                  <ToggleButton key={p} active={priorityFilter === p} onClick={() => setPriorityFilter(p)}>
-                    {p === "all" ? "All" : p}
-                  </ToggleButton>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="label mb-1.5">Readiness</div>
-              <div className="flex flex-wrap gap-1.5">
-                {(["all", "ready", "needs-clarification", "draft"] as const).map((r) => (
-                  <ToggleButton key={r} active={readinessFilter === r} onClick={() => setReadinessFilter(r)}>
-                    {r === "all" ? "All" : readinessLabel[r]}
-                  </ToggleButton>
-                ))}
-              </div>
-            </div>
-          </div>
+          <FilterBar
+            groups={[
+              {
+                label: "Component",
+                value: moduleFilter,
+                onChange: setModuleFilter,
+                options: allOf(
+                  product.modules.map((m) => ({ value: m.id, label: m.name }))
+                ),
+              },
+              {
+                label: "Priority",
+                value: priorityFilter,
+                onChange: setPriorityFilter,
+                options: allOf([
+                  { value: "high", label: "High" },
+                  { value: "medium", label: "Medium" },
+                  { value: "low", label: "Low" },
+                ]),
+              },
+              {
+                label: "Readiness",
+                value: readinessFilter,
+                onChange: setReadinessFilter,
+                options: allOf([
+                  { value: "ready", label: readinessLabel.ready },
+                  {
+                    value: "needs-clarification",
+                    label: readinessLabel["needs-clarification"],
+                  },
+                  { value: "draft", label: readinessLabel.draft },
+                ]),
+              },
+            ]}
+            summary={`${filtered.length} of ${items.length}`}
+          />
 
           <ul className="mt-4 space-y-2">
             {filtered.length === 0 && (

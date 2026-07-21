@@ -8,8 +8,10 @@ import { ExportCsvButton } from "@/components/ExportCsvButton";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field, inputClass } from "@/components/Document";
 import {
+  allOf,
   Button,
   EmptyState,
+  FilterBar,
   PageContainer,
   PageHeader,
   Panel,
@@ -33,6 +35,7 @@ export default function GlobalReportsPage({
     showToast,
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [draft, setDraft] = useState({
     productId: products[0]?.id ?? "",
     type: "Sprint Report",
@@ -40,9 +43,12 @@ export default function GlobalReportsPage({
     due: "2026-07-15",
   });
 
-  const filtered = type
+  const typeScoped = type
     ? reportQueue.filter((r) => r.type === type)
     : reportQueue;
+  const filtered = typeScoped.filter(
+    (r) => statusFilter === "all" || r.status === statusFilter
+  );
 
   const addToQueue = () => {
     const product = products.find((p) => p.id === draft.productId);
@@ -69,7 +75,7 @@ export default function GlobalReportsPage({
         title="Report Queue"
         description={
           type
-            ? `${filtered.length} ${type.toLowerCase()}${filtered.length === 1 ? "" : "s"} in the queue.`
+            ? `${typeScoped.length} ${type.toLowerCase()}${typeScoped.length === 1 ? "" : "s"} in the queue.`
             : "Reports due across all clients. Generating and marking a report as sent completes its queue item."
         }
         actions={
@@ -146,39 +152,64 @@ export default function GlobalReportsPage({
         </Panel>
       )}
 
-      <div className="mt-10">
+      <FilterBar
+        className="mt-10"
+        groups={[
+          {
+            label: "Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: allOf([
+              { value: "open", label: "Open" },
+              { value: "planned", label: "Planned" },
+              { value: "done", label: "Done" },
+            ]),
+          },
+        ]}
+        summary={`${filtered.length} of ${typeScoped.length}`}
+      />
+
+      <div className="mt-6">
         <DataTable headers={["Report", "Client", "Type", "Template", "Due", "Status", ""]}>
-          {filtered.map((report) => (
-            <tr key={report.id} className="group">
-              <td className="py-4 pr-6 font-medium text-ink">{report.title}</td>
-              <td className="py-4 pr-6 text-muted">{report.client}</td>
-              <td className="py-4 pr-6 text-muted">{report.type}</td>
-              <td className="py-4 pr-6 text-muted">{report.template}</td>
-              <td className="py-4 pr-6 tabular-nums text-muted">{report.due}</td>
-              <td className="py-4 pr-6">
-                <StatusPill status={report.status} />
-              </td>
-              <td className="py-4 text-right">
-                <div className="flex items-center justify-end gap-1.5">
-                  <Link
-                    href={`${productPathById(report.productId)}/reports`}
-                    className="text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink"
-                  >
-                    Generate →
-                  </Link>
-                  <div className="opacity-0 transition-opacity group-hover:opacity-100">
-                    <ConfirmButton
-                      label="Remove"
-                      onConfirm={() => {
-                        reportQueueCrud.remove(report.id);
-                        showToast("Removed from queue.", "info");
-                      }}
-                    />
-                  </div>
-                </div>
+          {filtered.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="py-4">
+                <EmptyState>No reports match the filters.</EmptyState>
               </td>
             </tr>
-          ))}
+          ) : (
+            filtered.map((report) => (
+              <tr key={report.id} className="group">
+                <td className="py-4 pr-6 font-medium text-ink">{report.title}</td>
+                <td className="py-4 pr-6 text-muted">{report.client}</td>
+                <td className="py-4 pr-6 text-muted">{report.type}</td>
+                <td className="py-4 pr-6 text-muted">{report.template}</td>
+                <td className="py-4 pr-6 tabular-nums text-muted">{report.due}</td>
+                <td className="py-4 pr-6">
+                  <StatusPill status={report.status} />
+                </td>
+                <td className="py-4 text-right">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <Link
+                      href={`${productPathById(report.productId)}/reports`}
+                      className="text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink"
+                    >
+                      Generate →
+                    </Link>
+                    <div className="opacity-0 transition-opacity group-hover:opacity-100">
+                      <ConfirmButton
+                        label="Remove"
+                        onConfirm={() => {
+                          reportQueueCrud.remove(report.id);
+                          showToast("Removed from queue.", "info");
+                        }}
+                      />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
         </DataTable>
       </div>
 

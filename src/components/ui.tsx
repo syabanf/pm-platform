@@ -309,6 +309,68 @@ export function RowActions({ children }: { children: React.ReactNode }) {
 }
 
 /** KPI strip: the hairline-gridded row of KpiCards. */
+/** One filter dimension: a label and a row of mutually exclusive choices. */
+export interface FilterGroup {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  /** Include the "All" entry yourself — use allOf() for the common case. */
+  options: { value: string; label: string }[];
+}
+
+/** Prepends the standard "All" choice to a set of filter options. */
+export function allOf(
+  options: { value: string; label: string }[]
+): { value: string; label: string }[] {
+  return [{ value: "all", label: "All" }, ...options];
+}
+
+/**
+ * The single filter idiom for every table/list in the app: `Label [All][…]`.
+ * Groups wrap, so it reads as one row on a wide table and stacks in a narrow
+ * sidebar. `summary` is the optional "showing X of Y" affordance on the right.
+ */
+export function FilterBar({
+  groups,
+  summary,
+  className,
+}: {
+  groups: FilterGroup[];
+  summary?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cx(
+        "flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-line pb-4",
+        className
+      )}
+    >
+      {groups.map((group) => (
+        <div key={group.label} className="flex items-center gap-2">
+          <span className="label shrink-0">{group.label}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {group.options.map((option) => (
+              <ToggleButton
+                key={option.value}
+                active={group.value === option.value}
+                onClick={() => group.onChange(option.value)}
+              >
+                {option.label}
+              </ToggleButton>
+            ))}
+          </div>
+        </div>
+      ))}
+      {summary && (
+        <span className="ml-auto shrink-0 text-xs tabular-nums text-muted">
+          {summary}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function KpiStrip({
   items,
   className,

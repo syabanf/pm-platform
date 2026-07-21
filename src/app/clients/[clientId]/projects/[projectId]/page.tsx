@@ -14,6 +14,8 @@ import {
   Button,
   EmptyState,
   KpiStrip,
+  FilterBar,
+  allOf,
 } from "@/components/ui";
 import { clientPath, productPath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
@@ -35,6 +37,8 @@ export default function ProjectDetailPage({
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState({ name: "", goal: "" });
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [riskFilter, setRiskFilter] = useState("all");
 
   const project = projects.find((p) => p.id === projectId);
   const client = clients.find((c) => c.id === clientId);
@@ -53,6 +57,12 @@ export default function ProjectDetailPage({
   const atRisk = projectProducts.filter((p) => p.risk !== "low").length;
   const activeSprints = projectProducts.filter((p) => p.currentSprintId).length;
   const blocked = projectProducts.reduce((sum, p) => sum + p.blockedCount, 0);
+
+  const filteredProducts = projectProducts.filter(
+    (p) =>
+      (statusFilter === "all" || p.status === statusFilter) &&
+      (riskFilter === "all" || p.risk === riskFilter)
+  );
 
   const createProduct = () => {
     if (!draft.name.trim()) {
@@ -167,56 +177,89 @@ export default function ProjectDetailPage({
               No modules yet. Add the first module for this project.
             </EmptyState>
           ) : (
-            <DataTable
-              headers={["Module", "Status", "Health", "Velocity", "Current Sprint", "Risk", ""]}
-            >
-              {projectProducts.map((product) => {
-                const sprint = product.currentSprintId
-                  ? sprints.find((s) => s.id === product.currentSprintId)
-                  : undefined;
-                return (
-                  <tr key={product.id} className="group">
-                    <td className="py-4 pr-6">
-                      <Link
-                        href={productPath(product)}
-                        className="font-medium text-ink hover:underline"
-                      >
-                        {product.name}
-                      </Link>
-                      <div className="text-xs text-muted">{product.goal}</div>
-                    </td>
-                    <td className="py-4 pr-6">
-                      <StatusPill status={product.status} />
-                    </td>
-                    <td className="py-4 pr-6 tabular-nums">{product.health}%</td>
-                    <td className="py-4 pr-6 tabular-nums">
-                      {product.velocity || "—"}
-                    </td>
-                    <td className="py-4 pr-6 text-muted">
-                      {sprint
-                        ? `Sprint ${String(sprint.number).padStart(2, "0")}`
-                        : "—"}
-                    </td>
-                    <td className="py-4 pr-6">
-                      <StatusPill status={product.risk} />
-                    </td>
-                    <td className="py-4 text-right">
-                      <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                        <ConfirmButton
-                          onConfirm={() => {
-                            removeProductCascade(product.id);
-                            showToast(
-                              `${product.name} and its backlog were removed.`,
-                              "info"
-                            );
-                          }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </DataTable>
+            <>
+              <FilterBar
+                className="mb-4"
+                groups={[
+                  {
+                    label: "Status",
+                    value: statusFilter,
+                    onChange: setStatusFilter,
+                    options: allOf([
+                      { value: "discovery", label: "Discovery" },
+                      { value: "development", label: "Development" },
+                      { value: "release", label: "Release" },
+                      { value: "maintenance", label: "Maintenance" },
+                    ]),
+                  },
+                  {
+                    label: "Risk",
+                    value: riskFilter,
+                    onChange: setRiskFilter,
+                    options: allOf([
+                      { value: "low", label: "Low" },
+                      { value: "medium", label: "Medium" },
+                      { value: "high", label: "High" },
+                    ]),
+                  },
+                ]}
+                summary={`${filteredProducts.length} of ${projectProducts.length}`}
+              />
+              {filteredProducts.length === 0 ? (
+                <EmptyState>No modules match the current filters.</EmptyState>
+              ) : (
+                <DataTable
+                  headers={["Module", "Status", "Health", "Velocity", "Current Sprint", "Risk", ""]}
+                >
+                  {filteredProducts.map((product) => {
+                    const sprint = product.currentSprintId
+                      ? sprints.find((s) => s.id === product.currentSprintId)
+                      : undefined;
+                    return (
+                      <tr key={product.id} className="group">
+                        <td className="py-4 pr-6">
+                          <Link
+                            href={productPath(product)}
+                            className="font-medium text-ink hover:underline"
+                          >
+                            {product.name}
+                          </Link>
+                          <div className="text-xs text-muted">{product.goal}</div>
+                        </td>
+                        <td className="py-4 pr-6">
+                          <StatusPill status={product.status} />
+                        </td>
+                        <td className="py-4 pr-6 tabular-nums">{product.health}%</td>
+                        <td className="py-4 pr-6 tabular-nums">
+                          {product.velocity || "—"}
+                        </td>
+                        <td className="py-4 pr-6 text-muted">
+                          {sprint
+                            ? `Sprint ${String(sprint.number).padStart(2, "0")}`
+                            : "—"}
+                        </td>
+                        <td className="py-4 pr-6">
+                          <StatusPill status={product.risk} />
+                        </td>
+                        <td className="py-4 text-right">
+                          <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                            <ConfirmButton
+                              onConfirm={() => {
+                                removeProductCascade(product.id);
+                                showToast(
+                                  `${product.name} and its backlog were removed.`,
+                                  "info"
+                                );
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </DataTable>
+              )}
+            </>
           )}
         </div>
       </section>

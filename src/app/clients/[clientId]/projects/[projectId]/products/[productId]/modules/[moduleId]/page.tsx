@@ -9,8 +9,10 @@ import { Field, inputClass } from "@/components/Document";
 import {
   Button,
   EmptyState,
+  FilterBar,
   KpiStrip,
   Panel,
+  allOf,
 } from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
 
@@ -45,6 +47,7 @@ export default function ComponentDetailPage({
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState({ name: "", goal: "" });
+  const [sprintStatusFilter, setSprintStatusFilter] = useState("all");
 
   if (!product || !component) {
     return (
@@ -60,6 +63,9 @@ export default function ComponentDetailPage({
   const componentSprints = sprints
     .filter((s) => s.productId === productId && s.moduleId === moduleId)
     .sort((a, b) => b.number - a.number);
+  const filteredSprints = componentSprints.filter(
+    (s) => sprintStatusFilter === "all" || s.status === sprintStatusFilter
+  );
   const componentBacklog = backlog.filter(
     (b) => b.productId === productId && b.moduleId === moduleId
   );
@@ -184,39 +190,75 @@ export default function ComponentDetailPage({
               planning.
             </EmptyState>
           ) : (
-            <DataTable
-              headers={["Sprint", "Goal", "Status", "Committed", "Completed", ""]}
-            >
-              {componentSprints.map((sprint) => (
-                <tr key={sprint.id} className="group">
-                  <td className="py-4 pr-6">
-                    <Link
-                      href={`${base}/sprints/${sprint.id}/board`}
-                      className="font-medium text-ink hover:underline"
-                    >
-                      Sprint {String(sprint.number).padStart(2, "0")}
-                    </Link>
-                    <div className="text-xs text-muted">{sprint.name}</div>
-                  </td>
-                  <td className="max-w-xs py-4 pr-6 text-muted">{sprint.goal}</td>
-                  <td className="py-4 pr-6">
-                    <StatusPill status={sprint.status} />
-                  </td>
-                  <td className="py-4 pr-6 tabular-nums">{sprint.committed} pts</td>
-                  <td className="py-4 pr-6 tabular-nums">{sprint.completed} pts</td>
-                  <td className="py-4 text-right">
-                    <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100">
-                      <ConfirmButton
-                        onConfirm={() => {
-                          sprintsCrud.remove(sprint.id);
-                          showToast("Sprint removed.", "info");
-                        }}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </DataTable>
+            <>
+              <FilterBar
+                className="mb-4"
+                groups={[
+                  {
+                    label: "Status",
+                    value: sprintStatusFilter,
+                    onChange: setSprintStatusFilter,
+                    options: allOf([
+                      { value: "planning", label: "Planning" },
+                      { value: "active", label: "Active" },
+                      { value: "review", label: "Review" },
+                      { value: "done", label: "Done" },
+                    ]),
+                  },
+                ]}
+                summary={`${filteredSprints.length} of ${componentSprints.length}`}
+              />
+              {filteredSprints.length === 0 ? (
+                <EmptyState>No sprints match the filters.</EmptyState>
+              ) : (
+                <DataTable
+                  headers={[
+                    "Sprint",
+                    "Goal",
+                    "Status",
+                    "Committed",
+                    "Completed",
+                    "",
+                  ]}
+                >
+                  {filteredSprints.map((sprint) => (
+                    <tr key={sprint.id} className="group">
+                      <td className="py-4 pr-6">
+                        <Link
+                          href={`${base}/sprints/${sprint.id}/board`}
+                          className="font-medium text-ink hover:underline"
+                        >
+                          Sprint {String(sprint.number).padStart(2, "0")}
+                        </Link>
+                        <div className="text-xs text-muted">{sprint.name}</div>
+                      </td>
+                      <td className="max-w-xs py-4 pr-6 text-muted">
+                        {sprint.goal}
+                      </td>
+                      <td className="py-4 pr-6">
+                        <StatusPill status={sprint.status} />
+                      </td>
+                      <td className="py-4 pr-6 tabular-nums">
+                        {sprint.committed} pts
+                      </td>
+                      <td className="py-4 pr-6 tabular-nums">
+                        {sprint.completed} pts
+                      </td>
+                      <td className="py-4 text-right">
+                        <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100">
+                          <ConfirmButton
+                            onConfirm={() => {
+                              sprintsCrud.remove(sprint.id);
+                              showToast("Sprint removed.", "info");
+                            }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </DataTable>
+              )}
+            </>
           )}
         </div>
       </section>
