@@ -17,7 +17,7 @@ export function ViewSwitcher<T extends string>({
           role="tab"
           aria-selected={value === option.id}
           onClick={() => onChange(option.id)}
-          className={`border px-3 py-1.5 text-xs font-medium ${
+          className={`border min-h-10 md:min-h-0 px-3 py-1.5 text-xs font-medium ${
             i > 0 ? "-ml-px" : ""
           } ${
             value === option.id

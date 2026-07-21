@@ -25,7 +25,7 @@ export function PageTabs({ tabs }: { tabs: Tab[] }) {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={`-mb-px whitespace-nowrap border-b-2 pb-3 text-sm transition-colors ${
+            className={`-mb-px flex min-h-11 items-end whitespace-nowrap border-b-2 pb-3 text-sm transition-colors md:min-h-0 md:block ${
               active
                 ? "border-brand font-semibold text-ink"
                 : "border-transparent text-muted hover:text-ink"

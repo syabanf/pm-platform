@@ -442,7 +442,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main
         id="main-content"
         tabIndex={-1}
-        className="min-h-screen flex-1 bg-paper pb-20 pt-[calc(3.5rem+env(safe-area-inset-top))] focus:outline-none lg:ml-56 lg:pb-0 lg:pt-0"
+        // min-w-0 is load-bearing: as a flex child, main defaults to
+        // min-width:auto and refuses to shrink below its widest content, so a
+        // wide table would stretch the whole page and defeat the inner
+        // overflow-x-auto containers. Without it the phone scrolls sideways.
+        className="min-h-screen min-w-0 flex-1 bg-paper pb-20 pt-[calc(3.5rem+env(safe-area-inset-top))] focus:outline-none lg:ml-56 lg:pb-0 lg:pt-0"
       >
         {children}
       </main>

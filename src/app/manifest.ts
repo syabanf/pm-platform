@@ -10,7 +10,9 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: "#FFFFFF",
     theme_color: "#000000",
-    orientation: "portrait-primary",
+    // Deliberately unlocked: a phone is used portrait, but a tablet is just as
+    // often landscape — and the two-pane layouts at md are designed for it.
+    orientation: "any",
     shortcuts: [
       {
         name: "Needs Attention",

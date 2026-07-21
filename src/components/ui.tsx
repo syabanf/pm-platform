@@ -137,8 +137,10 @@ export function ToggleButton({
       type={type ?? "button"}
       aria-pressed={active}
       className={cx(
-        "border transition-colors",
-        size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-2 text-left text-sm",
+        // Comfortable thumb target on touch screens; the dense desktop size is
+        // restored from md up so the Swiss density is unchanged there.
+        "border transition-colors min-h-10 md:min-h-0",
+        size === "sm" ? "px-3 py-1 text-xs md:px-2" : "px-3 py-2 text-left text-sm",
         active
           ? "border-black font-medium text-ink"
           : "border-line text-muted hover:border-black hover:text-ink",
@@ -347,7 +349,12 @@ export function FilterBar({
       )}
     >
       {groups.map((group) => (
-        <div key={group.label} className="flex items-center gap-2">
+        // Stacked on phones: once chips wrap to several rows a side label
+        // floats against their middle, so it sits above instead. Inline from md.
+        <div
+          key={group.label}
+          className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-2"
+        >
           <span className="label shrink-0">{group.label}</span>
           <div className="flex flex-wrap gap-1.5">
             {group.options.map((option) => (
