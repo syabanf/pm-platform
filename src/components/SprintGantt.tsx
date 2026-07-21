@@ -95,7 +95,7 @@ export function SprintGantt({
                   <Link
                     href={`${basePath}/sprints/${sprint.id}/board`}
                     title={`${sprint.goal} — ${progress}% complete`}
-                    className={`absolute inset-y-0 flex items-center overflow-hidden border px-2 text-[11px] font-medium transition-colors ${
+                    className={`animate-grow-x absolute inset-y-0 flex items-center overflow-hidden border px-2 text-[11px] font-medium transition-colors ${
                       sprint.status === "done"
                         ? "border-black bg-black text-paper"
                         : sprint.status === "active"

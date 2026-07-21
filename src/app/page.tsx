@@ -122,7 +122,7 @@ export default function HomePage() {
       {/* 1. Triage — what needs me */}
       <section id="triage" className="mt-8 scroll-mt-8">
         <h2 className="label">Needs Your Attention</h2>
-        <ul className="mt-3 divide-y divide-line border-y border-line">
+        <ul className="animate-stagger mt-3 divide-y divide-line border-y border-line">
           {triage.slice(0, 6).map((item) => (
             <li key={`${item.kind}:${item.title}`}>
               <Link
@@ -198,7 +198,7 @@ export default function HomePage() {
             All clients →
           </Link>
         </div>
-        <div className="mt-4 border-y border-line">
+        <div className="animate-stagger mt-4 border-y border-line">
           {clients.map((client) => {
             const clientProjects = projects.filter(
               (p) => p.clientId === client.id
@@ -247,8 +247,9 @@ export default function HomePage() {
                     <StatusPill status={client.risk} label={`${client.risk} risk`} />
                   </span>
                 </div>
-                {isOpen && (
-                <div id={regionId} className="border-t border-line">
+                <div id={regionId} className="animate-collapse" data-open={isOpen}>
+                <div>
+                <div className="border-t border-line">
                 {clientProjects.map((project) => {
                   const projProducts = products.filter(
                     (p) => p.projectId === project.id
@@ -311,7 +312,8 @@ export default function HomePage() {
                   );
                 })}
                 </div>
-                )}
+                </div>
+                </div>
               </div>
             );
           })}

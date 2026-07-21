@@ -62,7 +62,7 @@ export default function DecisionLogPage({
       />
 
       {panelOpen && (
-        <Panel className="mt-4">
+        <Panel className="animate-in mt-4">
           <div className="grid gap-4 md:grid-cols-[1fr_1fr_200px]">
             <Field label="Title">
               <Input

@@ -66,17 +66,17 @@ export function WorkloadView({ sprintId }: { sprintId: string }) {
                 {total > 0 && (
                   <>
                     <div
-                      className="bg-black"
+                      className="animate-grow-x bg-black"
                       style={{ width: `${(row.done / maxTotal) * 100}%` }}
                       title={`Done: ${row.done} pts`}
                     />
                     <div
-                      className="bg-muted"
+                      className="animate-grow-x bg-muted"
                       style={{ width: `${(row.inFlight / maxTotal) * 100}%` }}
                       title={`In flight: ${row.inFlight} pts`}
                     />
                     <div
-                      className="bg-line"
+                      className="animate-grow-x bg-line"
                       style={{ width: `${(row.todo / maxTotal) * 100}%` }}
                       title={`To do: ${row.todo} pts`}
                     />

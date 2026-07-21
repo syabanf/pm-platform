@@ -66,9 +66,24 @@ export function BurndownChart({ data }: { data: BurndownPoint[] }) {
         </text>
       ))}
       {/* ideal line */}
-      <path d={idealPath} fill="none" stroke="#737373" strokeWidth={1.5} strokeDasharray="4 4" />
+      <path
+        d={idealPath}
+        fill="none"
+        stroke="#737373"
+        strokeWidth={1.5}
+        strokeDasharray="4 4"
+        className="animate-draw"
+        style={{ "--draw-len": 2000 } as React.CSSProperties}
+      />
       {/* actual line */}
-      <path d={actualPath} fill="none" stroke="#000000" strokeWidth={2} />
+      <path
+        d={actualPath}
+        fill="none"
+        stroke="#000000"
+        strokeWidth={2}
+        className="animate-draw"
+        style={{ "--draw-len": 2000 } as React.CSSProperties}
+      />
       {actualData.map((d) => (
         <circle key={d.day} cx={x(d.day)} cy={y(d.actual as number)} r={3} fill="#000000" />
       ))}

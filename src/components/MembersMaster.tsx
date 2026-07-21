@@ -123,7 +123,10 @@ export function MembersMaster({
       />
 
       {panelOpen && (
-        <Panel title={editingId ? "Edit Member" : "New Member"} className="mt-4">
+        <Panel
+          title={editingId ? "Edit Member" : "New Member"}
+          className="animate-in mt-4"
+        >
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="Name">
               <Input
@@ -269,7 +272,7 @@ export function MembersMaster({
                   <div className="flex items-center gap-3">
                     <div className="h-1 w-24 bg-soft">
                       <div
-                        className={`h-1 ${isOverloaded ? "bg-danger" : member.workload > 85 ? "bg-warning" : "bg-black"}`}
+                        className={`animate-grow-x h-1 ${isOverloaded ? "bg-danger" : member.workload > 85 ? "bg-warning" : "bg-black"}`}
                         style={{ width: `${Math.min(member.workload, 100)}%` }}
                       />
                     </div>

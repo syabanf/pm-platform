@@ -127,6 +127,77 @@ body {
   animation: fade-in 0.2s ease-out both;
 }
 
+/* Staggered entrance for list/table children. Delays are capped at 10 so a
+   300-row table never waits — later rows simply arrive with the last one. */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-stagger > * {
+  animation: stagger-in 0.3s ease-out both;
+}
+.animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.animate-stagger > *:nth-child(2) { animation-delay: 30ms; }
+.animate-stagger > *:nth-child(3) { animation-delay: 60ms; }
+.animate-stagger > *:nth-child(4) { animation-delay: 90ms; }
+.animate-stagger > *:nth-child(5) { animation-delay: 120ms; }
+.animate-stagger > *:nth-child(6) { animation-delay: 150ms; }
+.animate-stagger > *:nth-child(7) { animation-delay: 180ms; }
+.animate-stagger > *:nth-child(8) { animation-delay: 210ms; }
+.animate-stagger > *:nth-child(9) { animation-delay: 240ms; }
+.animate-stagger > *:nth-child(n + 10) { animation-delay: 270ms; }
+
+/* SVG line charts draw themselves in. --draw-len is the path length; the
+   generous fallback just means very long paths start fully hidden. */
+@keyframes draw-line {
+  from {
+    stroke-dashoffset: var(--draw-len, 2000);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-draw {
+  stroke-dasharray: var(--draw-len, 2000);
+  animation: draw-line 0.9s ease-out both;
+}
+
+/* Bars and progress fills grow from their leading edge. */
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-grow-x {
+  transform-origin: left;
+  animation: grow-x 0.45s ease-out both;
+}
+
+/* Height-animated disclosure without measuring: 0fr -> 1fr on a grid row. */
+.animate-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.animate-collapse[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.animate-collapse > * {
+  overflow: hidden;
+}
+
 /* quiet micro-interactions everywhere */
 button,
 a {
@@ -151,12 +222,20 @@ tr {
   .animate-in,
   .animate-slide-in,
   .animate-toast,
-  .animate-fade {
+  .animate-fade,
+  .animate-stagger > *,
+  .animate-draw,
+  .animate-grow-x {
     animation: none;
+  }
+  /* the drawn line must still be fully visible without its animation */
+  .animate-draw {
+    stroke-dasharray: none;
   }
   button,
   a,
-  tr {
+  tr,
+  .animate-collapse {
     transition: none;
   }
 }

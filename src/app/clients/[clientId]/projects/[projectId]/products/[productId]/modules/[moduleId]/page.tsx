@@ -156,7 +156,7 @@ export default function ComponentDetailPage({
         </div>
 
         {panelOpen && (
-          <Panel className="mt-4">
+          <Panel className="animate-in mt-4">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Sprint Name">
                 <input

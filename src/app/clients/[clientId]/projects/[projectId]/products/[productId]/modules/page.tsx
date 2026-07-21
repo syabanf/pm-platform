@@ -104,7 +104,7 @@ export default function ModulesPage({
       />
 
       {panelOpen && (
-        <Panel className="mt-4">
+        <Panel className="animate-in mt-4">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Component Name">
               <Input

@@ -19,7 +19,7 @@ export function DataTable({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-line">{children}</tbody>
+        <tbody className="animate-stagger divide-y divide-line">{children}</tbody>
       </table>
     </div>
   );
