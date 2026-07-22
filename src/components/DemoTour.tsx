@@ -136,12 +136,51 @@ export function DemoTour({
   }
 
   const isLast = i >= steps.length - 1;
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const [ring, setRing] = useState<DOMRect | null>(null);
+  const [pressing, setPressing] = useState(false);
 
-  // Drive the navigation — this is the "auto-click".
+  // Drive the app: fly the pointer to the real link for this stop, highlight
+  // it, then actually click it — so navigation happens the way a user's click
+  // would. Falls back to a plain route push if that link isn't on screen.
   useEffect(() => {
     if (!open) return;
     const href = steps[i]?.href;
-    if (href) router.push(href);
+    if (!href) return;
+
+    const target = [
+      ...document.querySelectorAll<HTMLAnchorElement>(`a[href="${href}"]`),
+    ].find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    });
+
+    let cancelled = false;
+    const timers: number[] = [];
+    const at = (ms: number, fn: () => void) =>
+      timers.push(window.setTimeout(() => !cancelled && fn(), ms));
+
+    if (!target) {
+      at(250, () => router.push(href));
+    } else {
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      at(280, () => {
+        const r = target.getBoundingClientRect();
+        setCursor({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+        setRing(r);
+      });
+      at(980, () => setPressing(true));
+      at(1180, () => {
+        setPressing(false);
+        setRing(null);
+        target.click();
+      });
+    }
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
   }, [open, i, steps, router]);
 
   // Advance on a timer (setState happens in the interval, never in the body).
@@ -165,11 +204,55 @@ export function DemoTour({
   const step = steps[i];
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="animate-in print-hide fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[60] mx-auto w-[calc(100%-2rem)] max-w-lg border border-black bg-paper shadow-sm lg:bottom-6"
-    >
+    <>
+      {/* Ring around whatever the pointer is about to click. */}
+      {ring && (
+        <div
+          aria-hidden
+          className="print-hide pointer-events-none fixed z-[74] border-2 border-brand transition-all duration-300 ease-out"
+          style={{
+            top: ring.top - 4,
+            left: ring.left - 4,
+            width: ring.width + 8,
+            height: ring.height + 8,
+          }}
+        />
+      )}
+
+      {/* The fake pointer. */}
+      {cursor && (
+        <div
+          aria-hidden
+          className="print-hide pointer-events-none fixed z-[75] transition-all duration-700 ease-in-out"
+          style={{ top: cursor.y, left: cursor.x }}
+        >
+          {pressing && (
+            <span className="absolute -left-3 -top-3 block h-6 w-6 rounded-full border-2 border-brand opacity-70" />
+          )}
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 16 16"
+            className={`block drop-shadow transition-transform duration-150 ${
+              pressing ? "scale-90" : "scale-100"
+            }`}
+          >
+            <path
+              d="M2 1 L2 12 L5 9.5 L7 14 L9.5 13 L7.5 8.5 L11.5 8.5 Z"
+              fill="#111"
+              stroke="#fff"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      )}
+
+      <div
+        role="status"
+        aria-live="polite"
+        className="animate-in print-hide fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[60] mx-auto w-[calc(100%-2rem)] max-w-lg border border-black bg-paper shadow-sm lg:bottom-6"
+      >
       {/* progress for the current stop */}
       <div className="h-0.5 w-full bg-line">
         <div
@@ -233,7 +316,8 @@ export function DemoTour({
             Back
           </button>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
