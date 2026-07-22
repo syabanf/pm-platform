@@ -1132,12 +1132,6 @@ export const reportQueueSeed = [
   },
 ];
 
-export const todaysPriorities = [
-  "Resolve blocker in OEE Intelligence Sprint 03",
-  "Review BSM Rental Module Report",
-  "Confirm scope change for AI QC Camera",
-];
-
 // ---------- lookups ----------
 
 export const getClient = (id: string) => clients.find((c) => c.id === id);

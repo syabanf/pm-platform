@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WIT Sprint OS
 
-## Getting Started
+Delivery management for an agency that runs several clients at once: what needs
+attention this morning, which module is slipping, and what to tell the client on
+Friday.
 
-First, run the development server:
+Work nests five levels deep, biggest to smallest:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Client  →  Project  →  Module  →  Component  →  Sprint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+A **Client** is the company. A **Project** is the outcome they hired you for. A
+**Module** is a product or system you build for it. A **Component** is one piece
+of that module, and it owns its own **Sprints**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Naming note for contributors.** The code predates those labels and still uses
+> the older ones: the UI's "Module" is the `Product` type and the `/products/`
+> route, and the UI's "Component" is the `Module` type and the `/modules/` route.
+> The backend tables follow the code, not the UI. Nothing is broken — just read
+> `product` as "Module" and `module` as "Component".
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Running it
 
-## Learn More
+```bash
+npm install && npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Then open http://localhost:3000. There is no sign-up: pick a user on the login
+screen. First-time visitors get a six-step guide, and the sidebar's **▶ Demo**
+button drives the app for you, clicking through a full tour.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Data lives in memory for the session — creating, editing and deleting are all
+safe to try, and a reload puts everything back.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run test        # vitest
+npm run lint
+npm run build
+```
 
-## Deploy on Vercel
+## Layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Path | What is in it |
+| ---- | ------------- |
+| `src/app/` | routes (Next.js App Router) |
+| `src/components/` | shared UI; `ui.tsx` holds the primitives |
+| `src/lib/store.tsx` | the in-memory store every page reads from |
+| `src/lib/types.ts` | domain types |
+| `src/lib/data.ts` | the seed data the store starts from |
+| `backend/` | Go + Postgres REST API — see [backend/README.md](backend/README.md) |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The backend is complete and tested but **not yet wired to the frontend**; the app
+still runs entirely on the client-side store.
+
+## Notes
+
+- Works offline and installs as a PWA.
+- Phone, tablet and desktop each get their own layout; on touch devices you can
+  swipe between tabs and from the left edge to open the menu.
+- Keyboard: `⌘K` opens search from anywhere.

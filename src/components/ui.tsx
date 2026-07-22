@@ -286,32 +286,6 @@ export function EmptyState({
   );
 }
 
-/** Content card. Default padding p-6; override with `pad`. */
-export function Card({
-  children,
-  pad = "p-6",
-  className,
-}: {
-  children: React.ReactNode;
-  pad?: "p-4" | "p-5" | "p-6";
-  className?: string;
-}) {
-  return (
-    <div className={cx("border border-line bg-paper", pad, className)}>
-      {children}
-    </div>
-  );
-}
-
-/** Hover-revealed row action group (Edit / Delete on table rows). */
-export function RowActions({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-      {children}
-    </div>
-  );
-}
-
 /** KPI strip: the hairline-gridded row of KpiCards. */
 /** One filter dimension: a label and a row of mutually exclusive choices. */
 export interface FilterGroup {
