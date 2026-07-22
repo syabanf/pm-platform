@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -39,7 +40,23 @@ func run() error {
 	poolCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(poolCtx, cfg.DatabaseURL)
+	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	poolCfg.MaxConns = cfg.MaxDBConns
+	poolCfg.MinConns = cfg.MinDBConns
+	// A server-side statement_timeout is the only backstop that survives a
+	// client hanging up: it stops the query, which releases the connection.
+	if poolCfg.ConnConfig.RuntimeParams == nil {
+		poolCfg.ConnConfig.RuntimeParams = map[string]string{}
+	}
+	if _, set := poolCfg.ConnConfig.RuntimeParams["statement_timeout"]; !set {
+		poolCfg.ConnConfig.RuntimeParams["statement_timeout"] =
+			strconv.FormatInt(cfg.StatementTimeout.Milliseconds(), 10)
+	}
+
+	pool, err := pgxpool.NewWithConfig(poolCtx, poolCfg)
 	if err != nil {
 		return err
 	}

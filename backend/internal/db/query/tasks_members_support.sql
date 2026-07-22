@@ -1,6 +1,9 @@
 -- ------------------------------------------------------------------ tasks ---
 
 -- name: CreateTask :one
+-- The JOIN keeps a task inside its own product: the backlog item it implements
+-- must belong to the product that owns the sprint. A mismatch matches no row,
+-- which the handler reports as a 400.
 INSERT INTO tasks (
     id,
     sprint_id,
@@ -14,9 +17,25 @@ INSERT INTO tasks (
     blocked_reason,
     blocked_days,
     off_goal
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
+SELECT
+    sqlc.arg('id'),
+    s.id,
+    bi.id,
+    sqlc.arg('title'),
+    sqlc.arg('module_name'),
+    sqlc.narg('assignee_id'),
+    sqlc.arg('estimate'),
+    sqlc.arg('board_column'),
+    sqlc.arg('priority'),
+    sqlc.narg('blocked_reason'),
+    sqlc.narg('blocked_days'),
+    sqlc.arg('off_goal')
+FROM sprints s
+JOIN backlog_items bi
+  ON bi.id = sqlc.arg('backlog_item_id')
+ AND bi.product_id = s.product_id
+WHERE s.id = sqlc.arg('sprint_id')
 RETURNING *;
 
 -- name: GetTask :one
@@ -25,8 +44,9 @@ WHERE id = $1;
 
 -- name: ListTasksBySprint :many
 SELECT * FROM tasks
-WHERE sprint_id = $1
-ORDER BY created_at, id;
+WHERE sprint_id = sqlc.arg('sprint_id')
+ORDER BY created_at, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: ListTasksByBacklogItem :many
 SELECT * FROM tasks
@@ -34,18 +54,20 @@ WHERE backlog_item_id = $1
 ORDER BY created_at, id;
 
 -- name: UpdateTask :one
+-- Partial update (see UpdateClient): moving a card and renaming it at the same
+-- moment no longer cancel each other out.
 UPDATE tasks
-SET title           = $2,
-    module_name     = $3,
-    assignee_id     = $4,
-    estimate        = $5,
-    board_column    = $6,
-    priority        = $7,
-    blocked_reason  = $8,
-    blocked_days    = $9,
-    off_goal        = $10,
+SET title           = COALESCE(sqlc.narg('title'), title),
+    module_name     = COALESCE(sqlc.narg('module_name'), module_name),
+    assignee_id     = COALESCE(sqlc.narg('assignee_id'), assignee_id),
+    estimate        = COALESCE(sqlc.narg('estimate'), estimate),
+    board_column    = COALESCE(sqlc.narg('board_column'), board_column),
+    priority        = COALESCE(sqlc.narg('priority'), priority),
+    blocked_reason  = COALESCE(sqlc.narg('blocked_reason'), blocked_reason),
+    blocked_days    = COALESCE(sqlc.narg('blocked_days'), blocked_days),
+    off_goal        = COALESCE(sqlc.narg('off_goal'), off_goal),
     updated_at      = now()
-WHERE id = $1
+WHERE id = sqlc.arg('id')
 RETURNING *;
 
 -- name: MoveTask :one
@@ -109,21 +131,23 @@ WHERE id = $1;
 
 -- name: ListMembers :many
 SELECT * FROM members
-ORDER BY name, id;
+ORDER BY name, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpdateMember :one
+-- Partial update (see UpdateClient).
 UPDATE members
-SET name          = $2,
-    email         = $3,
-    role          = $4,
-    role_label    = $5,
-    skill_tags    = $6,
-    allocation    = $7,
-    capacity_days = $8,
-    workload      = $9,
-    status        = $10,
+SET name          = COALESCE(sqlc.narg('name'), name),
+    email         = COALESCE(sqlc.narg('email'), email),
+    role          = COALESCE(sqlc.narg('role'), role),
+    role_label    = COALESCE(sqlc.narg('role_label'), role_label),
+    skill_tags    = COALESCE(sqlc.narg('skill_tags')::text[], skill_tags),
+    allocation    = COALESCE(sqlc.narg('allocation'), allocation),
+    capacity_days = COALESCE(sqlc.narg('capacity_days'), capacity_days),
+    workload      = COALESCE(sqlc.narg('workload'), workload),
+    status        = COALESCE(sqlc.narg('status'), status),
     updated_at    = now()
-WHERE id = $1
+WHERE id = sqlc.arg('id')
 RETURNING *;
 
 -- name: DeleteMember :exec
@@ -152,18 +176,20 @@ WHERE id = $1;
 
 -- name: ListDecisionsByProduct :many
 SELECT * FROM decisions
-WHERE product_id = $1
-ORDER BY decided_on DESC, id;
+WHERE product_id = sqlc.arg('product_id')
+ORDER BY decided_on DESC, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpdateDecision :one
+-- Partial update (see UpdateClient).
 UPDATE decisions
-SET decided_on = $2,
-    title      = $3,
-    detail     = $4,
-    owner      = $5,
-    status     = $6,
+SET decided_on = COALESCE(sqlc.narg('decided_on'), decided_on),
+    title      = COALESCE(sqlc.narg('title'), title),
+    detail     = COALESCE(sqlc.narg('detail'), detail),
+    owner      = COALESCE(sqlc.narg('owner'), owner),
+    status     = COALESCE(sqlc.narg('status'), status),
     updated_at = now()
-WHERE id = $1
+WHERE id = sqlc.arg('id')
 RETURNING *;
 
 -- name: DeleteDecision :exec
@@ -174,7 +200,7 @@ WHERE id = $1;
 
 -- name: ListReportTemplates :many
 SELECT * FROM report_templates
-ORDER BY name;
+ORDER BY name, id;
 
 -- name: UpsertReportTemplate :one
 INSERT INTO report_templates (id, name, audience, visibility, sections)
@@ -195,7 +221,8 @@ WHERE id = $1;
 
 -- name: ListReportQueue :many
 SELECT * FROM report_queue
-ORDER BY due NULLS LAST, id;
+ORDER BY due NULLS LAST, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: CreateReportQueueItem :one
 INSERT INTO report_queue (
@@ -226,6 +253,9 @@ WHERE id = $1;
 -- ------------------------------------------------------ generated_reports ---
 
 -- name: CreateGeneratedReport :one
+-- A report may only cite a sprint of the product it reports on; without the
+-- guard a report on one client's module could link to another client's sprint,
+-- and following that link returned the other client's data.
 INSERT INTO generated_reports (
     id,
     product_id,
@@ -235,15 +265,30 @@ INSERT INTO generated_reports (
     period,
     generated_on,
     status
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
 )
+SELECT
+    sqlc.arg('id'),
+    p.id,
+    sqlc.narg('sprint_id'),
+    sqlc.arg('type'),
+    sqlc.arg('template'),
+    sqlc.arg('period'),
+    sqlc.arg('generated_on'),
+    sqlc.arg('status')
+FROM products p
+WHERE p.id = sqlc.arg('product_id')
+  AND (
+      sqlc.narg('sprint_id')::text IS NULL
+      OR EXISTS (SELECT 1 FROM sprints s
+                  WHERE s.id = sqlc.narg('sprint_id') AND s.product_id = p.id)
+  )
 RETURNING *;
 
 -- name: ListGeneratedReportsByProduct :many
 SELECT * FROM generated_reports
-WHERE product_id = $1
-ORDER BY generated_on DESC, id;
+WHERE product_id = sqlc.arg('product_id')
+ORDER BY generated_on DESC, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: MarkGeneratedReportSent :one
 UPDATE generated_reports

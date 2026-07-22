@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 )
 
 const createClient = `-- name: CreateClient :one
@@ -31,18 +32,18 @@ RETURNING id, name, industry, status, client_pic, wit_owner, contract_type, heal
 `
 
 type CreateClientParams struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Industry     string   `json:"industry"`
-	Status       string   `json:"status"`
-	ClientPic    string   `json:"clientPic"`
-	WitOwner     string   `json:"witOwner"`
-	ContractType string   `json:"contractType"`
-	Health       string   `json:"health"`
-	Risk         string   `json:"risk"`
-	Notes        string   `json:"notes"`
-	ActionNeeded []string `json:"actionNeeded"`
-	AiInsight    []byte   `json:"aiInsight"`
+	ID           string          `json:"id"`
+	Name         string          `json:"name"`
+	Industry     string          `json:"industry"`
+	Status       string          `json:"status"`
+	ClientPic    string          `json:"clientPic"`
+	WitOwner     string          `json:"witOwner"`
+	ContractType string          `json:"contractType"`
+	Health       string          `json:"health"`
+	Risk         string          `json:"risk"`
+	Notes        string          `json:"notes"`
+	ActionNeeded []string        `json:"actionNeeded"`
+	AiInsight    json.RawMessage `json:"aiInsight"`
 }
 
 // ---------------------------------------------------------------- clients ---
@@ -194,11 +195,17 @@ func (q *Queries) GetProject(ctx context.Context, id string) (Project, error) {
 
 const listClients = `-- name: ListClients :many
 SELECT id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at FROM clients
-ORDER BY name
+ORDER BY name, id
+LIMIT $2 OFFSET $1
 `
 
-func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
-	rows, err := q.db.Query(ctx, listClients)
+type ListClientsParams struct {
+	Off int32 `json:"off"`
+	Lim int32 `json:"lim"`
+}
+
+func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error) {
+	rows, err := q.db.Query(ctx, listClients, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -234,11 +241,17 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 
 const listProjects = `-- name: ListProjects :many
 SELECT id, client_id, name, objective, status, created_at, updated_at FROM projects
-ORDER BY name
+ORDER BY name, id
+LIMIT $2 OFFSET $1
 `
 
-func (q *Queries) ListProjects(ctx context.Context) ([]Project, error) {
-	rows, err := q.db.Query(ctx, listProjects)
+type ListProjectsParams struct {
+	Off int32 `json:"off"`
+	Lim int32 `json:"lim"`
+}
+
+func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]Project, error) {
+	rows, err := q.db.Query(ctx, listProjects, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -268,11 +281,18 @@ func (q *Queries) ListProjects(ctx context.Context) ([]Project, error) {
 const listProjectsByClient = `-- name: ListProjectsByClient :many
 SELECT id, client_id, name, objective, status, created_at, updated_at FROM projects
 WHERE client_id = $1
-ORDER BY name
+ORDER BY name, id
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListProjectsByClient(ctx context.Context, clientID string) ([]Project, error) {
-	rows, err := q.db.Query(ctx, listProjectsByClient, clientID)
+type ListProjectsByClientParams struct {
+	ClientID string `json:"clientId"`
+	Off      int32  `json:"off"`
+	Lim      int32  `json:"lim"`
+}
+
+func (q *Queries) ListProjectsByClient(ctx context.Context, arg ListProjectsByClientParams) ([]Project, error) {
+	rows, err := q.db.Query(ctx, listProjectsByClient, arg.ClientID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -302,40 +322,42 @@ func (q *Queries) ListProjectsByClient(ctx context.Context, clientID string) ([]
 const updateClient = `-- name: UpdateClient :one
 UPDATE clients
 SET
-    name          = $2,
-    industry      = $3,
-    status        = $4,
-    client_pic    = $5,
-    wit_owner     = $6,
-    contract_type = $7,
-    health        = $8,
-    risk          = $9,
-    notes         = $10,
-    action_needed = $11,
-    ai_insight    = $12,
+    name          = COALESCE($1, name),
+    industry      = COALESCE($2, industry),
+    status        = COALESCE($3, status),
+    client_pic    = COALESCE($4, client_pic),
+    wit_owner     = COALESCE($5, wit_owner),
+    contract_type = COALESCE($6, contract_type),
+    health        = COALESCE($7, health),
+    risk          = COALESCE($8, risk),
+    notes         = COALESCE($9, notes),
+    action_needed = COALESCE($10::text[], action_needed),
+    ai_insight    = COALESCE($11::jsonb, ai_insight),
     updated_at    = now()
-WHERE id = $1
+WHERE id = $12
 RETURNING id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at
 `
 
 type UpdateClientParams struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Industry     string   `json:"industry"`
-	Status       string   `json:"status"`
-	ClientPic    string   `json:"clientPic"`
-	WitOwner     string   `json:"witOwner"`
-	ContractType string   `json:"contractType"`
-	Health       string   `json:"health"`
-	Risk         string   `json:"risk"`
-	Notes        string   `json:"notes"`
-	ActionNeeded []string `json:"actionNeeded"`
-	AiInsight    []byte   `json:"aiInsight"`
+	Name         *string         `json:"name"`
+	Industry     *string         `json:"industry"`
+	Status       *string         `json:"status"`
+	ClientPic    *string         `json:"clientPic"`
+	WitOwner     *string         `json:"witOwner"`
+	ContractType *string         `json:"contractType"`
+	Health       *string         `json:"health"`
+	Risk         *string         `json:"risk"`
+	Notes        *string         `json:"notes"`
+	ActionNeeded []string        `json:"actionNeeded"`
+	AiInsight    json.RawMessage `json:"aiInsight"`
+	ID           string          `json:"id"`
 }
 
+// Partial update: a NULL argument means "not supplied", so a column nobody
+// named is never rewritten. Two concurrent PATCHes of different fields both
+// land instead of the second silently reverting the first.
 func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error) {
 	row := q.db.QueryRow(ctx, updateClient,
-		arg.ID,
 		arg.Name,
 		arg.Industry,
 		arg.Status,
@@ -347,6 +369,7 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 		arg.Notes,
 		arg.ActionNeeded,
 		arg.AiInsight,
+		arg.ID,
 	)
 	var i Client
 	err := row.Scan(
@@ -371,30 +394,30 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 const updateProject = `-- name: UpdateProject :one
 UPDATE projects
 SET
-    client_id  = $2,
-    name       = $3,
-    objective  = $4,
-    status     = $5,
+    client_id  = COALESCE($1, client_id),
+    name       = COALESCE($2, name),
+    objective  = COALESCE($3, objective),
+    status     = COALESCE($4, status),
     updated_at = now()
-WHERE id = $1
+WHERE id = $5
 RETURNING id, client_id, name, objective, status, created_at, updated_at
 `
 
 type UpdateProjectParams struct {
-	ID        string `json:"id"`
-	ClientID  string `json:"clientId"`
-	Name      string `json:"name"`
-	Objective string `json:"objective"`
-	Status    string `json:"status"`
+	ClientID  *string `json:"clientId"`
+	Name      *string `json:"name"`
+	Objective *string `json:"objective"`
+	Status    *string `json:"status"`
+	ID        string  `json:"id"`
 }
 
 func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {
 	row := q.db.QueryRow(ctx, updateProject,
-		arg.ID,
 		arg.ClientID,
 		arg.Name,
 		arg.Objective,
 		arg.Status,
+		arg.ID,
 	)
 	var i Project
 	err := row.Scan(

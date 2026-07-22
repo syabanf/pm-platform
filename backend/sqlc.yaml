@@ -16,10 +16,23 @@ sql:
         emit_pointers_for_null_types: true
         json_tags_case_style: "camel"
         overrides:
+          # jsonb is JSON, not bytes. Left as []byte, encoding/json renders it
+          # base64 on the way out and stores that string back on the way in,
+          # destroying the document a little more on every save.
+          - db_type: "jsonb"
+            go_type: "encoding/json.RawMessage"
+          - db_type: "jsonb"
+            nullable: true
+            go_type: "encoding/json.RawMessage"
           # NUMERIC(5,2) capacity values are small and always set — plain
           # float64 is far easier to work with than pgtype.Numeric.
           - db_type: "pg_catalog.numeric"
             go_type: "float64"
+          - db_type: "pg_catalog.numeric"
+            nullable: true
+            go_type:
+              type: "float64"
+              pointer: true
           - db_type: "date"
             go_type: "time.Time"
           - db_type: "date"

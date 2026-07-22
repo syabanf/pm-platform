@@ -4,9 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 
 	"github.com/syabanf/pm-platform/backend/internal/db"
@@ -142,14 +144,12 @@ type updateReportQueueStatusRequest struct {
 }
 
 func (s *Server) listReportQueue(c echo.Context) error {
-	rows, err := s.q.ListReportQueue(c.Request().Context())
+	limit, offset := page(c)
+	rows, err := s.q.ListReportQueue(c.Request().Context(), db.ListReportQueueParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.ReportQueue{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createReportQueueItem(c echo.Context) error {
@@ -239,14 +239,16 @@ func (s *Server) listGeneratedReportsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListGeneratedReportsByProduct(c.Request().Context(), productID)
+	limit, offset := page(c)
+	rows, err := s.q.ListGeneratedReportsByProduct(c.Request().Context(), db.ListGeneratedReportsByProductParams{
+		ProductID: productID,
+		Lim:       limit + 1,
+		Off:       offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.GeneratedReport{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createGeneratedReport(c echo.Context) error {
@@ -280,6 +282,12 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 		Status:      orDefault(req.Status, "draft"),
 	})
 	if err != nil {
+		// The insert selects the product and checks the sprint belongs to it,
+		// so no row means one of those two did not hold.
+		if errors.Is(err, pgx.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusBadRequest,
+				"productId does not exist, or sprintId is not a sprint of that module")
+		}
 		return dbErr(err)
 	}
 	return c.JSON(http.StatusCreated, row)
@@ -327,10 +335,7 @@ func (s *Server) upsertRole(c echo.Context) error {
 	if req.ID == "" {
 		req.ID = newSettingsID("role")
 	}
-	permissions := []byte(req.Permissions)
-	if len(permissions) == 0 {
-		permissions = []byte(`{}`)
-	}
+	permissions := jsonObjectOrEmpty(req.Permissions)
 
 	row, err := s.q.UpsertRole(c.Request().Context(), db.UpsertRoleParams{
 		ID:          req.ID,
@@ -431,10 +436,7 @@ func (s *Server) upsertWorkspaceSettings(c echo.Context) error {
 	if req.Name == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
 	}
-	settings := []byte(req.Settings)
-	if len(settings) == 0 {
-		settings = []byte(`{}`)
-	}
+	settings := jsonObjectOrEmpty(req.Settings)
 	if req.DodTemplate == nil {
 		req.DodTemplate = []string{}
 	}

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 
 	"github.com/syabanf/pm-platform/backend/internal/db"
@@ -132,11 +132,16 @@ func (s *Server) listSprintsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListSprintsByProduct(c.Request().Context(), productID)
+	limit, offset := page(c)
+	rows, err := s.q.ListSprintsByProduct(c.Request().Context(), db.ListSprintsByProductParams{
+		ProductID: productID,
+		Lim:       limit + 1,
+		Off:       offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) listSprintsByModule(c echo.Context) error {
@@ -144,11 +149,16 @@ func (s *Server) listSprintsByModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListSprintsByModule(c.Request().Context(), ptr(moduleID))
+	limit, offset := page(c)
+	rows, err := s.q.ListSprintsByModule(c.Request().Context(), db.ListSprintsByModuleParams{
+		ModuleID: ptr(moduleID),
+		Lim:      limit + 1,
+		Off:      offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createSprint(c echo.Context) error {
@@ -208,15 +218,25 @@ func (s *Server) createSprint(c echo.Context) error {
 		return c.JSON(http.StatusCreated, row)
 	}
 
-	// Auto-numbered: the number is computed inside the INSERT. Concurrent
-	// creates can still collide on UNIQUE (product_id, number), so retry —
-	// otherwise a burst of simultaneous creates would fail with 409s.
-	var lastErr error
-	for attempt := 0; attempt < 8; attempt++ {
-		row, err := s.q.CreateSprintAutoNumber(ctx, db.CreateSprintAutoNumberParams{
+	// Auto-numbered: lock the product, then read the next number and insert it.
+	// The lock makes a burst queue up and each create take the next number,
+	// instead of every request reading the same MAX and fighting over
+	// UNIQUE (product_id, number).
+	var row db.Sprint
+	err = s.withTx(ctx, func(q *db.Queries) error {
+		if _, lockErr := q.LockProductForUpdate(ctx, productID); lockErr != nil {
+			return lockErr
+		}
+		number, numErr := q.NextSprintNumber(ctx, productID)
+		if numErr != nil {
+			return numErr
+		}
+		var createErr error
+		row, createErr = q.CreateSprint(ctx, db.CreateSprintParams{
 			ID:          id,
 			ProductID:   productID,
 			ModuleID:    req.ModuleID,
+			Number:      number,
 			Name:        req.Name,
 			Goal:        req.Goal,
 			StartDate:   req.StartDate,
@@ -229,19 +249,15 @@ func (s *Server) createSprint(c echo.Context) error {
 			Progress:    deref(req.Progress),
 			Risk:        risk,
 		})
-		if err == nil {
-			return c.JSON(http.StatusCreated, row)
+		return createErr
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusBadRequest, "productId does not exist")
 		}
-		lastErr = err
-		var pgErr *pgconn.PgError
-		if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
-			return dbErr(err)
-		}
-		if ctx.Err() != nil {
-			return dbErr(ctx.Err())
-		}
+		return dbErr(err)
 	}
-	return dbErr(lastErr)
+	return c.JSON(http.StatusCreated, row)
 }
 
 func (s *Server) getSprint(c echo.Context) error {
@@ -268,65 +284,22 @@ func (s *Server) updateSprint(c echo.Context) error {
 		return err
 	}
 
-	cur, err := s.q.GetSprint(ctx, id)
-	if err != nil {
-		return dbErr(err)
-	}
-
+	// Partial update: only the named fields are written.
 	arg := db.UpdateSprintParams{
-		ID:          cur.ID,
-		ModuleID:    cur.ModuleID,
-		Number:      cur.Number,
-		Name:        cur.Name,
-		Goal:        cur.Goal,
-		StartDate:   cur.StartDate,
-		EndDate:     cur.EndDate,
-		WorkingDays: cur.WorkingDays,
-		DaysLeft:    cur.DaysLeft,
-		Status:      cur.Status,
-		Committed:   cur.Committed,
-		Completed:   cur.Completed,
-		Progress:    cur.Progress,
-		Risk:        cur.Risk,
-	}
-	if req.ModuleID != nil {
-		arg.ModuleID = req.ModuleID
-	}
-	if req.Number != nil {
-		arg.Number = *req.Number
-	}
-	if req.Name != nil {
-		arg.Name = *req.Name
-	}
-	if req.Goal != nil {
-		arg.Goal = *req.Goal
-	}
-	if req.StartDate != nil {
-		arg.StartDate = req.StartDate
-	}
-	if req.EndDate != nil {
-		arg.EndDate = req.EndDate
-	}
-	if req.WorkingDays != nil {
-		arg.WorkingDays = *req.WorkingDays
-	}
-	if req.DaysLeft != nil {
-		arg.DaysLeft = *req.DaysLeft
-	}
-	if req.Status != nil {
-		arg.Status = *req.Status
-	}
-	if req.Committed != nil {
-		arg.Committed = *req.Committed
-	}
-	if req.Completed != nil {
-		arg.Completed = *req.Completed
-	}
-	if req.Progress != nil {
-		arg.Progress = *req.Progress
-	}
-	if req.Risk != nil {
-		arg.Risk = *req.Risk
+		ID:          id,
+		ModuleID:    req.ModuleID,
+		Number:      req.Number,
+		Name:        req.Name,
+		Goal:        req.Goal,
+		StartDate:   req.StartDate,
+		EndDate:     req.EndDate,
+		WorkingDays: req.WorkingDays,
+		DaysLeft:    req.DaysLeft,
+		Status:      req.Status,
+		Committed:   req.Committed,
+		Completed:   req.Completed,
+		Progress:    req.Progress,
+		Risk:        req.Risk,
 	}
 
 	row, err := s.q.UpdateSprint(ctx, arg)
@@ -439,12 +412,50 @@ func (s *Server) addSprintBacklogItem(c echo.Context) error {
 		return err
 	}
 
-	row, err := s.q.AddSprintBacklogItem(c.Request().Context(), db.AddSprintBacklogItemParams{
-		SprintID:      sprintID,
-		BacklogItemID: itemID,
-		Position:      deref(req.Position),
-	})
+	ctx := c.Request().Context()
+
+	add := func(q *db.Queries, position int32) (db.SprintBacklogItem, error) {
+		return q.AddSprintBacklogItem(ctx, db.AddSprintBacklogItemParams{
+			SprintID:      sprintID,
+			BacklogItemID: itemID,
+			Position:      position,
+		})
+	}
+
+	var row db.SprintBacklogItem
+	if req.Position != nil {
+		row, err = add(s.q, *req.Position)
+	} else {
+		// Appending needs a lock, or a burst of adds all read the same MAX and
+		// pile onto position 0. Take the backlog item before the sprint: the
+		// insert's own foreign-key check will lock the item anyway, and a
+		// cascading parent delete walks backlog_items first — locking in the
+		// other order is an AB-BA cycle that deadlocks every such delete.
+		err = s.withTx(ctx, func(q *db.Queries) error {
+			if _, lockErr := q.LockBacklogItemForShare(ctx, itemID); lockErr != nil {
+				return lockErr
+			}
+			if _, lockErr := q.LockSprintForUpdate(ctx, sprintID); lockErr != nil {
+				return lockErr
+			}
+			position, posErr := q.NextSprintBacklogPosition(ctx, sprintID)
+			if posErr != nil {
+				return posErr
+			}
+			var addErr error
+			row, addErr = add(q, position)
+			return addErr
+		})
+	}
 	if err != nil {
+		// The insert joins the item to the sprint's product, so no row means
+		// either the sprint is unknown or the item belongs elsewhere.
+		if errors.Is(err, pgx.ErrNoRows) {
+			if _, getErr := s.q.GetSprint(ctx, sprintID); getErr == nil {
+				return echo.NewHTTPError(http.StatusBadRequest,
+					"that backlog item does not exist or belongs to a different module")
+			}
+		}
 		return dbErr(err)
 	}
 	return c.JSON(http.StatusOK, row)
@@ -476,11 +487,16 @@ func (s *Server) listBacklogItemsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListBacklogItemsByProduct(c.Request().Context(), productID)
+	limit, offset := page(c)
+	rows, err := s.q.ListBacklogItemsByProduct(c.Request().Context(), db.ListBacklogItemsByProductParams{
+		ProductID: productID,
+		Lim:       limit + 1,
+		Off:       offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) listBacklogItemsByModule(c echo.Context) error {
@@ -488,11 +504,16 @@ func (s *Server) listBacklogItemsByModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListBacklogItemsByModule(c.Request().Context(), ptr(moduleID))
+	limit, offset := page(c)
+	rows, err := s.q.ListBacklogItemsByModule(c.Request().Context(), db.ListBacklogItemsByModuleParams{
+		ModuleID: ptr(moduleID),
+		Lim:      limit + 1,
+		Off:      offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createBacklogItem(c echo.Context) error {
@@ -565,55 +586,19 @@ func (s *Server) updateBacklogItem(c echo.Context) error {
 		return err
 	}
 
-	cur, err := s.q.GetBacklogItem(ctx, id)
-	if err != nil {
-		return dbErr(err)
-	}
-
+	// Partial update: only the named fields are written. A supplied but empty
+	// array still clears the column — nil is the "not supplied" signal.
 	arg := db.UpdateBacklogItemParams{
-		ID:                 cur.ID,
-		ModuleID:           cur.ModuleID,
-		Title:              cur.Title,
-		Story:              cur.Story,
-		AcceptanceCriteria: cur.AcceptanceCriteria,
-		Type:               cur.Type,
-		Priority:           cur.Priority,
-		Readiness:          cur.Readiness,
-		Estimate:           cur.Estimate,
-		AiSuggestions:      cur.AiSuggestions,
-	}
-	if req.ModuleID != nil {
-		arg.ModuleID = req.ModuleID
-	}
-	if req.Title != nil {
-		arg.Title = *req.Title
-	}
-	if req.Story != nil {
-		arg.Story = *req.Story
-	}
-	if req.AcceptanceCriteria != nil {
-		arg.AcceptanceCriteria = *req.AcceptanceCriteria
-	}
-	if req.Type != nil {
-		arg.Type = *req.Type
-	}
-	if req.Priority != nil {
-		arg.Priority = *req.Priority
-	}
-	if req.Readiness != nil {
-		arg.Readiness = *req.Readiness
-	}
-	if req.Estimate != nil {
-		arg.Estimate = *req.Estimate
-	}
-	if req.AiSuggestions != nil {
-		arg.AiSuggestions = *req.AiSuggestions
-	}
-	if arg.AcceptanceCriteria == nil {
-		arg.AcceptanceCriteria = []string{}
-	}
-	if arg.AiSuggestions == nil {
-		arg.AiSuggestions = []string{}
+		ID:                 id,
+		ModuleID:           req.ModuleID,
+		Title:              req.Title,
+		Story:              req.Story,
+		AcceptanceCriteria: derefSlice(req.AcceptanceCriteria),
+		Type:               req.Type,
+		Priority:           req.Priority,
+		Readiness:          req.Readiness,
+		Estimate:           req.Estimate,
+		AiSuggestions:      derefSlice(req.AiSuggestions),
 	}
 
 	row, err := s.q.UpdateBacklogItem(ctx, arg)

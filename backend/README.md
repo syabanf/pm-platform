@@ -114,6 +114,102 @@ All routes are under `/api/v1`. IDs are opaque `TEXT`.
 
 Errors are always `{"error": "..."}` with an appropriate status.
 
+Two request conventions are worth knowing:
+
+- **PATCH is a true partial update.** Only the fields present in the body are
+  written; anything you leave out keeps its stored value. Sending an explicit
+  empty array (`"actionNeeded": []`) does clear that column — `null` and an
+  omitted key both mean "leave it alone".
+- **`clientId` is not accepted on a product.** It is derived from the project, so
+  a product can never be attributed to — or deleted by — a client that does not
+  own it. Move the product by changing `projectId`. `currentSprintId` is not
+  accepted on create either — a new product has no sprints; use
+  `PATCH /products/:id/current-sprint` once one exists.
+- **List endpoints are paginated.** `?limit=` (default 200, max 1000) and
+  `?offset=`. The body stays a plain array; an `X-Has-More: true` response header
+  says another page exists. `PATCH /products/:id/current-sprint` is the one
+  endpoint where an explicit `null` differs from an absent key: `null` clears the
+  pointer, an empty body `{}` changes nothing.
+
+## Limits
+
+| Limit | Default | Env | Why |
+| ----- | ------- | --- | --- |
+| Request body | 1 MB (1,000,000 bytes, decimal) | `MAX_BODY_SIZE` | one write should not cost every later read |
+| Decoded jsonb per column | 64 KB | schema CHECK | `1e131071` is 9 bytes on the wire and a megabyte in the column |
+| Page size | 200, max 1000 | — | an unpaginated list is a read amplifier |
+| Request | 15 s | `REQUEST_TIMEOUT` | bounds the handler |
+| Statement | 5 s | `STATEMENT_TIMEOUT` | survives a client hanging up; frees the connection |
+| Lock wait when sequencing | 250 ms | — | one hot product must not park the pool |
+| Pool connections | 25 (min 2) | `MAX_DB_CONNS`, `MIN_DB_CONNS` | pgx defaults to CPU count, which silently caps concurrency |
+
+## Health probes
+
+| Path       | Touches the database | Use for                                    |
+| ---------- | -------------------- | ------------------------------------------ |
+| `/livez`   | no                   | liveness — answers while the pool is full  |
+| `/readyz`  | yes (500 ms budget)  | readiness / load-balancer                  |
+| `/healthz` | yes                  | alias of `/readyz`, kept for compatibility |
+
+Point a `livenessProbe` at `/livez`. A DB-backed liveness check fails exactly
+when the pool is saturated, and the orchestrator answers by restarting a process
+that was only busy.
+
+## Migrating a database that already has data
+
+`000002_integrity_hardening` adds the foreign keys and CHECKs that 000001 was
+missing. Rows that already break them stop the migration — it names the offending
+row and leaves `schema_migrations.dirty = true` rather than accepting bad data.
+On a database that has been written to, clean up first:
+
+```sql
+-- a product must be attributed to its project's client
+UPDATE products p SET client_id = pj.client_id
+  FROM projects pj WHERE pj.id = p.project_id AND pj.client_id <> p.client_id;
+
+-- a sprint or backlog item may only point at a Component of its own Module
+UPDATE sprints s SET module_id = NULL
+  FROM modules m WHERE m.id = s.module_id AND m.product_id <> s.product_id;
+UPDATE backlog_items b SET module_id = NULL
+  FROM modules m WHERE m.id = b.module_id AND m.product_id <> b.product_id;
+
+-- the current-sprint pointer must name a sprint of that product
+UPDATE products p SET current_sprint_id = NULL
+ WHERE p.current_sprint_id IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sprints s
+                    WHERE s.id = p.current_sprint_id AND s.product_id = p.id);
+
+-- bounds
+UPDATE sprints SET progress = LEAST(GREATEST(progress, 0), 100);
+UPDATE members SET allocation = LEAST(GREATEST(allocation, 0), 100), workload = GREATEST(workload, 0);
+UPDATE sprint_members SET allocation = LEAST(GREATEST(allocation, 0), 100);
+UPDATE members SET capacity_days = LEAST(GREATEST(capacity_days, 0), 999.99);
+UPDATE sprint_members SET capacity_days = LEAST(GREATEST(capacity_days, 0), 999.99);
+UPDATE sprints SET working_days = GREATEST(working_days, 0), days_left = GREATEST(days_left, 0),
+                   committed = GREATEST(committed, 0), completed = GREATEST(completed, 0);
+UPDATE tasks SET estimate = GREATEST(estimate, 0);
+UPDATE backlog_items SET estimate = GREATEST(estimate, 0);
+UPDATE modules SET position = GREATEST(position, 0);
+UPDATE sprint_backlog_items SET position = GREATEST(position, 0);
+UPDATE task_dod SET position = GREATEST(position, 0);
+
+-- a sprint ending before it starts
+UPDATE sprints SET end_date = NULL WHERE start_date IS NOT NULL AND end_date < start_date;
+
+-- sprint numbers start at 1; move any non-positive one to the end of its product
+WITH renumber AS (
+  SELECT s.id,
+         (SELECT GREATEST(COALESCE(MAX(x.number), 0), 0) FROM sprints x
+           WHERE x.product_id = s.product_id)
+         + ROW_NUMBER() OVER (PARTITION BY s.product_id ORDER BY s.id) AS new_number
+    FROM sprints s WHERE s.number <= 0
+)
+UPDATE sprints t SET number = r.new_number FROM renumber r WHERE t.id = r.id;
+```
+
+If a run already failed, clear the dirty flag with `make migrate-force V=1`
+before retrying.
+
 ## Wiring it up later
 
 The frontend currently reads from `src/lib/store.tsx` (in-memory, seeded from

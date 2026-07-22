@@ -17,6 +17,17 @@ type Config struct {
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
 	CORSOrigins     string
+
+	// RequestTimeout bounds a single request, and StatementTimeout bounds the
+	// query behind it. Without the second, a cancelled request leaves its query
+	// running and its pool connection held.
+	RequestTimeout   time.Duration
+	StatementTimeout time.Duration
+	// MaxDBConns is set explicitly: pgx defaults to the machine's CPU count,
+	// which quietly becomes the API's real concurrency limit.
+	MaxDBConns  int32
+	MinDBConns  int32
+	MaxBodySize string
 }
 
 // Load reads configuration from the environment, applying sane defaults for
@@ -32,6 +43,12 @@ func Load() (Config, error) {
 		ShutdownTimeout: getenvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
 		// Next.js dev server by default; comma-separated list.
 		CORSOrigins: getenv("CORS_ORIGINS", "http://localhost:3000"),
+
+		RequestTimeout:   getenvDuration("REQUEST_TIMEOUT", 15*time.Second),
+		StatementTimeout: getenvDuration("STATEMENT_TIMEOUT", 5*time.Second),
+		MaxDBConns:       int32(getenvInt("MAX_DB_CONNS", 25)),
+		MinDBConns:       int32(getenvInt("MIN_DB_CONNS", 2)),
+		MaxBodySize:      getenv("MAX_BODY_SIZE", "1M"),
 	}
 
 	if cfg.DatabaseURL == "" {

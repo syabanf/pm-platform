@@ -11,6 +11,11 @@ import (
 type Querier interface {
 	AddMasterValue(ctx context.Context, arg AddMasterValueParams) (MasterList, error)
 	// --------------------------------------------------- sprint_backlog_items ---
+	// The JOIN is the guard: an item may only be pulled into a sprint of its own
+	// product. A cross-product id matches no row, which the handler reports as a
+	// 400 — before, it linked happily and leaked the other product's story text.
+	// The position is chosen by the caller or computed under a row lock; see
+	// LockSprintForUpdate for why it cannot be computed inline.
 	AddSprintBacklogItem(ctx context.Context, arg AddSprintBacklogItemParams) (SprintBacklogItem, error)
 	// --------------------------------------------------------- sprint_members ---
 	AddSprintMember(ctx context.Context, arg AddSprintMemberParams) (SprintMember, error)
@@ -21,30 +26,36 @@ type Querier interface {
 	// -------------------------------------------------------------- decisions ---
 	CreateDecision(ctx context.Context, arg CreateDecisionParams) (Decision, error)
 	// ------------------------------------------------------ generated_reports ---
+	// A report may only cite a sprint of the product it reports on; without the
+	// guard a report on one client's module could link to another client's sprint,
+	// and following that link returned the other client's data.
 	CreateGeneratedReport(ctx context.Context, arg CreateGeneratedReportParams) (GeneratedReport, error)
 	// ---------------------------------------------------------------- members ---
 	CreateMember(ctx context.Context, arg CreateMemberParams) (Member, error)
 	// ============================================================================
 	// modules (UI "Component")
 	// ============================================================================
+	// position is chosen by the caller or computed under a row lock; see
+	// LockProductForUpdate for why it cannot be computed inline.
 	CreateModule(ctx context.Context, arg CreateModuleParams) (Module, error)
 	// ============================================================================
 	// products (UI "Module")
 	// ============================================================================
+	// client_id is denormalised, so it is derived from the project rather than
+	// taken from the caller: the two can never disagree, and a product can only
+	// ever be reached (and cascaded) through the client that really owns it.
+	// No matching project means no row, which the handler turns into a 400.
+	// current_sprint_id is not settable here: a new product has no sprints, so any
+	// value would point at another product's.
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
 	// --------------------------------------------------------------- projects ---
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
 	CreateReportQueueItem(ctx context.Context, arg CreateReportQueueItemParams) (ReportQueue, error)
 	CreateSprint(ctx context.Context, arg CreateSprintParams) (Sprint, error)
-	// Sprints, sprint membership, sprint backlog and the product backlog.
-	// Naming note: products = UI "Module", modules = UI "Component".
-	// ---------------------------------------------------------------- sprints ---
-	// Assigns the next sprint number for the product inside the INSERT itself, so
-	// concurrent creates cannot both read the same MAX(number). The UNIQUE
-	// (product_id, number) constraint is still the final arbiter; the caller
-	// retries on a unique violation.
-	CreateSprintAutoNumber(ctx context.Context, arg CreateSprintAutoNumberParams) (Sprint, error)
 	// ------------------------------------------------------------------ tasks ---
+	// The JOIN keeps a task inside its own product: the backlog item it implements
+	// must belong to the product that owns the sprint. A mismatch matches no row,
+	// which the handler reports as a 400.
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	DeleteBacklogItem(ctx context.Context, id string) error
 	DeleteClient(ctx context.Context, id string) error
@@ -70,52 +81,98 @@ type Querier interface {
 	GetTask(ctx context.Context, id string) (Task, error)
 	// ------------------------------------------------------ workspace_settings --
 	GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, error)
-	ListBacklogItemsByModule(ctx context.Context, moduleID *string) ([]BacklogItem, error)
-	ListBacklogItemsByProduct(ctx context.Context, productID string) ([]BacklogItem, error)
-	ListClients(ctx context.Context) ([]Client, error)
-	ListDecisionsByProduct(ctx context.Context, productID string) ([]Decision, error)
-	ListGeneratedReportsByProduct(ctx context.Context, productID string) ([]GeneratedReport, error)
+	ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error)
+	ListBacklogItemsByProduct(ctx context.Context, arg ListBacklogItemsByProductParams) ([]BacklogItem, error)
+	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)
+	ListDecisionsByProduct(ctx context.Context, arg ListDecisionsByProductParams) ([]Decision, error)
+	ListGeneratedReportsByProduct(ctx context.Context, arg ListGeneratedReportsByProductParams) ([]GeneratedReport, error)
 	// ----------------------------------------------------------- master_lists ---
 	ListMasterValues(ctx context.Context, key string) ([]MasterList, error)
-	ListMembers(ctx context.Context) ([]Member, error)
-	ListModulesByProduct(ctx context.Context, productID string) ([]Module, error)
-	ListProducts(ctx context.Context) ([]Product, error)
-	ListProductsByClient(ctx context.Context, clientID string) ([]Product, error)
-	ListProductsByProject(ctx context.Context, projectID string) ([]Product, error)
-	ListProjects(ctx context.Context) ([]Project, error)
-	ListProjectsByClient(ctx context.Context, clientID string) ([]Project, error)
+	ListMembers(ctx context.Context, arg ListMembersParams) ([]Member, error)
+	ListModulesByProduct(ctx context.Context, arg ListModulesByProductParams) ([]Module, error)
+	ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error)
+	ListProductsByClient(ctx context.Context, arg ListProductsByClientParams) ([]Product, error)
+	ListProductsByProject(ctx context.Context, arg ListProductsByProjectParams) ([]Product, error)
+	ListProjects(ctx context.Context, arg ListProjectsParams) ([]Project, error)
+	ListProjectsByClient(ctx context.Context, arg ListProjectsByClientParams) ([]Project, error)
 	// ----------------------------------------------------------- report_queue ---
-	ListReportQueue(ctx context.Context) ([]ReportQueue, error)
+	ListReportQueue(ctx context.Context, arg ListReportQueueParams) ([]ReportQueue, error)
 	// ------------------------------------------------------- report_templates ---
 	ListReportTemplates(ctx context.Context) ([]ReportTemplate, error)
 	// ------------------------------------------------------------------ roles ---
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSprintBacklogItems(ctx context.Context, sprintID string) ([]ListSprintBacklogItemsRow, error)
 	ListSprintMembers(ctx context.Context, sprintID string) ([]ListSprintMembersRow, error)
-	ListSprintsByModule(ctx context.Context, moduleID *string) ([]Sprint, error)
-	ListSprintsByProduct(ctx context.Context, productID string) ([]Sprint, error)
+	// number is only unique per product, so it cannot order a cross-product list
+	// on its own.
+	ListSprintsByModule(ctx context.Context, arg ListSprintsByModuleParams) ([]Sprint, error)
+	ListSprintsByProduct(ctx context.Context, arg ListSprintsByProductParams) ([]Sprint, error)
 	ListTaskDod(ctx context.Context, taskID string) ([]TaskDod, error)
 	ListTasksByBacklogItem(ctx context.Context, backlogItemID string) ([]Task, error)
-	ListTasksBySprint(ctx context.Context, sprintID string) ([]Task, error)
+	ListTasksBySprint(ctx context.Context, arg ListTasksBySprintParams) ([]Task, error)
+	// Taken before the sprint lock so the ordering matches the cascade's:
+	// DELETE FROM products reaches backlog_items before sprints, so locking the
+	// sprint first and the item second is an AB-BA cycle that deadlocks every
+	// concurrent parent delete.
+	LockBacklogItemForShare(ctx context.Context, id string) (string, error)
+	// Sprints, sprint membership, sprint backlog and the product backlog.
+	// Naming note: products = UI "Module", modules = UI "Component".
+	// ---------------------------------------------------------------- sprints ---
+	// Serialises per-product sequencing (sprint numbers, component positions).
+	// A single statement cannot do this for itself: under READ COMMITTED its
+	// snapshot is fixed before any lock it takes, so concurrent statements all
+	// read the same MAX() no matter how they queue. Taking the row lock in its own
+	// statement, inside a transaction, is what makes the next read see the truth.
+	//
+	// FOR NO KEY UPDATE, not FOR UPDATE: only the latter conflicts with the
+	// FOR KEY SHARE that every child insert's foreign-key check takes, which would
+	// freeze unrelated endpoints (backlog, decisions, explicitly-numbered sprints)
+	// for as long as one sequencing transaction runs.
+	LockProductForUpdate(ctx context.Context, id string) (string, error)
+	LockSprintForUpdate(ctx context.Context, id string) (string, error)
 	MarkGeneratedReportSent(ctx context.Context, id string) (GeneratedReport, error)
 	MoveTask(ctx context.Context, arg MoveTaskParams) (Task, error)
+	NextModulePosition(ctx context.Context, productID string) (int32, error)
+	NextSprintBacklogPosition(ctx context.Context, sprintID string) (int32, error)
 	NextSprintNumber(ctx context.Context, productID string) (int32, error)
 	RemoveSprintBacklogItem(ctx context.Context, arg RemoveSprintBacklogItemParams) error
 	RemoveSprintMember(ctx context.Context, arg RemoveSprintMemberParams) error
+	// Bounds how long a sequencing transaction will queue on a contended row.
+	// Without it one hot product can park every pool connection on the same lock
+	// until statement_timeout fires, and reads of unrelated data starve behind it.
+	SetLockTimeout(ctx context.Context) error
+	// The pointer may only name a sprint of this very product. A mismatch matches
+	// no row, which the handler reports as a 400 rather than silently storing it.
 	SetProductCurrentSprint(ctx context.Context, arg SetProductCurrentSprintParams) (Product, error)
 	// --------------------------------------------------------------- task_dod ---
 	SetTaskDodItem(ctx context.Context, arg SetTaskDodItemParams) (TaskDod, error)
 	ToggleTaskDodItem(ctx context.Context, arg ToggleTaskDodItemParams) (TaskDod, error)
+	// Partial update (see UpdateClient).
 	UpdateBacklogItem(ctx context.Context, arg UpdateBacklogItemParams) (BacklogItem, error)
+	// Partial update: a NULL argument means "not supplied", so a column nobody
+	// named is never rewritten. Two concurrent PATCHes of different fields both
+	// land instead of the second silently reverting the first.
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
+	// Partial update (see UpdateClient).
 	UpdateDecision(ctx context.Context, arg UpdateDecisionParams) (Decision, error)
+	// Partial update (see UpdateClient).
 	UpdateMember(ctx context.Context, arg UpdateMemberParams) (Member, error)
 	UpdateModule(ctx context.Context, arg UpdateModuleParams) (Module, error)
 	UpdateModuleStatus(ctx context.Context, arg UpdateModuleStatusParams) (Module, error)
+	// Partial update (see UpdateClient). client_id is never taken from the caller —
+	// it always follows whichever project the row ends up on.
+	// client_id is only recomputed when the product actually moves. Recomputing it
+	// unconditionally raced with "project moved to another client": the subquery
+	// read the pre-move snapshot while the row itself was re-read after the move,
+	// and the composite foreign key rejected the mismatched pair — failing a PATCH
+	// that never mentioned projectId.
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error)
 	UpdateReportQueueStatus(ctx context.Context, arg UpdateReportQueueStatusParams) (ReportQueue, error)
+	// Partial update (see UpdateClient).
 	UpdateSprint(ctx context.Context, arg UpdateSprintParams) (Sprint, error)
+	// Partial update (see UpdateClient): moving a card and renaming it at the same
+	// moment no longer cancel each other out.
 	UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error)
 	UpsertReportTemplate(ctx context.Context, arg UpsertReportTemplateParams) (ReportTemplate, error)
 	UpsertRole(ctx context.Context, arg UpsertRoleParams) (Role, error)

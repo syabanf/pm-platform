@@ -3,10 +3,12 @@ package httpapi
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 
 	"github.com/syabanf/pm-platform/backend/internal/db"
@@ -98,14 +100,16 @@ func (s *Server) listTasksBySprint(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListTasksBySprint(c.Request().Context(), sprintID)
+	limit, offset := page(c)
+	rows, err := s.q.ListTasksBySprint(c.Request().Context(), db.ListTasksBySprintParams{
+		SprintID: sprintID,
+		Lim:      limit + 1,
+		Off:      offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.Task{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createTask(c echo.Context) error {
@@ -131,7 +135,8 @@ func (s *Server) createTask(c echo.Context) error {
 	boardColumn := orDefault(deref(req.BoardColumn), "selected")
 	priority := orDefault(deref(req.Priority), "medium")
 
-	row, err := s.q.CreateTask(c.Request().Context(), db.CreateTaskParams{
+	ctx := c.Request().Context()
+	row, err := s.q.CreateTask(ctx, db.CreateTaskParams{
 		ID:            id,
 		SprintID:      sprintID,
 		BacklogItemID: req.BacklogItemID,
@@ -146,6 +151,14 @@ func (s *Server) createTask(c echo.Context) error {
 		OffGoal:       deref(req.OffGoal),
 	})
 	if err != nil {
+		// The insert joins the backlog item to the sprint's product, so no row
+		// means either the sprint is unknown or the item belongs elsewhere.
+		if errors.Is(err, pgx.ErrNoRows) {
+			if _, getErr := s.q.GetSprint(ctx, sprintID); getErr == nil {
+				return echo.NewHTTPError(http.StatusBadRequest,
+					"that backlog item does not exist or belongs to a different module")
+			}
+		}
 		return dbErr(err)
 	}
 	return c.JSON(http.StatusCreated, row)
@@ -173,53 +186,22 @@ func (s *Server) updateTask(c echo.Context) error {
 		return err
 	}
 
-	ctx := c.Request().Context()
-	cur, err := s.q.GetTask(ctx, taskID)
-	if err != nil {
-		return dbErr(err)
-	}
-
+	// Partial update: renaming a card while someone else drags it to another
+	// column no longer sends it back to where it started.
 	arg := db.UpdateTaskParams{
-		ID:            cur.ID,
-		Title:         cur.Title,
-		ModuleName:    cur.ModuleName,
-		AssigneeID:    cur.AssigneeID,
-		Estimate:      cur.Estimate,
-		BoardColumn:   cur.BoardColumn,
-		Priority:      cur.Priority,
-		BlockedReason: cur.BlockedReason,
-		BlockedDays:   cur.BlockedDays,
-		OffGoal:       cur.OffGoal,
-	}
-	if req.Title != nil {
-		arg.Title = *req.Title
-	}
-	if req.ModuleName != nil {
-		arg.ModuleName = *req.ModuleName
-	}
-	if req.AssigneeID != nil {
-		arg.AssigneeID = req.AssigneeID
-	}
-	if req.Estimate != nil {
-		arg.Estimate = *req.Estimate
-	}
-	if req.BoardColumn != nil {
-		arg.BoardColumn = *req.BoardColumn
-	}
-	if req.Priority != nil {
-		arg.Priority = *req.Priority
-	}
-	if req.BlockedReason != nil {
-		arg.BlockedReason = req.BlockedReason
-	}
-	if req.BlockedDays != nil {
-		arg.BlockedDays = req.BlockedDays
-	}
-	if req.OffGoal != nil {
-		arg.OffGoal = *req.OffGoal
+		ID:            taskID,
+		Title:         req.Title,
+		ModuleName:    req.ModuleName,
+		AssigneeID:    req.AssigneeID,
+		Estimate:      req.Estimate,
+		BoardColumn:   req.BoardColumn,
+		Priority:      req.Priority,
+		BlockedReason: req.BlockedReason,
+		BlockedDays:   req.BlockedDays,
+		OffGoal:       req.OffGoal,
 	}
 
-	row, err := s.q.UpdateTask(ctx, arg)
+	row, err := s.q.UpdateTask(c.Request().Context(), arg)
 	if err != nil {
 		return dbErr(err)
 	}
@@ -253,11 +235,9 @@ func (s *Server) deleteTask(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := c.Request().Context()
-	if err := s.q.DeleteTaskDod(ctx, taskID); err != nil {
-		return dbErr(err)
-	}
-	if err := s.q.DeleteTask(ctx, taskID); err != nil {
+	// task_dod cascades from tasks, so one statement is enough — and unlike the
+	// old two-step it cannot half-succeed.
+	if err := s.q.DeleteTask(c.Request().Context(), taskID); err != nil {
 		return dbErr(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -361,14 +341,12 @@ type updateMemberRequest struct {
 }
 
 func (s *Server) listMembers(c echo.Context) error {
-	rows, err := s.q.ListMembers(c.Request().Context())
+	limit, offset := page(c)
+	rows, err := s.q.ListMembers(c.Request().Context(), db.ListMembersParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.Member{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createMember(c echo.Context) error {
@@ -438,56 +416,21 @@ func (s *Server) updateMember(c echo.Context) error {
 		return err
 	}
 
-	ctx := c.Request().Context()
-	cur, err := s.q.GetMember(ctx, memberID)
-	if err != nil {
-		return dbErr(err)
-	}
-
+	// Partial update: only the named fields are written.
 	arg := db.UpdateMemberParams{
-		ID:           cur.ID,
-		Name:         cur.Name,
-		Email:        cur.Email,
-		Role:         cur.Role,
-		RoleLabel:    cur.RoleLabel,
-		SkillTags:    cur.SkillTags,
-		Allocation:   cur.Allocation,
-		CapacityDays: cur.CapacityDays,
-		Workload:     cur.Workload,
-		Status:       cur.Status,
-	}
-	if req.Name != nil {
-		arg.Name = *req.Name
-	}
-	if req.Email != nil {
-		arg.Email = *req.Email
-	}
-	if req.Role != nil {
-		arg.Role = *req.Role
-	}
-	if req.RoleLabel != nil {
-		arg.RoleLabel = *req.RoleLabel
-	}
-	if req.SkillTags != nil {
-		arg.SkillTags = req.SkillTags
-	}
-	if req.Allocation != nil {
-		arg.Allocation = *req.Allocation
-	}
-	if req.CapacityDays != nil {
-		arg.CapacityDays = *req.CapacityDays
-	}
-	if req.Workload != nil {
-		arg.Workload = *req.Workload
-	}
-	if req.Status != nil {
-		arg.Status = *req.Status
-	}
-	if arg.SkillTags == nil {
-		arg.SkillTags = []string{}
+		ID:           memberID,
+		Name:         req.Name,
+		Email:        req.Email,
+		Role:         req.Role,
+		RoleLabel:    req.RoleLabel,
+		SkillTags:    req.SkillTags,
+		Allocation:   req.Allocation,
+		CapacityDays: req.CapacityDays,
+		Workload:     req.Workload,
+		Status:       req.Status,
 	}
 
-	row, err := s.q.UpdateMember(ctx, arg)
+	row, err := s.q.UpdateMember(c.Request().Context(), arg)
 	if err != nil {
 		return dbErr(err)
 	}
@@ -529,14 +472,16 @@ func (s *Server) listDecisionsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListDecisionsByProduct(c.Request().Context(), productID)
+	limit, offset := page(c)
+	rows, err := s.q.ListDecisionsByProduct(c.Request().Context(), db.ListDecisionsByProductParams{
+		ProductID: productID,
+		Lim:       limit + 1,
+		Off:       offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.Decision{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createDecision(c echo.Context) error {
@@ -591,41 +536,23 @@ func (s *Server) updateDecision(c echo.Context) error {
 		return err
 	}
 
-	ctx := c.Request().Context()
-	cur, err := s.q.GetDecision(ctx, decisionID)
-	if err != nil {
-		return dbErr(err)
-	}
-
+	// Partial update: only the named fields are written.
 	arg := db.UpdateDecisionParams{
-		ID:        cur.ID,
-		DecidedOn: cur.DecidedOn,
-		Title:     cur.Title,
-		Detail:    cur.Detail,
-		Owner:     cur.Owner,
-		Status:    cur.Status,
+		ID:     decisionID,
+		Title:  req.Title,
+		Detail: req.Detail,
+		Owner:  req.Owner,
+		Status: req.Status,
 	}
 	if req.DecidedOn != nil && *req.DecidedOn != "" {
 		d, perr := parseTaskScopedDate(*req.DecidedOn)
 		if perr != nil {
 			return perr
 		}
-		arg.DecidedOn = d
-	}
-	if req.Title != nil {
-		arg.Title = *req.Title
-	}
-	if req.Detail != nil {
-		arg.Detail = *req.Detail
-	}
-	if req.Owner != nil {
-		arg.Owner = *req.Owner
-	}
-	if req.Status != nil {
-		arg.Status = *req.Status
+		arg.DecidedOn = &d
 	}
 
-	row, err := s.q.UpdateDecision(ctx, arg)
+	row, err := s.q.UpdateDecision(c.Request().Context(), arg)
 	if err != nil {
 		return dbErr(err)
 	}

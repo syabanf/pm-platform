@@ -5,6 +5,7 @@
 package db
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -38,7 +39,7 @@ type Client struct {
 	Risk         string             `json:"risk"`
 	Notes        string             `json:"notes"`
 	ActionNeeded []string           `json:"actionNeeded"`
-	AiInsight    []byte             `json:"aiInsight"`
+	AiInsight    json.RawMessage    `json:"aiInsight"`
 	CreatedAt    pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt    pgtype.Timestamptz `json:"updatedAt"`
 }
@@ -114,7 +115,7 @@ type Product struct {
 	Velocity        int32              `json:"velocity"`
 	BlockedCount    int32              `json:"blockedCount"`
 	CurrentSprintID *string            `json:"currentSprintId"`
-	AiInsight       []byte             `json:"aiInsight"`
+	AiInsight       json.RawMessage    `json:"aiInsight"`
 	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
 }
@@ -153,9 +154,9 @@ type ReportTemplate struct {
 }
 
 type Role struct {
-	ID          string `json:"id"`
-	Label       string `json:"label"`
-	Permissions []byte `json:"permissions"`
+	ID          string          `json:"id"`
+	Label       string          `json:"label"`
+	Permissions json.RawMessage `json:"permissions"`
 }
 
 type Sprint struct {
@@ -218,7 +219,7 @@ type TaskDod struct {
 type WorkspaceSetting struct {
 	ID          bool               `json:"id"`
 	Name        string             `json:"name"`
-	Settings    []byte             `json:"settings"`
+	Settings    json.RawMessage    `json:"settings"`
 	DodTemplate []string           `json:"dodTemplate"`
 	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
 }

@@ -73,20 +73,13 @@ type updateProjectRequest struct {
 	Status    *string `json:"status"`
 }
 
-// pickClientString returns *p when set, otherwise the current value.
-func pickClientString(p *string, current string) string {
+// rawOrNil unwraps an optional JSON blob. nil means "the caller said nothing",
+// which every partial UPDATE reads as "leave this column alone".
+func rawOrNil(p *json.RawMessage) json.RawMessage {
 	if p == nil {
-		return current
+		return nil
 	}
 	return *p
-}
-
-// rawToClientBytes converts an optional JSON blob to the []byte column type.
-func rawToClientBytes(p *json.RawMessage, current []byte) []byte {
-	if p == nil {
-		return current
-	}
-	return []byte(*p)
 }
 
 // ----------------------------------------------------------------- routes ---
@@ -109,11 +102,12 @@ func (s *Server) registerClientRoutes(g *echo.Group) {
 // ---------------------------------------------------------------- clients ---
 
 func (s *Server) listClients(c echo.Context) error {
-	rows, err := s.q.ListClients(c.Request().Context())
+	limit, offset := page(c)
+	rows, err := s.q.ListClients(c.Request().Context(), db.ListClientsParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createClient(c echo.Context) error {
@@ -146,7 +140,7 @@ func (s *Server) createClient(c echo.Context) error {
 		Risk:         orDefault(deref(req.Risk), "low"),
 		Notes:        deref(req.Notes),
 		ActionNeeded: actionNeeded,
-		AiInsight:    rawToClientBytes(req.AiInsight, nil),
+		AiInsight:    rawOrNil(req.AiInsight),
 	}
 
 	row, err := s.q.CreateClient(c.Request().Context(), arg)
@@ -178,36 +172,25 @@ func (s *Server) updateClient(c echo.Context) error {
 		return err
 	}
 
-	ctx := c.Request().Context()
-	cur, err := s.q.GetClient(ctx, id)
-	if err != nil {
-		return dbErr(err)
-	}
-
-	actionNeeded := cur.ActionNeeded
-	if req.ActionNeeded != nil {
-		actionNeeded = req.ActionNeeded
-	}
-	if actionNeeded == nil {
-		actionNeeded = []string{}
-	}
-
+	// Only what the caller actually sent goes to the database. Reading the row
+	// first and writing all of it back is what let two simultaneous PATCHes of
+	// different fields silently undo one another.
 	arg := db.UpdateClientParams{
 		ID:           id,
-		Name:         pickClientString(req.Name, cur.Name),
-		Industry:     pickClientString(req.Industry, cur.Industry),
-		Status:       pickClientString(req.Status, cur.Status),
-		ClientPic:    pickClientString(req.ClientPic, cur.ClientPic),
-		WitOwner:     pickClientString(req.WitOwner, cur.WitOwner),
-		ContractType: pickClientString(req.ContractType, cur.ContractType),
-		Health:       pickClientString(req.Health, cur.Health),
-		Risk:         pickClientString(req.Risk, cur.Risk),
-		Notes:        pickClientString(req.Notes, cur.Notes),
-		ActionNeeded: actionNeeded,
-		AiInsight:    rawToClientBytes(req.AiInsight, cur.AiInsight),
+		Name:         req.Name,
+		Industry:     req.Industry,
+		Status:       req.Status,
+		ClientPic:    req.ClientPic,
+		WitOwner:     req.WitOwner,
+		ContractType: req.ContractType,
+		Health:       req.Health,
+		Risk:         req.Risk,
+		Notes:        req.Notes,
+		ActionNeeded: req.ActionNeeded,
+		AiInsight:    rawOrNil(req.AiInsight),
 	}
 
-	row, err := s.q.UpdateClient(ctx, arg)
+	row, err := s.q.UpdateClient(c.Request().Context(), arg)
 	if err != nil {
 		return dbErr(err)
 	}
@@ -230,21 +213,27 @@ func (s *Server) listProjectsByClient(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListProjectsByClient(c.Request().Context(), id)
+	limit, offset := page(c)
+	rows, err := s.q.ListProjectsByClient(c.Request().Context(), db.ListProjectsByClientParams{
+		ClientID: id,
+		Lim:      limit + 1,
+		Off:      offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 // --------------------------------------------------------------- projects ---
 
 func (s *Server) listProjects(c echo.Context) error {
-	rows, err := s.q.ListProjects(c.Request().Context())
+	limit, offset := page(c)
+	rows, err := s.q.ListProjects(c.Request().Context(), db.ListProjectsParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) createProject(c echo.Context) error {
@@ -301,21 +290,15 @@ func (s *Server) updateProject(c echo.Context) error {
 		return err
 	}
 
-	ctx := c.Request().Context()
-	cur, err := s.q.GetProject(ctx, id)
-	if err != nil {
-		return dbErr(err)
-	}
-
 	arg := db.UpdateProjectParams{
 		ID:        id,
-		ClientID:  pickClientString(req.ClientID, cur.ClientID),
-		Name:      pickClientString(req.Name, cur.Name),
-		Objective: pickClientString(req.Objective, cur.Objective),
-		Status:    pickClientString(req.Status, cur.Status),
+		ClientID:  req.ClientID,
+		Name:      req.Name,
+		Objective: req.Objective,
+		Status:    req.Status,
 	}
 
-	row, err := s.q.UpdateProject(ctx, arg)
+	row, err := s.q.UpdateProject(c.Request().Context(), arg)
 	if err != nil {
 		return dbErr(err)
 	}

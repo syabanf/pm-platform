@@ -16,23 +16,35 @@ INSERT INTO sprint_backlog_items (
     sprint_id,
     backlog_item_id,
     position
-) VALUES (
-    $1, $2, $3
 )
+SELECT
+    s.id,
+    bi.id,
+    $1
+FROM sprints s
+JOIN backlog_items bi
+  ON bi.id = $2
+ AND bi.product_id = s.product_id
+WHERE s.id = $3
 ON CONFLICT (sprint_id, backlog_item_id) DO UPDATE
 SET position = EXCLUDED.position
 RETURNING sprint_id, backlog_item_id, position
 `
 
 type AddSprintBacklogItemParams struct {
-	SprintID      string `json:"sprintId"`
-	BacklogItemID string `json:"backlogItemId"`
 	Position      int32  `json:"position"`
+	BacklogItemID string `json:"backlogItemId"`
+	SprintID      string `json:"sprintId"`
 }
 
 // --------------------------------------------------- sprint_backlog_items ---
+// The JOIN is the guard: an item may only be pulled into a sprint of its own
+// product. A cross-product id matches no row, which the handler reports as a
+// 400 — before, it linked happily and leaked the other product's story text.
+// The position is chosen by the caller or computed under a row lock; see
+// LockSprintForUpdate for why it cannot be computed inline.
 func (q *Queries) AddSprintBacklogItem(ctx context.Context, arg AddSprintBacklogItemParams) (SprintBacklogItem, error) {
-	row := q.db.QueryRow(ctx, addSprintBacklogItem, arg.SprintID, arg.BacklogItemID, arg.Position)
+	row := q.db.QueryRow(ctx, addSprintBacklogItem, arg.Position, arg.BacklogItemID, arg.SprintID)
 	var i SprintBacklogItem
 	err := row.Scan(&i.SprintID, &i.BacklogItemID, &i.Position)
 	return i, err
@@ -229,99 +241,6 @@ func (q *Queries) CreateSprint(ctx context.Context, arg CreateSprintParams) (Spr
 	return i, err
 }
 
-const createSprintAutoNumber = `-- name: CreateSprintAutoNumber :one
-
-
-INSERT INTO sprints (
-    id,
-    product_id,
-    module_id,
-    number,
-    name,
-    goal,
-    start_date,
-    end_date,
-    working_days,
-    days_left,
-    status,
-    committed,
-    completed,
-    progress,
-    risk
-) VALUES (
-    $1,
-    $2,
-    $3,
-    (SELECT COALESCE(MAX(number), 0) + 1 FROM sprints WHERE product_id = $2),
-    $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
-)
-RETURNING id, product_id, module_id, number, name, goal, start_date, end_date, working_days, days_left, status, committed, completed, progress, risk, created_at, updated_at
-`
-
-type CreateSprintAutoNumberParams struct {
-	ID          string     `json:"id"`
-	ProductID   string     `json:"productId"`
-	ModuleID    *string    `json:"moduleId"`
-	Name        string     `json:"name"`
-	Goal        string     `json:"goal"`
-	StartDate   *time.Time `json:"startDate"`
-	EndDate     *time.Time `json:"endDate"`
-	WorkingDays int32      `json:"workingDays"`
-	DaysLeft    int32      `json:"daysLeft"`
-	Status      string     `json:"status"`
-	Committed   int32      `json:"committed"`
-	Completed   int32      `json:"completed"`
-	Progress    int32      `json:"progress"`
-	Risk        string     `json:"risk"`
-}
-
-// Sprints, sprint membership, sprint backlog and the product backlog.
-// Naming note: products = UI "Module", modules = UI "Component".
-// ---------------------------------------------------------------- sprints ---
-// Assigns the next sprint number for the product inside the INSERT itself, so
-// concurrent creates cannot both read the same MAX(number). The UNIQUE
-// (product_id, number) constraint is still the final arbiter; the caller
-// retries on a unique violation.
-func (q *Queries) CreateSprintAutoNumber(ctx context.Context, arg CreateSprintAutoNumberParams) (Sprint, error) {
-	row := q.db.QueryRow(ctx, createSprintAutoNumber,
-		arg.ID,
-		arg.ProductID,
-		arg.ModuleID,
-		arg.Name,
-		arg.Goal,
-		arg.StartDate,
-		arg.EndDate,
-		arg.WorkingDays,
-		arg.DaysLeft,
-		arg.Status,
-		arg.Committed,
-		arg.Completed,
-		arg.Progress,
-		arg.Risk,
-	)
-	var i Sprint
-	err := row.Scan(
-		&i.ID,
-		&i.ProductID,
-		&i.ModuleID,
-		&i.Number,
-		&i.Name,
-		&i.Goal,
-		&i.StartDate,
-		&i.EndDate,
-		&i.WorkingDays,
-		&i.DaysLeft,
-		&i.Status,
-		&i.Committed,
-		&i.Completed,
-		&i.Progress,
-		&i.Risk,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const deleteBacklogItem = `-- name: DeleteBacklogItem :exec
 DELETE FROM backlog_items
 WHERE id = $1
@@ -402,10 +321,17 @@ const listBacklogItemsByModule = `-- name: ListBacklogItemsByModule :many
 SELECT id, product_id, module_id, title, story, acceptance_criteria, type, priority, readiness, estimate, ai_suggestions, created_at, updated_at FROM backlog_items
 WHERE module_id = $1
 ORDER BY created_at DESC, id ASC
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListBacklogItemsByModule(ctx context.Context, moduleID *string) ([]BacklogItem, error) {
-	rows, err := q.db.Query(ctx, listBacklogItemsByModule, moduleID)
+type ListBacklogItemsByModuleParams struct {
+	ModuleID *string `json:"moduleId"`
+	Off      int32   `json:"off"`
+	Lim      int32   `json:"lim"`
+}
+
+func (q *Queries) ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error) {
+	rows, err := q.db.Query(ctx, listBacklogItemsByModule, arg.ModuleID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -442,10 +368,17 @@ const listBacklogItemsByProduct = `-- name: ListBacklogItemsByProduct :many
 SELECT id, product_id, module_id, title, story, acceptance_criteria, type, priority, readiness, estimate, ai_suggestions, created_at, updated_at FROM backlog_items
 WHERE product_id = $1
 ORDER BY created_at DESC, id ASC
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListBacklogItemsByProduct(ctx context.Context, productID string) ([]BacklogItem, error) {
-	rows, err := q.db.Query(ctx, listBacklogItemsByProduct, productID)
+type ListBacklogItemsByProductParams struct {
+	ProductID string `json:"productId"`
+	Off       int32  `json:"off"`
+	Lim       int32  `json:"lim"`
+}
+
+func (q *Queries) ListBacklogItemsByProduct(ctx context.Context, arg ListBacklogItemsByProductParams) ([]BacklogItem, error) {
+	rows, err := q.db.Query(ctx, listBacklogItemsByProduct, arg.ProductID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -495,7 +428,7 @@ SELECT sbi.sprint_id,
 FROM sprint_backlog_items sbi
 JOIN backlog_items bi ON bi.id = sbi.backlog_item_id
 WHERE sbi.sprint_id = $1
-ORDER BY sbi.position ASC, bi.title ASC
+ORDER BY sbi.position ASC, bi.title ASC, bi.id ASC
 `
 
 type ListSprintBacklogItemsRow struct {
@@ -560,7 +493,7 @@ SELECT sm.sprint_id,
 FROM sprint_members sm
 JOIN members m ON m.id = sm.member_id
 WHERE sm.sprint_id = $1
-ORDER BY m.name ASC
+ORDER BY m.name ASC, m.id ASC
 `
 
 type ListSprintMembersRow struct {
@@ -606,11 +539,20 @@ func (q *Queries) ListSprintMembers(ctx context.Context, sprintID string) ([]Lis
 const listSprintsByModule = `-- name: ListSprintsByModule :many
 SELECT id, product_id, module_id, number, name, goal, start_date, end_date, working_days, days_left, status, committed, completed, progress, risk, created_at, updated_at FROM sprints
 WHERE module_id = $1
-ORDER BY number DESC
+ORDER BY number DESC, id
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListSprintsByModule(ctx context.Context, moduleID *string) ([]Sprint, error) {
-	rows, err := q.db.Query(ctx, listSprintsByModule, moduleID)
+type ListSprintsByModuleParams struct {
+	ModuleID *string `json:"moduleId"`
+	Off      int32   `json:"off"`
+	Lim      int32   `json:"lim"`
+}
+
+// number is only unique per product, so it cannot order a cross-product list
+// on its own.
+func (q *Queries) ListSprintsByModule(ctx context.Context, arg ListSprintsByModuleParams) ([]Sprint, error) {
+	rows, err := q.db.Query(ctx, listSprintsByModule, arg.ModuleID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -650,11 +592,18 @@ func (q *Queries) ListSprintsByModule(ctx context.Context, moduleID *string) ([]
 const listSprintsByProduct = `-- name: ListSprintsByProduct :many
 SELECT id, product_id, module_id, number, name, goal, start_date, end_date, working_days, days_left, status, committed, completed, progress, risk, created_at, updated_at FROM sprints
 WHERE product_id = $1
-ORDER BY number DESC
+ORDER BY number DESC, id
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListSprintsByProduct(ctx context.Context, productID string) ([]Sprint, error) {
-	rows, err := q.db.Query(ctx, listSprintsByProduct, productID)
+type ListSprintsByProductParams struct {
+	ProductID string `json:"productId"`
+	Off       int32  `json:"off"`
+	Lim       int32  `json:"lim"`
+}
+
+func (q *Queries) ListSprintsByProduct(ctx context.Context, arg ListSprintsByProductParams) ([]Sprint, error) {
+	rows, err := q.db.Query(ctx, listSprintsByProduct, arg.ProductID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -689,6 +638,77 @@ func (q *Queries) ListSprintsByProduct(ctx context.Context, productID string) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockBacklogItemForShare = `-- name: LockBacklogItemForShare :one
+SELECT id FROM backlog_items
+WHERE id = $1
+FOR KEY SHARE
+`
+
+// Taken before the sprint lock so the ordering matches the cascade's:
+// DELETE FROM products reaches backlog_items before sprints, so locking the
+// sprint first and the item second is an AB-BA cycle that deadlocks every
+// concurrent parent delete.
+func (q *Queries) LockBacklogItemForShare(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, lockBacklogItemForShare, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const lockProductForUpdate = `-- name: LockProductForUpdate :one
+
+
+SELECT id FROM products
+WHERE id = $1
+FOR NO KEY UPDATE
+`
+
+// Sprints, sprint membership, sprint backlog and the product backlog.
+// Naming note: products = UI "Module", modules = UI "Component".
+// ---------------------------------------------------------------- sprints ---
+// Serialises per-product sequencing (sprint numbers, component positions).
+// A single statement cannot do this for itself: under READ COMMITTED its
+// snapshot is fixed before any lock it takes, so concurrent statements all
+// read the same MAX() no matter how they queue. Taking the row lock in its own
+// statement, inside a transaction, is what makes the next read see the truth.
+//
+// FOR NO KEY UPDATE, not FOR UPDATE: only the latter conflicts with the
+// FOR KEY SHARE that every child insert's foreign-key check takes, which would
+// freeze unrelated endpoints (backlog, decisions, explicitly-numbered sprints)
+// for as long as one sequencing transaction runs.
+func (q *Queries) LockProductForUpdate(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, lockProductForUpdate, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const lockSprintForUpdate = `-- name: LockSprintForUpdate :one
+SELECT id FROM sprints
+WHERE id = $1
+FOR NO KEY UPDATE
+`
+
+func (q *Queries) LockSprintForUpdate(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, lockSprintForUpdate, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const nextSprintBacklogPosition = `-- name: NextSprintBacklogPosition :one
+SELECT COALESCE(MAX(position), -1) + 1 AS next_position
+FROM sprint_backlog_items
+WHERE sprint_id = $1
+`
+
+func (q *Queries) NextSprintBacklogPosition(ctx context.Context, sprintID string) (int32, error) {
+	row := q.db.QueryRow(ctx, nextSprintBacklogPosition, sprintID)
+	var next_position int32
+	err := row.Scan(&next_position)
+	return next_position, err
 }
 
 const nextSprintNumber = `-- name: NextSprintNumber :one
@@ -734,38 +754,50 @@ func (q *Queries) RemoveSprintMember(ctx context.Context, arg RemoveSprintMember
 	return err
 }
 
+const setLockTimeout = `-- name: SetLockTimeout :exec
+SET LOCAL lock_timeout = '250ms'
+`
+
+// Bounds how long a sequencing transaction will queue on a contended row.
+// Without it one hot product can park every pool connection on the same lock
+// until statement_timeout fires, and reads of unrelated data starve behind it.
+func (q *Queries) SetLockTimeout(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, setLockTimeout)
+	return err
+}
+
 const updateBacklogItem = `-- name: UpdateBacklogItem :one
 UPDATE backlog_items
-SET module_id           = $2,
-    title               = $3,
-    story               = $4,
-    acceptance_criteria = $5,
-    type                = $6,
-    priority            = $7,
-    readiness           = $8,
-    estimate            = $9,
-    ai_suggestions      = $10,
+SET module_id           = COALESCE($1, module_id),
+    title               = COALESCE($2, title),
+    story               = COALESCE($3, story),
+    acceptance_criteria = COALESCE($4::text[], acceptance_criteria),
+    type                = COALESCE($5, type),
+    priority            = COALESCE($6, priority),
+    readiness           = COALESCE($7, readiness),
+    estimate            = COALESCE($8, estimate),
+    ai_suggestions      = COALESCE($9::text[], ai_suggestions),
     updated_at          = now()
-WHERE id = $1
+WHERE id = $10
 RETURNING id, product_id, module_id, title, story, acceptance_criteria, type, priority, readiness, estimate, ai_suggestions, created_at, updated_at
 `
 
 type UpdateBacklogItemParams struct {
-	ID                 string   `json:"id"`
 	ModuleID           *string  `json:"moduleId"`
-	Title              string   `json:"title"`
-	Story              string   `json:"story"`
+	Title              *string  `json:"title"`
+	Story              *string  `json:"story"`
 	AcceptanceCriteria []string `json:"acceptanceCriteria"`
-	Type               string   `json:"type"`
-	Priority           string   `json:"priority"`
-	Readiness          string   `json:"readiness"`
-	Estimate           int32    `json:"estimate"`
+	Type               *string  `json:"type"`
+	Priority           *string  `json:"priority"`
+	Readiness          *string  `json:"readiness"`
+	Estimate           *int32   `json:"estimate"`
 	AiSuggestions      []string `json:"aiSuggestions"`
+	ID                 string   `json:"id"`
 }
 
+// Partial update (see UpdateClient).
 func (q *Queries) UpdateBacklogItem(ctx context.Context, arg UpdateBacklogItemParams) (BacklogItem, error) {
 	row := q.db.QueryRow(ctx, updateBacklogItem,
-		arg.ID,
 		arg.ModuleID,
 		arg.Title,
 		arg.Story,
@@ -775,6 +807,7 @@ func (q *Queries) UpdateBacklogItem(ctx context.Context, arg UpdateBacklogItemPa
 		arg.Readiness,
 		arg.Estimate,
 		arg.AiSuggestions,
+		arg.ID,
 	)
 	var i BacklogItem
 	err := row.Scan(
@@ -797,44 +830,44 @@ func (q *Queries) UpdateBacklogItem(ctx context.Context, arg UpdateBacklogItemPa
 
 const updateSprint = `-- name: UpdateSprint :one
 UPDATE sprints
-SET module_id    = $2,
-    number       = $3,
-    name         = $4,
-    goal         = $5,
-    start_date   = $6,
-    end_date     = $7,
-    working_days = $8,
-    days_left    = $9,
-    status       = $10,
-    committed    = $11,
-    completed    = $12,
-    progress     = $13,
-    risk         = $14,
+SET module_id    = COALESCE($1, module_id),
+    number       = COALESCE($2, number),
+    name         = COALESCE($3, name),
+    goal         = COALESCE($4, goal),
+    start_date   = COALESCE($5, start_date),
+    end_date     = COALESCE($6, end_date),
+    working_days = COALESCE($7, working_days),
+    days_left    = COALESCE($8, days_left),
+    status       = COALESCE($9, status),
+    committed    = COALESCE($10, committed),
+    completed    = COALESCE($11, completed),
+    progress     = COALESCE($12, progress),
+    risk         = COALESCE($13, risk),
     updated_at   = now()
-WHERE id = $1
+WHERE id = $14
 RETURNING id, product_id, module_id, number, name, goal, start_date, end_date, working_days, days_left, status, committed, completed, progress, risk, created_at, updated_at
 `
 
 type UpdateSprintParams struct {
-	ID          string     `json:"id"`
 	ModuleID    *string    `json:"moduleId"`
-	Number      int32      `json:"number"`
-	Name        string     `json:"name"`
-	Goal        string     `json:"goal"`
+	Number      *int32     `json:"number"`
+	Name        *string    `json:"name"`
+	Goal        *string    `json:"goal"`
 	StartDate   *time.Time `json:"startDate"`
 	EndDate     *time.Time `json:"endDate"`
-	WorkingDays int32      `json:"workingDays"`
-	DaysLeft    int32      `json:"daysLeft"`
-	Status      string     `json:"status"`
-	Committed   int32      `json:"committed"`
-	Completed   int32      `json:"completed"`
-	Progress    int32      `json:"progress"`
-	Risk        string     `json:"risk"`
+	WorkingDays *int32     `json:"workingDays"`
+	DaysLeft    *int32     `json:"daysLeft"`
+	Status      *string    `json:"status"`
+	Committed   *int32     `json:"committed"`
+	Completed   *int32     `json:"completed"`
+	Progress    *int32     `json:"progress"`
+	Risk        *string    `json:"risk"`
+	ID          string     `json:"id"`
 }
 
+// Partial update (see UpdateClient).
 func (q *Queries) UpdateSprint(ctx context.Context, arg UpdateSprintParams) (Sprint, error) {
 	row := q.db.QueryRow(ctx, updateSprint,
-		arg.ID,
 		arg.ModuleID,
 		arg.Number,
 		arg.Name,
@@ -848,6 +881,7 @@ func (q *Queries) UpdateSprint(ctx context.Context, arg UpdateSprintParams) (Spr
 		arg.Completed,
 		arg.Progress,
 		arg.Risk,
+		arg.ID,
 	)
 	var i Sprint
 	err := row.Scan(

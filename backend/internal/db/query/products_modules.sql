@@ -3,6 +3,12 @@
 -- ============================================================================
 
 -- name: CreateProduct :one
+-- client_id is denormalised, so it is derived from the project rather than
+-- taken from the caller: the two can never disagree, and a product can only
+-- ever be reached (and cascaded) through the client that really owns it.
+-- No matching project means no row, which the handler turns into a 400.
+-- current_sprint_id is not settable here: a new product has no sprints, so any
+-- value would point at another product's.
 INSERT INTO products (
     id,
     project_id,
@@ -16,11 +22,24 @@ INSERT INTO products (
     risk,
     velocity,
     blocked_count,
-    current_sprint_id,
     ai_insight
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
+SELECT
+    sqlc.arg('id'),
+    pj.id,
+    pj.client_id,
+    sqlc.arg('name'),
+    sqlc.arg('goal'),
+    sqlc.arg('owner'),
+    sqlc.arg('delivery_lead'),
+    sqlc.arg('status'),
+    sqlc.arg('health'),
+    sqlc.arg('risk'),
+    sqlc.arg('velocity'),
+    sqlc.arg('blocked_count'),
+    sqlc.narg('ai_insight')::jsonb
+FROM projects pj
+WHERE pj.id = sqlc.arg('project_id')
 RETURNING *;
 
 -- name: GetProduct :one
@@ -29,43 +48,65 @@ WHERE id = $1;
 
 -- name: ListProducts :many
 SELECT * FROM products
-ORDER BY created_at, name;
+ORDER BY created_at, name, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: ListProductsByProject :many
 SELECT * FROM products
-WHERE project_id = $1
-ORDER BY created_at, name;
+WHERE project_id = sqlc.arg('project_id')
+ORDER BY created_at, name, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: ListProductsByClient :many
 SELECT * FROM products
-WHERE client_id = $1
-ORDER BY created_at, name;
+WHERE client_id = sqlc.arg('client_id')
+ORDER BY created_at, name, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpdateProduct :one
-UPDATE products
+-- Partial update (see UpdateClient). client_id is never taken from the caller —
+-- it always follows whichever project the row ends up on.
+-- client_id is only recomputed when the product actually moves. Recomputing it
+-- unconditionally raced with "project moved to another client": the subquery
+-- read the pre-move snapshot while the row itself was re-read after the move,
+-- and the composite foreign key rejected the mismatched pair — failing a PATCH
+-- that never mentioned projectId.
+UPDATE products p
 SET
-    project_id    = $2,
-    client_id     = $3,
-    name          = $4,
-    goal          = $5,
-    owner         = $6,
-    delivery_lead = $7,
-    status        = $8,
-    health        = $9,
-    risk          = $10,
-    velocity      = $11,
-    blocked_count = $12,
-    ai_insight    = $13,
+    project_id    = COALESCE(sqlc.narg('project_id'), p.project_id),
+    client_id     = CASE
+        WHEN sqlc.narg('project_id')::text IS NULL THEN p.client_id
+        ELSE (SELECT pj.client_id FROM projects pj WHERE pj.id = sqlc.narg('project_id'))
+    END,
+    name          = COALESCE(sqlc.narg('name'), p.name),
+    goal          = COALESCE(sqlc.narg('goal'), p.goal),
+    owner         = COALESCE(sqlc.narg('owner'), p.owner),
+    delivery_lead = COALESCE(sqlc.narg('delivery_lead'), p.delivery_lead),
+    status        = COALESCE(sqlc.narg('status'), p.status),
+    health        = COALESCE(sqlc.narg('health'), p.health),
+    risk          = COALESCE(sqlc.narg('risk'), p.risk),
+    velocity      = COALESCE(sqlc.narg('velocity'), p.velocity),
+    blocked_count = COALESCE(sqlc.narg('blocked_count'), p.blocked_count),
+    ai_insight    = COALESCE(sqlc.narg('ai_insight')::jsonb, p.ai_insight),
     updated_at    = now()
-WHERE id = $1
+WHERE p.id = sqlc.arg('id')
 RETURNING *;
 
 -- name: SetProductCurrentSprint :one
-UPDATE products
+-- The pointer may only name a sprint of this very product. A mismatch matches
+-- no row, which the handler reports as a 400 rather than silently storing it.
+UPDATE products p
 SET
-    current_sprint_id = $2,
+    current_sprint_id = sqlc.narg('current_sprint_id'),
     updated_at        = now()
-WHERE id = $1
+WHERE p.id = sqlc.arg('id')
+  AND (
+      sqlc.narg('current_sprint_id')::text IS NULL
+      OR EXISTS (
+          SELECT 1 FROM sprints s
+          WHERE s.id = sqlc.narg('current_sprint_id') AND s.product_id = p.id
+      )
+  )
 RETURNING *;
 
 -- name: DeleteProduct :exec
@@ -77,6 +118,8 @@ WHERE id = $1;
 -- ============================================================================
 
 -- name: CreateModule :one
+-- position is chosen by the caller or computed under a row lock; see
+-- LockProductForUpdate for why it cannot be computed inline.
 INSERT INTO modules (
     id,
     product_id,
@@ -89,24 +132,30 @@ INSERT INTO modules (
 )
 RETURNING *;
 
+-- name: NextModulePosition :one
+SELECT COALESCE(MAX(position), -1) + 1 AS next_position
+FROM modules
+WHERE product_id = $1;
+
 -- name: GetModule :one
 SELECT * FROM modules
 WHERE id = $1;
 
 -- name: ListModulesByProduct :many
 SELECT * FROM modules
-WHERE product_id = $1
-ORDER BY position, name;
+WHERE product_id = sqlc.arg('product_id')
+ORDER BY position, name, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpdateModule :one
 UPDATE modules
 SET
-    name       = $2,
-    owner      = $3,
-    status     = $4,
-    position   = $5,
+    name       = COALESCE(sqlc.narg('name'), name),
+    owner      = COALESCE(sqlc.narg('owner'), owner),
+    status     = COALESCE(sqlc.narg('status'), status),
+    position   = COALESCE(sqlc.narg('position'), position),
     updated_at = now()
-WHERE id = $1
+WHERE id = sqlc.arg('id')
 RETURNING *;
 
 -- name: UpdateModuleStatus :one

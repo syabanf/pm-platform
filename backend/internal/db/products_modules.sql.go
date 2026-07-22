@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 )
 
 const createModule = `-- name: CreateModule :one
@@ -36,6 +37,8 @@ type CreateModuleParams struct {
 // ============================================================================
 // modules (UI "Component")
 // ============================================================================
+// position is chosen by the caller or computed under a row lock; see
+// LockProductForUpdate for why it cannot be computed inline.
 func (q *Queries) CreateModule(ctx context.Context, arg CreateModuleParams) (Module, error) {
 	row := q.db.QueryRow(ctx, createModule,
 		arg.ID,
@@ -74,39 +77,54 @@ INSERT INTO products (
     risk,
     velocity,
     blocked_count,
-    current_sprint_id,
     ai_insight
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
+SELECT
+    $1,
+    pj.id,
+    pj.client_id,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8,
+    $9,
+    $10,
+    $11::jsonb
+FROM projects pj
+WHERE pj.id = $12
 RETURNING id, project_id, client_id, name, goal, owner, delivery_lead, status, health, risk, velocity, blocked_count, current_sprint_id, ai_insight, created_at, updated_at
 `
 
 type CreateProductParams struct {
-	ID              string  `json:"id"`
-	ProjectID       string  `json:"projectId"`
-	ClientID        string  `json:"clientId"`
-	Name            string  `json:"name"`
-	Goal            string  `json:"goal"`
-	Owner           string  `json:"owner"`
-	DeliveryLead    string  `json:"deliveryLead"`
-	Status          string  `json:"status"`
-	Health          int32   `json:"health"`
-	Risk            string  `json:"risk"`
-	Velocity        int32   `json:"velocity"`
-	BlockedCount    int32   `json:"blockedCount"`
-	CurrentSprintID *string `json:"currentSprintId"`
-	AiInsight       []byte  `json:"aiInsight"`
+	ID           string          `json:"id"`
+	Name         string          `json:"name"`
+	Goal         string          `json:"goal"`
+	Owner        string          `json:"owner"`
+	DeliveryLead string          `json:"deliveryLead"`
+	Status       string          `json:"status"`
+	Health       int32           `json:"health"`
+	Risk         string          `json:"risk"`
+	Velocity     int32           `json:"velocity"`
+	BlockedCount int32           `json:"blockedCount"`
+	AiInsight    json.RawMessage `json:"aiInsight"`
+	ProjectID    string          `json:"projectId"`
 }
 
 // ============================================================================
 // products (UI "Module")
 // ============================================================================
+// client_id is denormalised, so it is derived from the project rather than
+// taken from the caller: the two can never disagree, and a product can only
+// ever be reached (and cascaded) through the client that really owns it.
+// No matching project means no row, which the handler turns into a 400.
+// current_sprint_id is not settable here: a new product has no sprints, so any
+// value would point at another product's.
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
 	row := q.db.QueryRow(ctx, createProduct,
 		arg.ID,
-		arg.ProjectID,
-		arg.ClientID,
 		arg.Name,
 		arg.Goal,
 		arg.Owner,
@@ -116,8 +134,8 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		arg.Risk,
 		arg.Velocity,
 		arg.BlockedCount,
-		arg.CurrentSprintID,
 		arg.AiInsight,
+		arg.ProjectID,
 	)
 	var i Product
 	err := row.Scan(
@@ -214,11 +232,18 @@ func (q *Queries) GetProduct(ctx context.Context, id string) (Product, error) {
 const listModulesByProduct = `-- name: ListModulesByProduct :many
 SELECT id, product_id, name, owner, status, position, created_at, updated_at FROM modules
 WHERE product_id = $1
-ORDER BY position, name
+ORDER BY position, name, id
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListModulesByProduct(ctx context.Context, productID string) ([]Module, error) {
-	rows, err := q.db.Query(ctx, listModulesByProduct, productID)
+type ListModulesByProductParams struct {
+	ProductID string `json:"productId"`
+	Off       int32  `json:"off"`
+	Lim       int32  `json:"lim"`
+}
+
+func (q *Queries) ListModulesByProduct(ctx context.Context, arg ListModulesByProductParams) ([]Module, error) {
+	rows, err := q.db.Query(ctx, listModulesByProduct, arg.ProductID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -248,11 +273,17 @@ func (q *Queries) ListModulesByProduct(ctx context.Context, productID string) ([
 
 const listProducts = `-- name: ListProducts :many
 SELECT id, project_id, client_id, name, goal, owner, delivery_lead, status, health, risk, velocity, blocked_count, current_sprint_id, ai_insight, created_at, updated_at FROM products
-ORDER BY created_at, name
+ORDER BY created_at, name, id
+LIMIT $2 OFFSET $1
 `
 
-func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
-	rows, err := q.db.Query(ctx, listProducts)
+type ListProductsParams struct {
+	Off int32 `json:"off"`
+	Lim int32 `json:"lim"`
+}
+
+func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, listProducts, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -291,11 +322,18 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 const listProductsByClient = `-- name: ListProductsByClient :many
 SELECT id, project_id, client_id, name, goal, owner, delivery_lead, status, health, risk, velocity, blocked_count, current_sprint_id, ai_insight, created_at, updated_at FROM products
 WHERE client_id = $1
-ORDER BY created_at, name
+ORDER BY created_at, name, id
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListProductsByClient(ctx context.Context, clientID string) ([]Product, error) {
-	rows, err := q.db.Query(ctx, listProductsByClient, clientID)
+type ListProductsByClientParams struct {
+	ClientID string `json:"clientId"`
+	Off      int32  `json:"off"`
+	Lim      int32  `json:"lim"`
+}
+
+func (q *Queries) ListProductsByClient(ctx context.Context, arg ListProductsByClientParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, listProductsByClient, arg.ClientID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -334,11 +372,18 @@ func (q *Queries) ListProductsByClient(ctx context.Context, clientID string) ([]
 const listProductsByProject = `-- name: ListProductsByProject :many
 SELECT id, project_id, client_id, name, goal, owner, delivery_lead, status, health, risk, velocity, blocked_count, current_sprint_id, ai_insight, created_at, updated_at FROM products
 WHERE project_id = $1
-ORDER BY created_at, name
+ORDER BY created_at, name, id
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListProductsByProject(ctx context.Context, projectID string) ([]Product, error) {
-	rows, err := q.db.Query(ctx, listProductsByProject, projectID)
+type ListProductsByProjectParams struct {
+	ProjectID string `json:"projectId"`
+	Off       int32  `json:"off"`
+	Lim       int32  `json:"lim"`
+}
+
+func (q *Queries) ListProductsByProject(ctx context.Context, arg ListProductsByProjectParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, listProductsByProject, arg.ProjectID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -374,22 +419,44 @@ func (q *Queries) ListProductsByProject(ctx context.Context, projectID string) (
 	return items, nil
 }
 
+const nextModulePosition = `-- name: NextModulePosition :one
+SELECT COALESCE(MAX(position), -1) + 1 AS next_position
+FROM modules
+WHERE product_id = $1
+`
+
+func (q *Queries) NextModulePosition(ctx context.Context, productID string) (int32, error) {
+	row := q.db.QueryRow(ctx, nextModulePosition, productID)
+	var next_position int32
+	err := row.Scan(&next_position)
+	return next_position, err
+}
+
 const setProductCurrentSprint = `-- name: SetProductCurrentSprint :one
-UPDATE products
+UPDATE products p
 SET
-    current_sprint_id = $2,
+    current_sprint_id = $1,
     updated_at        = now()
-WHERE id = $1
+WHERE p.id = $2
+  AND (
+      $1::text IS NULL
+      OR EXISTS (
+          SELECT 1 FROM sprints s
+          WHERE s.id = $1 AND s.product_id = p.id
+      )
+  )
 RETURNING id, project_id, client_id, name, goal, owner, delivery_lead, status, health, risk, velocity, blocked_count, current_sprint_id, ai_insight, created_at, updated_at
 `
 
 type SetProductCurrentSprintParams struct {
-	ID              string  `json:"id"`
 	CurrentSprintID *string `json:"currentSprintId"`
+	ID              string  `json:"id"`
 }
 
+// The pointer may only name a sprint of this very product. A mismatch matches
+// no row, which the handler reports as a 400 rather than silently storing it.
 func (q *Queries) SetProductCurrentSprint(ctx context.Context, arg SetProductCurrentSprintParams) (Product, error) {
-	row := q.db.QueryRow(ctx, setProductCurrentSprint, arg.ID, arg.CurrentSprintID)
+	row := q.db.QueryRow(ctx, setProductCurrentSprint, arg.CurrentSprintID, arg.ID)
 	var i Product
 	err := row.Scan(
 		&i.ID,
@@ -415,30 +482,30 @@ func (q *Queries) SetProductCurrentSprint(ctx context.Context, arg SetProductCur
 const updateModule = `-- name: UpdateModule :one
 UPDATE modules
 SET
-    name       = $2,
-    owner      = $3,
-    status     = $4,
-    position   = $5,
+    name       = COALESCE($1, name),
+    owner      = COALESCE($2, owner),
+    status     = COALESCE($3, status),
+    position   = COALESCE($4, position),
     updated_at = now()
-WHERE id = $1
+WHERE id = $5
 RETURNING id, product_id, name, owner, status, position, created_at, updated_at
 `
 
 type UpdateModuleParams struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Owner    string `json:"owner"`
-	Status   string `json:"status"`
-	Position int32  `json:"position"`
+	Name     *string `json:"name"`
+	Owner    *string `json:"owner"`
+	Status   *string `json:"status"`
+	Position *int32  `json:"position"`
+	ID       string  `json:"id"`
 }
 
 func (q *Queries) UpdateModule(ctx context.Context, arg UpdateModuleParams) (Module, error) {
 	row := q.db.QueryRow(ctx, updateModule,
-		arg.ID,
 		arg.Name,
 		arg.Owner,
 		arg.Status,
 		arg.Position,
+		arg.ID,
 	)
 	var i Module
 	err := row.Scan(
@@ -485,46 +552,53 @@ func (q *Queries) UpdateModuleStatus(ctx context.Context, arg UpdateModuleStatus
 }
 
 const updateProduct = `-- name: UpdateProduct :one
-UPDATE products
+UPDATE products p
 SET
-    project_id    = $2,
-    client_id     = $3,
-    name          = $4,
-    goal          = $5,
-    owner         = $6,
-    delivery_lead = $7,
-    status        = $8,
-    health        = $9,
-    risk          = $10,
-    velocity      = $11,
-    blocked_count = $12,
-    ai_insight    = $13,
+    project_id    = COALESCE($1, p.project_id),
+    client_id     = CASE
+        WHEN $1::text IS NULL THEN p.client_id
+        ELSE (SELECT pj.client_id FROM projects pj WHERE pj.id = $1)
+    END,
+    name          = COALESCE($2, p.name),
+    goal          = COALESCE($3, p.goal),
+    owner         = COALESCE($4, p.owner),
+    delivery_lead = COALESCE($5, p.delivery_lead),
+    status        = COALESCE($6, p.status),
+    health        = COALESCE($7, p.health),
+    risk          = COALESCE($8, p.risk),
+    velocity      = COALESCE($9, p.velocity),
+    blocked_count = COALESCE($10, p.blocked_count),
+    ai_insight    = COALESCE($11::jsonb, p.ai_insight),
     updated_at    = now()
-WHERE id = $1
+WHERE p.id = $12
 RETURNING id, project_id, client_id, name, goal, owner, delivery_lead, status, health, risk, velocity, blocked_count, current_sprint_id, ai_insight, created_at, updated_at
 `
 
 type UpdateProductParams struct {
-	ID           string `json:"id"`
-	ProjectID    string `json:"projectId"`
-	ClientID     string `json:"clientId"`
-	Name         string `json:"name"`
-	Goal         string `json:"goal"`
-	Owner        string `json:"owner"`
-	DeliveryLead string `json:"deliveryLead"`
-	Status       string `json:"status"`
-	Health       int32  `json:"health"`
-	Risk         string `json:"risk"`
-	Velocity     int32  `json:"velocity"`
-	BlockedCount int32  `json:"blockedCount"`
-	AiInsight    []byte `json:"aiInsight"`
+	ProjectID    *string         `json:"projectId"`
+	Name         *string         `json:"name"`
+	Goal         *string         `json:"goal"`
+	Owner        *string         `json:"owner"`
+	DeliveryLead *string         `json:"deliveryLead"`
+	Status       *string         `json:"status"`
+	Health       *int32          `json:"health"`
+	Risk         *string         `json:"risk"`
+	Velocity     *int32          `json:"velocity"`
+	BlockedCount *int32          `json:"blockedCount"`
+	AiInsight    json.RawMessage `json:"aiInsight"`
+	ID           string          `json:"id"`
 }
 
+// Partial update (see UpdateClient). client_id is never taken from the caller —
+// it always follows whichever project the row ends up on.
+// client_id is only recomputed when the product actually moves. Recomputing it
+// unconditionally raced with "project moved to another client": the subquery
+// read the pre-move snapshot while the row itself was re-read after the move,
+// and the composite foreign key rejected the mismatched pair — failing a PATCH
+// that never mentioned projectId.
 func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error) {
 	row := q.db.QueryRow(ctx, updateProduct,
-		arg.ID,
 		arg.ProjectID,
-		arg.ClientID,
 		arg.Name,
 		arg.Goal,
 		arg.Owner,
@@ -535,6 +609,7 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (P
 		arg.Velocity,
 		arg.BlockedCount,
 		arg.AiInsight,
+		arg.ID,
 	)
 	var i Product
 	err := row.Scan(
