@@ -131,6 +131,42 @@ Two request conventions are worth knowing:
   endpoint where an explicit `null` differs from an absent key: `null` clears the
   pointer, an empty body `{}` changes nothing.
 
+## API reference
+
+[`openapi.yaml`](openapi.yaml) is the full reference — all 79 operations with
+request and response schemas, enum values, status codes and the behaviour notes
+that are easy to get wrong. It is OpenAPI 3.1 and machine-readable, so you can
+generate a client from it rather than hand-writing one:
+
+```bash
+npx @redocly/cli preview-docs backend/openapi.yaml     # browsable docs
+npx @redocly/cli lint backend/openapi.yaml             # validate it
+```
+
+The spec cannot drift: `TestOpenAPIMatchesRouter` compares every documented
+path and method against the real `g.GET(...)` registrations and fails the build
+when they disagree in either direction. Add a route without documenting it, or
+document one that does not exist, and `go test ./...` says so.
+
+Endpoint groups, all under `/api/v1`:
+
+| Group | Endpoints | Paginated |
+| ----- | --------- | --------- |
+| clients | `/clients`, `/clients/{id}`, `/clients/{id}/projects` | yes |
+| projects | `/projects`, `/projects/{id}` | yes |
+| products (UI "Modules") | `/products`, `/products/{id}`, `/products/{id}/current-sprint` | yes |
+| modules (UI "Components") | `/products/{id}/modules`, `/modules/{id}`, `/modules/{id}/status` | yes |
+| sprints | `/products/{id}/sprints`, `/sprints/{id}`, `/modules/{id}/sprints` | yes |
+| sprint membership | `/sprints/{id}/members`, `/sprints/{id}/members/{memberId}` | no |
+| sprint backlog | `/sprints/{id}/backlog`, `/sprints/{id}/backlog/{itemId}` | no |
+| backlog | `/products/{id}/backlog`, `/modules/{id}/backlog`, `/backlog/{id}` | yes |
+| tasks | `/sprints/{id}/tasks`, `/tasks/{id}`, `/tasks/{id}/column`, `/tasks/{id}/dod` | yes (list) |
+| members | `/members`, `/members/{id}` | yes |
+| decisions | `/products/{id}/decisions`, `/decisions/{id}` | yes |
+| reports | `/report-templates`, `/report-queue`, `/generated-reports` | queue + generated |
+| settings | `/roles`, `/lists/{key}`, `/settings` | no |
+| probes | `/livez`, `/readyz`, `/healthz` — at the root, not under `/api/v1` | — |
+
 ## Limits
 
 | Limit | Default | Env | Why |

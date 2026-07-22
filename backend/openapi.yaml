@@ -1,0 +1,2249 @@
+openapi: 3.1.0
+
+info:
+  title: WIT Sprint OS API
+  version: "1.0.0"
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: |
+    REST API for the WIT Sprint OS delivery hierarchy.
+
+    ## Naming
+
+    The URL vocabulary predates the UI's, and the two do not match. Read it as:
+
+    | URL / payload | The UI calls it |
+    | ------------- | --------------- |
+    | `product`     | **Module**      |
+    | `module`      | **Component**   |
+
+    The hierarchy is `client → project → product → module → sprint → task`,
+    which the UI presents as Client → Project → Module → Component → Sprint.
+
+    ## Conventions
+
+    - **PATCH is partial.** Only the keys present in the body are written; an
+      absent key leaves its column untouched. This is what makes two concurrent
+      edits to different fields both survive. `PATCH /products/{id}/current-sprint`
+      is the single exception where an explicit `null` differs from an absent
+      key — see that operation.
+    - **Ids may be supplied or generated.** Send `id` on create to choose it;
+      omit it and the server mints one. A duplicate answers `409`.
+    - **Lineage is enforced.** A child may only reference a parent inside its own
+      product: a sprint's component, a task's backlog item, a report's sprint. A
+      mismatch is a `400`, not a silent link.
+    - **Timestamps** are RFC 3339 with an offset (`2026-07-23T02:35:08.59+07:00`).
+      Date-only columns (`startDate`, `due`, `decidedOn`, `generatedOn`) are sent
+      back as RFC 3339 at midnight UTC and accepted as either `YYYY-MM-DD` or
+      RFC 3339.
+    - **Errors** are always `{"error": "..."}` with a human-readable message.
+
+    ## Authentication
+
+    None yet. Every endpoint is open, so do not expose this service publicly as
+    it stands.
+
+# There is no authentication yet. An empty list is how OpenAPI says
+# "this API requires none" — as opposed to saying nothing at all.
+security: []
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: /api/v1
+    description: Relative to wherever the service is mounted
+
+tags:
+  - name: clients
+    description: The companies you deliver for.
+  - name: projects
+    description: An outcome a client hired you for.
+  - name: products
+    description: 'Delivery workspaces. The UI calls these **Modules**.'
+  - name: modules
+    description: 'Pieces of a product, each owning its own sprints. The UI calls these **Components**.'
+  - name: sprints
+    description: Sprints, their members and their committed backlog.
+  - name: backlog
+    description: The product backlog.
+  - name: tasks
+    description: Board cards and their Definition of Done.
+  - name: members
+    description: People who can be assigned work.
+  - name: decisions
+    description: The decision log for a product.
+  - name: reports
+    description: Report templates, the queue, and generated reports.
+  - name: settings
+    description: Roles, master lists and workspace configuration.
+  - name: health
+    description: Liveness and readiness probes. These live at the root, not under `/api/v1`.
+
+paths:
+  # ------------------------------------------------------------- clients ---
+  /clients:
+    get:
+      tags: [clients]
+      summary: List clients
+      operationId: listClients
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of clients.
+          headers:
+            X-Has-More:
+              $ref: '#/components/headers/XHasMore'
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Client' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [clients]
+      summary: Create a client
+      operationId: createClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientCreate' }
+      responses:
+        '201':
+          description: The created client.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Client' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /clients/{clientId}:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    get:
+      tags: [clients]
+      summary: Get a client
+      operationId: getClient
+      responses:
+        '200':
+          description: The client.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Client' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [clients]
+      summary: Update a client
+      description: Partial — only the keys you send are written.
+      operationId: updateClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientUpdate' }
+      responses:
+        '200':
+          description: The updated client.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Client' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [clients]
+      summary: Delete a client
+      description: |
+        Cascades to the client's projects, products, components, sprints,
+        backlog, tasks, decisions and reports. There is no undo.
+      operationId: deleteClient
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /clients/{clientId}/projects:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+    get:
+      tags: [clients, projects]
+      summary: List a client's projects
+      operationId: listProjectsByClient
+      responses:
+        '200':
+          description: A page of projects.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Project' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ------------------------------------------------------------ projects ---
+  /projects:
+    get:
+      tags: [projects]
+      summary: List projects
+      operationId: listProjects
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of projects.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Project' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [projects]
+      summary: Create a project
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectCreate' }
+      responses:
+        '201':
+          description: The created project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [projects]
+      summary: Get a project
+      operationId: getProject
+      responses:
+        '200':
+          description: The project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [projects]
+      summary: Update a project
+      description: |
+        Moving a project to another client (`clientId`) carries its products
+        with it — their denormalised `clientId` follows automatically.
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectUpdate' }
+      responses:
+        '200':
+          description: The updated project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [projects]
+      summary: Delete a project
+      description: Cascades to its products and everything beneath them.
+      operationId: deleteProject
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ---------------------------------------------- products (UI "Modules") ---
+  /products:
+    get:
+      tags: [products]
+      summary: List products (UI "Modules")
+      description: Filter by `projectId` or `clientId`; without either, lists every product.
+      operationId: listProducts
+      parameters:
+        - name: projectId
+          in: query
+          schema: { type: string }
+          description: Only products of this project.
+        - name: clientId
+          in: query
+          schema: { type: string }
+          description: Only products of this client. Ignored when `projectId` is given.
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of products.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Product' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [products]
+      summary: Create a product
+      description: |
+        `clientId` is **not accepted** — it is derived from the project, so a
+        product can never be attributed to a client that does not own it.
+        `currentSprintId` is not accepted either: a new product has no sprints.
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCreate' }
+      responses:
+        '201':
+          description: The created product.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400':
+          description: '`projectId` is missing or does not exist.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /products/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [products]
+      summary: Get a product
+      operationId: getProduct
+      responses:
+        '200':
+          description: The product.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [products]
+      summary: Update a product
+      description: |
+        Partial. `clientId` is not accepted; move the product by changing
+        `projectId`, and its client follows.
+      operationId: updateProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductUpdate' }
+      responses:
+        '200':
+          description: The updated product.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [products]
+      summary: Delete a product
+      description: Cascades to its components, sprints, backlog, tasks, decisions and reports.
+      operationId: deleteProduct
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /products/{productId}/current-sprint:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    patch:
+      tags: [products, sprints]
+      summary: Point a product at its current sprint
+      description: |
+        The one endpoint where an explicit `null` and an absent key differ:
+
+        | Body | Effect |
+        | ---- | ------ |
+        | `{"currentSprintId": "spr-..."}` | Sets the pointer. The sprint must belong to this product. |
+        | `{"currentSprintId": null}` | Clears the pointer. |
+        | `{}` | Nothing. Returns the product unchanged. |
+      operationId: setProductCurrentSprint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currentSprintId:
+                  type: [string, 'null']
+                  description: A sprint of this product, or null to clear.
+      responses:
+        '200':
+          description: The product.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400':
+          description: The sprint is not a sprint of this product.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /products/{productId}/modules:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [modules]
+      summary: List a product's components
+      operationId: listModulesByProduct
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of components, in `position` order.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Module' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [modules]
+      summary: Create a component
+      description: |
+        Omit `position` and the server appends it under a row lock, so a burst of
+        concurrent creates lands on 0, 1, 2… rather than all on 0.
+      operationId: createModule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModuleCreate' }
+      responses:
+        '201':
+          description: The created component.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Module' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ---------------------------------------------- modules (UI "Components") ---
+  /modules/{moduleId}:
+    parameters:
+      - $ref: '#/components/parameters/ModuleId'
+    get:
+      tags: [modules]
+      summary: Get a component
+      operationId: getModule
+      responses:
+        '200':
+          description: The component.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Module' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [modules]
+      summary: Update a component
+      operationId: updateModule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModuleUpdate' }
+      responses:
+        '200':
+          description: The updated component.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Module' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [modules]
+      summary: Delete a component
+      description: |
+        Sprints and backlog items of this component survive — their `moduleId`
+        is set to null. Only the component itself goes.
+      operationId: deleteModule
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /modules/{moduleId}/status:
+    parameters:
+      - $ref: '#/components/parameters/ModuleId'
+    patch:
+      tags: [modules]
+      summary: Set a component's status
+      operationId: updateModuleStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/ModuleStatus' }
+      responses:
+        '200':
+          description: The updated component.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Module' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /modules/{moduleId}/sprints:
+    parameters:
+      - $ref: '#/components/parameters/ModuleId'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+    get:
+      tags: [modules, sprints]
+      summary: List a component's sprints
+      operationId: listSprintsByModule
+      responses:
+        '200':
+          description: A page of sprints, newest number first.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Sprint' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /modules/{moduleId}/backlog:
+    parameters:
+      - $ref: '#/components/parameters/ModuleId'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+    get:
+      tags: [modules, backlog]
+      summary: List a component's backlog items
+      operationId: listBacklogItemsByModule
+      responses:
+        '200':
+          description: A page of backlog items, newest first.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BacklogItem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ------------------------------------------------------------- sprints ---
+  /products/{productId}/sprints:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [sprints]
+      summary: List a product's sprints
+      operationId: listSprintsByProduct
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of sprints, newest number first.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Sprint' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [sprints]
+      summary: Create a sprint
+      description: |
+        Omit `number` and the sprint is auto-numbered: the next number for this
+        product, assigned under a row lock so a burst produces a gapless
+        sequence rather than a pile of conflicts. Send `number` to choose it
+        yourself, and a clash is a genuine `409`.
+
+        `moduleId` must name a component of this product.
+      operationId: createSprint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SprintCreate' }
+      responses:
+        '201':
+          description: The created sprint.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sprint' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: That number is already taken, or the row was busy — retry.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /sprints/{sprintId}:
+    parameters:
+      - $ref: '#/components/parameters/SprintId'
+    get:
+      tags: [sprints]
+      summary: Get a sprint
+      operationId: getSprint
+      responses:
+        '200':
+          description: The sprint.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sprint' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [sprints]
+      summary: Update a sprint
+      operationId: updateSprint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SprintUpdate' }
+      responses:
+        '200':
+          description: The updated sprint.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sprint' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [sprints]
+      summary: Delete a sprint
+      description: Cascades to its tasks, members and committed backlog links.
+      operationId: deleteSprint
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /sprints/{sprintId}/members:
+    parameters:
+      - $ref: '#/components/parameters/SprintId'
+    get:
+      tags: [sprints, members]
+      summary: List a sprint's members
+      description: Not paginated — a sprint team is small and bounded.
+      operationId: listSprintMembers
+      responses:
+        '200':
+          description: The sprint's members, with the person's details joined in.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SprintMember' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /sprints/{sprintId}/members/{memberId}:
+    parameters:
+      - $ref: '#/components/parameters/SprintId'
+      - $ref: '#/components/parameters/MemberId'
+    put:
+      tags: [sprints, members]
+      summary: Add or update a sprint member
+      description: Idempotent — repeating it updates the allocation.
+      operationId: addSprintMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                allocation:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  default: 100
+                capacityDays:
+                  type: number
+                  minimum: 0
+                  maximum: 999.99
+                  default: 0
+      responses:
+        '200':
+          description: The membership.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SprintMemberLink' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    delete:
+      tags: [sprints, members]
+      summary: Remove a sprint member
+      operationId: removeSprintMember
+      responses:
+        '204': { description: Removed. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /sprints/{sprintId}/backlog:
+    parameters:
+      - $ref: '#/components/parameters/SprintId'
+    get:
+      tags: [sprints, backlog]
+      summary: List a sprint's committed backlog
+      description: Not paginated. Ordered by `position`.
+      operationId: listSprintBacklogItems
+      responses:
+        '200':
+          description: The committed items, with the backlog item's content joined in.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SprintBacklogItem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /sprints/{sprintId}/backlog/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/SprintId'
+      - $ref: '#/components/parameters/ItemId'
+    put:
+      tags: [sprints, backlog]
+      summary: Commit a backlog item to a sprint
+      description: |
+        The item must belong to the same product as the sprint. Omit `position`
+        and it is appended under a row lock.
+      operationId: addSprintBacklogItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                position:
+                  type: integer
+                  minimum: 0
+                  description: Omit to append.
+      responses:
+        '200':
+          description: The link.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SprintBacklogLink' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400':
+          description: The item does not exist or belongs to a different module.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [sprints, backlog]
+      summary: Remove an item from a sprint
+      operationId: removeSprintBacklogItem
+      responses:
+        '204': { description: Removed. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ------------------------------------------------------------- backlog ---
+  /products/{productId}/backlog:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [backlog]
+      summary: List a product's backlog
+      operationId: listBacklogItemsByProduct
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of backlog items, newest first.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BacklogItem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [backlog]
+      summary: Create a backlog item
+      operationId: createBacklogItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BacklogItemCreate' }
+      responses:
+        '201':
+          description: The created item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BacklogItem' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /backlog/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/ItemId'
+    get:
+      tags: [backlog]
+      summary: Get a backlog item
+      operationId: getBacklogItem
+      responses:
+        '200':
+          description: The item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BacklogItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [backlog]
+      summary: Update a backlog item
+      operationId: updateBacklogItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BacklogItemUpdate' }
+      responses:
+        '200':
+          description: The updated item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BacklogItem' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [backlog]
+      summary: Delete a backlog item
+      description: Cascades to its tasks and to any sprint commitment of it.
+      operationId: deleteBacklogItem
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # --------------------------------------------------------------- tasks ---
+  /sprints/{sprintId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/SprintId'
+    get:
+      tags: [tasks]
+      summary: List a sprint's tasks
+      operationId: listTasksBySprint
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of tasks.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Task' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [tasks]
+      summary: Create a task
+      description: '`backlogItemId` must belong to the same product as the sprint.'
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskCreate' }
+      responses:
+        '201':
+          description: The created task.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400':
+          description: The backlog item does not exist or belongs to a different module.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [tasks]
+      summary: Get a task
+      operationId: getTask
+      responses:
+        '200':
+          description: The task.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [tasks]
+      summary: Update a task
+      description: |
+        Partial, which is what lets someone rename a card while a colleague
+        drags it to another column without either edit being lost.
+      operationId: updateTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskUpdate' }
+      responses:
+        '200':
+          description: The updated task.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [tasks]
+      summary: Delete a task
+      description: Cascades to its DoD checklist.
+      operationId: deleteTask
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /tasks/{taskId}/column:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    patch:
+      tags: [tasks]
+      summary: Move a task to another board column
+      operationId: moveTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [boardColumn]
+              properties:
+                boardColumn: { $ref: '#/components/schemas/BoardColumn' }
+      responses:
+        '200':
+          description: The moved task.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /tasks/{taskId}/dod:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [tasks]
+      summary: List a task's Definition of Done
+      description: Not paginated. Ordered by `position`.
+      operationId: listTaskDod
+      responses:
+        '200':
+          description: The checklist.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TaskDodItem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    put:
+      tags: [tasks]
+      summary: Add or replace one checklist entry
+      description: Keyed on `position` — repeating a position overwrites it.
+      operationId: setTaskDodItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [position, label]
+              properties:
+                position: { type: integer, minimum: 0 }
+                label: { type: string }
+                done: { type: boolean, default: false }
+      responses:
+        '200':
+          description: The entry.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDodItem' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /tasks/{taskId}/dod/{position}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+      - name: position
+        in: path
+        required: true
+        schema: { type: integer, minimum: 0 }
+    patch:
+      tags: [tasks]
+      summary: Toggle one checklist entry
+      operationId: toggleTaskDodItem
+      responses:
+        '200':
+          description: The toggled entry.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDodItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------- members ---
+  /members:
+    get:
+      tags: [members]
+      summary: List members
+      operationId: listMembers
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of members.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Member' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [members]
+      summary: Create a member
+      operationId: createMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemberCreate' }
+      responses:
+        '201':
+          description: The created member.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Member' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: That email is already taken.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /members/{memberId}:
+    parameters:
+      - $ref: '#/components/parameters/MemberId'
+    get:
+      tags: [members]
+      summary: Get a member
+      operationId: getMember
+      responses:
+        '200':
+          description: The member.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Member' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [members]
+      summary: Update a member
+      operationId: updateMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemberUpdate' }
+      responses:
+        '200':
+          description: The updated member.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Member' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [members]
+      summary: Delete a member
+      description: |
+        Their sprint memberships go with them; tasks they were assigned survive
+        with `assigneeId` set to null.
+      operationId: deleteMember
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ----------------------------------------------------------- decisions ---
+  /products/{productId}/decisions:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [decisions]
+      summary: List a product's decision log
+      operationId: listDecisionsByProduct
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of decisions, most recent first.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Decision' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [decisions]
+      summary: Record a decision
+      operationId: createDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionCreate' }
+      responses:
+        '201':
+          description: The created decision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Decision' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /decisions/{decisionId}:
+    parameters:
+      - name: decisionId
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [decisions]
+      summary: Update a decision
+      operationId: updateDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionUpdate' }
+      responses:
+        '200':
+          description: The updated decision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Decision' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [decisions]
+      summary: Delete a decision
+      operationId: deleteDecision
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ------------------------------------------------------------- reports ---
+  /report-templates:
+    get:
+      tags: [reports]
+      summary: List report templates
+      description: Not paginated.
+      operationId: listReportTemplates
+      responses:
+        '200':
+          description: The templates.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReportTemplate' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    put:
+      tags: [reports]
+      summary: Create or replace a report template
+      description: Upsert on `id`. Omit `id` to create one.
+      operationId: upsertReportTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                id: { type: string }
+                name: { type: string }
+                audience: { type: string }
+                visibility: { $ref: '#/components/schemas/TemplateVisibility' }
+                sections: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: The template.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportTemplate' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: That name is already taken.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /report-templates/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [reports]
+      summary: Delete a report template
+      operationId: deleteReportTemplate
+      responses:
+        '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /report-queue:
+    get:
+      tags: [reports]
+      summary: List the report queue
+      operationId: listReportQueue
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of queued reports, soonest due first.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReportQueueItem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [reports]
+      summary: Queue a report
+      operationId: createReportQueueItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportQueueCreate' }
+      responses:
+        '201':
+          description: The queued report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportQueueItem' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /report-queue/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [reports]
+      summary: Set a queued report's status
+      operationId: updateReportQueueStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/QueueStatus' }
+      responses:
+        '200':
+          description: The updated entry.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportQueueItem' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [reports]
+      summary: Remove a report from the queue
+      operationId: deleteReportQueueItem
+      responses:
+        '204': { description: Removed. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /products/{productId}/generated-reports:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+    get:
+      tags: [reports]
+      summary: List a product's generated reports
+      operationId: listGeneratedReportsByProduct
+      responses:
+        '200':
+          description: A page of generated reports, most recent first.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GeneratedReport' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /generated-reports:
+    post:
+      tags: [reports]
+      summary: Record a generated report
+      description: '`sprintId`, when given, must be a sprint of that product.'
+      operationId: createGeneratedReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GeneratedReportCreate' }
+      responses:
+        '201':
+          description: The recorded report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GeneratedReport' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400':
+          description: The product does not exist, or the sprint is not one of its sprints.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /generated-reports/{id}/sent:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [reports]
+      summary: Mark a generated report as sent
+      operationId: markGeneratedReportSent
+      responses:
+        '200':
+          description: The updated report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GeneratedReport' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------ settings ---
+  /roles:
+    get:
+      tags: [settings]
+      summary: List roles
+      description: Not paginated.
+      operationId: listRoles
+      responses:
+        '200':
+          description: The roles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Role' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    put:
+      tags: [settings]
+      summary: Create or replace a role
+      operationId: upsertRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              properties:
+                id: { type: string }
+                label: { type: string }
+                permissions:
+                  type: object
+                  description: |
+                    Must be a JSON object under 64 KB. An absent value or an
+                    explicit `null` both store `{}`.
+      responses:
+        '200':
+          description: The role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /lists/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string }
+        description: 'The list to read, e.g. `priority`, `task-status`, `industry`.'
+    get:
+      tags: [settings]
+      summary: Read a master list
+      description: Not paginated. Ordered by `position`.
+      operationId: listMasterValues
+      responses:
+        '200':
+          description: The list's values.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MasterListValue' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [settings]
+      summary: Add a value to a master list
+      operationId: addMasterValue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value: { type: string }
+                position: { type: integer, minimum: 0 }
+      responses:
+        '201':
+          description: The added value.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MasterListValue' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /lists/{key}/{value}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string }
+      - name: value
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [settings]
+      summary: Remove a value from a master list
+      operationId: deleteMasterValue
+      responses:
+        '204': { description: Removed. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /settings:
+    get:
+      tags: [settings]
+      summary: Read workspace settings
+      description: A singleton, seeded by migration, so this never 404s on a migrated database.
+      operationId: getWorkspaceSettings
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceSettings' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    put:
+      tags: [settings]
+      summary: Replace workspace settings
+      description: A wholesale replacement, not a patch.
+      operationId: upsertWorkspaceSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                settings:
+                  type: object
+                  description: Must be a JSON object under 64 KB.
+                dodTemplate: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceSettings' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  # -------------------------------------------------------------- probes ---
+  # These are mounted at the root, not under /api/v1, hence the server override.
+  /livez:
+    servers: &rootServer
+      - url: http://localhost:8080
+        description: Local development (root, not /api/v1)
+      - url: /
+        description: Relative to wherever the service is mounted
+    get:
+      tags: [health]
+      summary: Liveness
+      description: |
+        Deliberately does not touch the database. A DB-backed liveness probe
+        fails exactly when the pool is saturated — that is, when the process is
+        busiest but perfectly healthy — and the orchestrator answers by
+        restarting it. Point `livenessProbe` here.
+      operationId: livez
+      responses:
+        '200':
+          description: The process is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, examples: [ok] }
+
+  /readyz:
+    servers: *rootServer
+    get:
+      tags: [health]
+      summary: Readiness
+      description: |
+        Pings the database with its own 500 ms deadline, so a busy pool answers
+        "not ready" promptly instead of hanging. Point `readinessProbe` here.
+      operationId: readyz
+      responses:
+        '200':
+          description: Ready to serve.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, examples: [ok] }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /healthz:
+    servers: *rootServer
+    get:
+      tags: [health]
+      summary: Readiness (alias)
+      description: An alias of `/readyz`, kept for existing probes. Prefer `/livez` or `/readyz`.
+      operationId: healthz
+      responses:
+        '200':
+          description: Ready to serve.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, examples: [ok] }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+components:
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Page size. Clamped to 1000; anything unparseable falls back to the default.
+      schema: { type: integer, minimum: 1, maximum: 1000, default: 200 }
+    Offset:
+      name: offset
+      in: query
+      description: |
+        Rows to skip. Postgres walks and discards them, so deep offsets get
+        progressively more expensive — prefer narrowing by parent id.
+      schema: { type: integer, minimum: 0, default: 0 }
+    ClientId:  { name: clientId,  in: path, required: true, schema: { type: string } }
+    ProjectId: { name: projectId, in: path, required: true, schema: { type: string } }
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      description: 'A product id — the UI calls this a Module.'
+      schema: { type: string }
+    ModuleId:
+      name: moduleId
+      in: path
+      required: true
+      description: 'A module id — the UI calls this a Component.'
+      schema: { type: string }
+    SprintId: { name: sprintId, in: path, required: true, schema: { type: string } }
+    TaskId:   { name: taskId,   in: path, required: true, schema: { type: string } }
+    MemberId: { name: memberId, in: path, required: true, schema: { type: string } }
+    ItemId:   { name: itemId,   in: path, required: true, schema: { type: string } }
+
+  headers:
+    XHasMore:
+      description: Present and `true` when another page exists.
+      schema: { type: string, enum: ['true'] }
+
+  responses:
+    BadRequest:
+      description: The request is malformed, or a value is out of range.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: No such record.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: |
+        A uniqueness clash, or a row was busy and the write should be retried.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    TooLarge:
+      description: The body is over 1 MB.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unavailable:
+      description: |
+        The request took too long. The statement timeout is 5 s and the whole
+        request is capped at 15 s; readiness returns this when the pool is
+        saturated.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, examples: ['name is required'] }
+
+    # ------------------------------------------------------------- enums ---
+    ClientStatus:      { type: string, enum: [active, inactive, prospect] }
+    Health:            { type: string, enum: [healthy, warning, at-risk] }
+    Risk:              { type: string, enum: [low, medium, high] }
+    ProjectStatus:     { type: string, enum: [discovery, active, done, on-hold] }
+    ProductStatus:     { type: string, enum: [discovery, development, release, maintenance] }
+    ModuleStatus:      { type: string, enum: [planned, in-progress, done] }
+    SprintStatus:      { type: string, enum: [planning, active, review, done] }
+    Readiness:         { type: string, enum: [ready, needs-clarification, draft] }
+    BoardColumn:
+      type: string
+      enum: [selected, ready, in-progress, in-review, qa, done, blocked]
+    DecisionStatus:    { type: string, enum: [open, decided] }
+    MemberStatus:      { type: string, enum: [active, inactive, temporary] }
+    TemplateVisibility: { type: string, enum: [internal, client-facing] }
+    QueueStatus:       { type: string, enum: [open, planned, done] }
+    ReportStatus:      { type: string, enum: [draft, sent] }
+
+    Timestamp:
+      type: string
+      format: date-time
+      description: RFC 3339 with an offset.
+      examples: ['2026-07-23T02:35:08.590146+07:00']
+    DateOnly:
+      type: [string, 'null']
+      format: date-time
+      description: |
+        A date-only column. Returned as RFC 3339 at midnight UTC; accepted as
+        `YYYY-MM-DD` or RFC 3339.
+      examples: ['2026-05-11T00:00:00Z']
+    Json:
+      type: [object, 'null']
+      description: Free-form JSON, capped at 64 KB once decoded.
+
+    # ----------------------------------------------------------- clients ---
+    Client:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        industry: { type: string }
+        status: { $ref: '#/components/schemas/ClientStatus' }
+        clientPic: { type: string }
+        witOwner: { type: string }
+        contractType: { type: string }
+        health: { $ref: '#/components/schemas/Health' }
+        risk: { $ref: '#/components/schemas/Risk' }
+        notes: { type: string }
+        actionNeeded: { type: array, items: { type: string } }
+        aiInsight: { $ref: '#/components/schemas/Json' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ClientCreate:
+      type: object
+      required: [name]
+      properties:
+        id: { type: string, description: Omit to have one generated. }
+        name: { type: string }
+        industry: { type: string }
+        status: { $ref: '#/components/schemas/ClientStatus' }
+        clientPic: { type: string }
+        witOwner: { type: string }
+        contractType: { type: string }
+        health: { $ref: '#/components/schemas/Health' }
+        risk: { $ref: '#/components/schemas/Risk' }
+        notes: { type: string }
+        actionNeeded: { type: array, items: { type: string } }
+        aiInsight: { $ref: '#/components/schemas/Json' }
+    ClientUpdate:
+      type: object
+      description: Every field optional; absent keys are left alone.
+      properties:
+        name: { type: string }
+        industry: { type: string }
+        status: { $ref: '#/components/schemas/ClientStatus' }
+        clientPic: { type: string }
+        witOwner: { type: string }
+        contractType: { type: string }
+        health: { $ref: '#/components/schemas/Health' }
+        risk: { $ref: '#/components/schemas/Risk' }
+        notes: { type: string }
+        actionNeeded: { type: array, items: { type: string } }
+        aiInsight: { $ref: '#/components/schemas/Json' }
+
+    # ---------------------------------------------------------- projects ---
+    Project:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        name: { type: string }
+        objective: { type: string }
+        status: { $ref: '#/components/schemas/ProjectStatus' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ProjectCreate:
+      type: object
+      required: [clientId, name]
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        name: { type: string }
+        objective: { type: string }
+        status: { $ref: '#/components/schemas/ProjectStatus' }
+    ProjectUpdate:
+      type: object
+      properties:
+        clientId: { type: string, description: 'Moves the project, and its products follow.' }
+        name: { type: string }
+        objective: { type: string }
+        status: { $ref: '#/components/schemas/ProjectStatus' }
+
+    # ------------------------------------------- products (UI "Modules") ---
+    Product:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        clientId: { type: string, description: Derived from the project; never set directly. }
+        name: { type: string }
+        goal: { type: string }
+        owner: { type: string }
+        deliveryLead: { type: string }
+        status: { $ref: '#/components/schemas/ProductStatus' }
+        health: { type: integer, minimum: 0, maximum: 100 }
+        risk: { $ref: '#/components/schemas/Risk' }
+        velocity: { type: integer, minimum: 0 }
+        blockedCount: { type: integer, minimum: 0 }
+        currentSprintId: { type: [string, 'null'] }
+        aiInsight: { $ref: '#/components/schemas/Json' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ProductCreate:
+      type: object
+      required: [projectId, name]
+      description: '`clientId` and `currentSprintId` are not accepted here.'
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        name: { type: string }
+        goal: { type: string }
+        owner: { type: string }
+        deliveryLead: { type: string }
+        status: { $ref: '#/components/schemas/ProductStatus' }
+        health: { type: integer, minimum: 0, maximum: 100, default: 100 }
+        risk: { $ref: '#/components/schemas/Risk' }
+        velocity: { type: integer, minimum: 0 }
+        blockedCount: { type: integer, minimum: 0 }
+        aiInsight: { $ref: '#/components/schemas/Json' }
+    ProductUpdate:
+      type: object
+      description: '`clientId` is not accepted; change `projectId` to move the product.'
+      properties:
+        projectId: { type: string }
+        name: { type: string }
+        goal: { type: string }
+        owner: { type: string }
+        deliveryLead: { type: string }
+        status: { $ref: '#/components/schemas/ProductStatus' }
+        health: { type: integer, minimum: 0, maximum: 100 }
+        risk: { $ref: '#/components/schemas/Risk' }
+        velocity: { type: integer, minimum: 0 }
+        blockedCount: { type: integer, minimum: 0 }
+        aiInsight: { $ref: '#/components/schemas/Json' }
+
+    # ---------------------------------------- modules (UI "Components") ---
+    Module:
+      type: object
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        name: { type: string }
+        owner: { type: string }
+        status: { $ref: '#/components/schemas/ModuleStatus' }
+        position: { type: integer, minimum: 0 }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ModuleCreate:
+      type: object
+      required: [name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        owner: { type: string, default: Unassigned }
+        status: { $ref: '#/components/schemas/ModuleStatus' }
+        position: { type: integer, minimum: 0, description: Omit to append. }
+    ModuleUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        owner: { type: string }
+        status: { $ref: '#/components/schemas/ModuleStatus' }
+        position: { type: integer, minimum: 0 }
+
+    # ----------------------------------------------------------- sprints ---
+    Sprint:
+      type: object
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        moduleId: { type: [string, 'null'], description: The component that owns this sprint. }
+        number: { type: integer, minimum: 1, maximum: 100000 }
+        name: { type: string }
+        goal: { type: string }
+        startDate: { $ref: '#/components/schemas/DateOnly' }
+        endDate: { $ref: '#/components/schemas/DateOnly' }
+        workingDays: { type: integer, minimum: 0 }
+        daysLeft: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/SprintStatus' }
+        committed: { type: integer, minimum: 0 }
+        completed: { type: integer, minimum: 0 }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        risk: { $ref: '#/components/schemas/Risk' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    SprintCreate:
+      type: object
+      required: [name]
+      properties:
+        id: { type: string }
+        moduleId: { type: string, description: A component of this product. }
+        number:
+          type: integer
+          minimum: 1
+          maximum: 100000
+          description: Omit to have the next number assigned for you.
+        name: { type: string }
+        goal: { type: string }
+        startDate: { $ref: '#/components/schemas/DateOnly' }
+        endDate: { $ref: '#/components/schemas/DateOnly' }
+        workingDays: { type: integer, minimum: 0, default: 10 }
+        daysLeft: { type: integer, minimum: 0, default: 10 }
+        status: { $ref: '#/components/schemas/SprintStatus' }
+        committed: { type: integer, minimum: 0 }
+        completed: { type: integer, minimum: 0 }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        risk: { $ref: '#/components/schemas/Risk' }
+    SprintUpdate:
+      type: object
+      properties:
+        moduleId: { type: string }
+        number: { type: integer, minimum: 1, maximum: 100000 }
+        name: { type: string }
+        goal: { type: string }
+        startDate: { $ref: '#/components/schemas/DateOnly' }
+        endDate: { $ref: '#/components/schemas/DateOnly' }
+        workingDays: { type: integer, minimum: 0 }
+        daysLeft: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/SprintStatus' }
+        committed: { type: integer, minimum: 0 }
+        completed: { type: integer, minimum: 0 }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        risk: { $ref: '#/components/schemas/Risk' }
+
+    SprintMemberLink:
+      type: object
+      properties:
+        sprintId: { type: string }
+        memberId: { type: string }
+        allocation: { type: integer, minimum: 0, maximum: 100 }
+        capacityDays: { type: number, minimum: 0 }
+    SprintMember:
+      allOf:
+        - $ref: '#/components/schemas/SprintMemberLink'
+        - type: object
+          properties:
+            memberName: { type: string }
+            memberEmail: { type: string }
+            memberRole: { type: string }
+            memberRoleLabel: { type: string }
+
+    SprintBacklogLink:
+      type: object
+      properties:
+        sprintId: { type: string }
+        backlogItemId: { type: string }
+        position: { type: integer, minimum: 0 }
+    SprintBacklogItem:
+      allOf:
+        - $ref: '#/components/schemas/SprintBacklogLink'
+        - type: object
+          properties:
+            productId: { type: string }
+            moduleId: { type: [string, 'null'] }
+            title: { type: string }
+            story: { type: string }
+            acceptanceCriteria: { type: array, items: { type: string } }
+            type: { type: string }
+            priority: { type: string }
+            readiness: { $ref: '#/components/schemas/Readiness' }
+            estimate: { type: integer, minimum: 0 }
+            aiSuggestions: { type: array, items: { type: string } }
+
+    # ----------------------------------------------------------- backlog ---
+    BacklogItem:
+      type: object
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        moduleId: { type: [string, 'null'] }
+        title: { type: string }
+        story: { type: string }
+        acceptanceCriteria: { type: array, items: { type: string } }
+        type:
+          type: string
+          description: 'Free text; the UI offers story, bug, spike, chore.'
+        priority:
+          type: string
+          description: 'Free text; the UI offers low, medium, high, critical.'
+        readiness: { $ref: '#/components/schemas/Readiness' }
+        estimate: { type: integer, minimum: 0 }
+        aiSuggestions: { type: array, items: { type: string } }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    BacklogItemCreate:
+      type: object
+      required: [title]
+      properties:
+        id: { type: string }
+        moduleId: { type: string, description: A component of this product. }
+        title: { type: string }
+        story: { type: string }
+        acceptanceCriteria: { type: array, items: { type: string } }
+        type: { type: string, default: story }
+        priority: { type: string, default: medium }
+        readiness: { $ref: '#/components/schemas/Readiness' }
+        estimate: { type: integer, minimum: 0 }
+        aiSuggestions: { type: array, items: { type: string } }
+    BacklogItemUpdate:
+      type: object
+      properties:
+        moduleId: { type: string }
+        title: { type: string }
+        story: { type: string }
+        acceptanceCriteria: { type: array, items: { type: string } }
+        type: { type: string }
+        priority: { type: string }
+        readiness: { $ref: '#/components/schemas/Readiness' }
+        estimate: { type: integer, minimum: 0 }
+        aiSuggestions: { type: array, items: { type: string } }
+
+    # ------------------------------------------------------------- tasks ---
+    Task:
+      type: object
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        backlogItemId: { type: string }
+        title: { type: string }
+        moduleName: { type: string, description: Denormalised label shown on the card. }
+        assigneeId: { type: [string, 'null'] }
+        estimate: { type: integer, minimum: 0 }
+        boardColumn: { $ref: '#/components/schemas/BoardColumn' }
+        priority: { type: string, description: 'Free text; the UI offers low, medium, high.' }
+        blockedReason: { type: [string, 'null'] }
+        blockedDays: { type: [integer, 'null'], minimum: 0 }
+        offGoal: { type: boolean }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    TaskCreate:
+      type: object
+      required: [title, backlogItemId]
+      properties:
+        id: { type: string }
+        backlogItemId: { type: string, description: Must belong to the sprint's product. }
+        title: { type: string }
+        moduleName: { type: string }
+        assigneeId: { type: string }
+        estimate: { type: integer, minimum: 0 }
+        boardColumn: { $ref: '#/components/schemas/BoardColumn' }
+        priority: { type: string, default: medium }
+        blockedReason: { type: string }
+        blockedDays: { type: integer, minimum: 0 }
+        offGoal: { type: boolean, default: false }
+    TaskUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        moduleName: { type: string }
+        assigneeId: { type: string }
+        estimate: { type: integer, minimum: 0 }
+        boardColumn: { $ref: '#/components/schemas/BoardColumn' }
+        priority: { type: string }
+        blockedReason: { type: string }
+        blockedDays: { type: integer, minimum: 0 }
+        offGoal: { type: boolean }
+    TaskDodItem:
+      type: object
+      properties:
+        taskId: { type: string }
+        position: { type: integer, minimum: 0 }
+        label: { type: string }
+        done: { type: boolean }
+
+    # ----------------------------------------------------------- members ---
+    Member:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string }
+        roleLabel: { type: string }
+        skillTags: { type: array, items: { type: string } }
+        allocation: { type: integer, minimum: 0, maximum: 100 }
+        capacityDays: { type: number, minimum: 0, maximum: 999.99 }
+        workload: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/MemberStatus' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    MemberCreate:
+      type: object
+      required: [name, email]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email, description: Unique across members. }
+        role: { type: string }
+        roleLabel: { type: string }
+        skillTags: { type: array, items: { type: string } }
+        allocation: { type: integer, minimum: 0, maximum: 100, default: 100 }
+        capacityDays: { type: number, minimum: 0, maximum: 999.99 }
+        workload: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/MemberStatus' }
+    MemberUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string }
+        roleLabel: { type: string }
+        skillTags: { type: array, items: { type: string } }
+        allocation: { type: integer, minimum: 0, maximum: 100 }
+        capacityDays: { type: number, minimum: 0, maximum: 999.99 }
+        workload: { type: integer, minimum: 0 }
+        status: { $ref: '#/components/schemas/MemberStatus' }
+
+    # --------------------------------------------------------- decisions ---
+    Decision:
+      type: object
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        decidedOn: { $ref: '#/components/schemas/DateOnly' }
+        title: { type: string }
+        detail: { type: string }
+        owner: { type: string }
+        status: { $ref: '#/components/schemas/DecisionStatus' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    DecisionCreate:
+      type: object
+      required: [title]
+      properties:
+        id: { type: string }
+        decidedOn: { $ref: '#/components/schemas/DateOnly' }
+        title: { type: string }
+        detail: { type: string }
+        owner: { type: string }
+        status: { $ref: '#/components/schemas/DecisionStatus' }
+    DecisionUpdate:
+      type: object
+      properties:
+        decidedOn: { $ref: '#/components/schemas/DateOnly' }
+        title: { type: string }
+        detail: { type: string }
+        owner: { type: string }
+        status: { $ref: '#/components/schemas/DecisionStatus' }
+
+    # ----------------------------------------------------------- reports ---
+    ReportTemplate:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string, description: Unique. }
+        audience: { type: string }
+        visibility: { $ref: '#/components/schemas/TemplateVisibility' }
+        sections: { type: array, items: { type: string } }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ReportQueueItem:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        productId: { type: string }
+        client: { type: string }
+        type: { type: string }
+        template: { type: string }
+        due: { $ref: '#/components/schemas/DateOnly' }
+        status: { $ref: '#/components/schemas/QueueStatus' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ReportQueueCreate:
+      type: object
+      required: [title, productId]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        productId: { type: string }
+        client: { type: string }
+        type: { type: string }
+        template: { type: string }
+        due: { $ref: '#/components/schemas/DateOnly' }
+        status: { $ref: '#/components/schemas/QueueStatus' }
+    GeneratedReport:
+      type: object
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        sprintId: { type: [string, 'null'] }
+        type: { type: string }
+        template: { type: string }
+        period: { type: string }
+        generatedOn: { $ref: '#/components/schemas/DateOnly' }
+        status: { $ref: '#/components/schemas/ReportStatus' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    GeneratedReportCreate:
+      type: object
+      required: [productId]
+      properties:
+        id: { type: string }
+        productId: { type: string }
+        sprintId: { type: string, description: Must be a sprint of that product. }
+        type: { type: string }
+        template: { type: string }
+        period: { type: string }
+        generatedOn: { $ref: '#/components/schemas/DateOnly' }
+        status: { $ref: '#/components/schemas/ReportStatus' }
+
+    # ---------------------------------------------------------- settings ---
+    Role:
+      type: object
+      properties:
+        id: { type: string }
+        label: { type: string }
+        permissions: { type: object }
+    MasterListValue:
+      type: object
+      properties:
+        key: { type: string }
+        value: { type: string }
+        position: { type: integer, minimum: 0 }
+    WorkspaceSettings:
+      type: object
+      properties:
+        id: { type: boolean, description: Always true — this table holds one row. }
+        name: { type: string }
+        settings: { type: object }
+        dodTemplate: { type: array, items: { type: string } }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
