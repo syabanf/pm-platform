@@ -39,6 +39,7 @@ interface Step {
   title: string;
   body: string;
   visual: React.ReactNode;
+  caption?: string;
 }
 
 const chain = ["Client", "Project", "Module", "Component", "Sprint"];
@@ -68,6 +69,31 @@ function Chain({ highlight }: { highlight?: string[] }) {
   );
 }
 
+// Plain-English meaning of each level, nested a little further in each time to
+// show "boxes inside boxes".
+const levels: [string, string, string][] = [
+  ["Client", "the company you're working for", "ml-0"],
+  ["Project", "the big goal you're helping them reach", "ml-3"],
+  ["Module", "the actual product or system you build for it", "ml-6"],
+  ["Component", "one piece of that product, like a login screen", "ml-9"],
+  ["Sprint", "a short burst of work — about two weeks", "ml-12"],
+];
+
+function Levels() {
+  return (
+    <ul className="space-y-2">
+      {levels.map(([name, desc, indent]) => (
+        <li key={name} className={`flex items-baseline gap-3 ${indent}`}>
+          <span className="w-24 shrink-0 border border-line px-2 py-1 text-center text-xs font-medium text-ink">
+            {name}
+          </span>
+          <span className="text-xs text-muted">{desc}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Pills({ items }: { items: string[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -85,27 +111,29 @@ function Pills({ items }: { items: string[] }) {
 
 const steps: Step[] = [
   {
-    eyebrow: "Welcome",
-    title: "WIT Sprint OS",
-    body: "A delivery workspace for consulting teams. Everything lives on one line — from the client all the way down to the sprint.",
-    visual: <Chain />,
+    eyebrow: "Start here",
+    title: "Hi! Here's the 2-minute tour",
+    body: "This app keeps all your client work in one place. Picture a set of boxes inside boxes — the biggest is a client, the smallest is one short chunk of work. Here's the whole set:",
+    visual: <Levels />,
   },
   {
-    eyebrow: "Home",
-    title: "Start your day here",
-    body: "Home shows what needs you right now — blocked work, overdue actions and open decisions — above live portfolio KPIs and the items you last touched.",
-    visual: <Pills items={["Blocked", "Overdue action", "Overloaded", "Decision"]} />,
+    eyebrow: "Every morning",
+    title: "Home shows what needs you first",
+    body: "Each time you open the app, Home floats the things that need you to the top — anything stuck, overdue, or waiting on a decision. Once your work is rolling, clear these first, then carry on with your day.",
+    visual: <Pills items={["Stuck", "Overdue", "Someone's overloaded", "Needs a decision"]} />,
   },
   {
-    eyebrow: "Navigate",
-    title: "Drill down, or jump",
-    body: "Open a Client, then its Project, then a Module — from the sidebar or the portfolio tree. Breadcrumbs take you back up. Press ⌘K to jump straight to anything.",
+    eyebrow: "Getting around",
+    title: "Two ways to find anything",
+    body: "Slow way: click down the left menu — a client, then its project, then a module, each click one box deeper. Fast way: press ⌘K (the Command key, or Ctrl on Windows) and type a name.",
     visual: <Chain highlight={["Client", "Project", "Module"]} />,
+    caption:
+      "On a client, project, or module page, the trail across the top takes you back up.",
   },
   {
-    eyebrow: "Module",
-    title: "The delivery workspace",
-    body: "A Module has tabs for Backlog, Sprints, Reports and more. It is split into Components, and each Component owns its own sprints.",
+    eyebrow: "Where the work lives",
+    title: "A Module is your home base",
+    body: "Open a Module — one box in from the project — and you'll see sections along the top: the to-do list (Backlog), the sprints, reports, and more. A big product is split into smaller pieces called Components, and each Component runs its own sprints.",
     visual: (
       <Pills
         items={["Overview", "Backlog", "Sprints", "Reports", "Components"]}
@@ -113,18 +141,19 @@ const steps: Step[] = [
     ),
   },
   {
-    eyebrow: "Sprint",
-    title: "Run a sprint end-to-end",
-    body: "Plan the sprint, work the Board, run Daily stand-ups, watch the Charts, then Review and Retro — every stage is a tab on the sprint.",
+    eyebrow: "Doing the work",
+    title: "A sprint, start to finish",
+    body: "A sprint is the smallest box — one short chunk of work. Plan what goes in, then drag each task across a simple board (To do → Doing → Done) as you make progress. Check in daily, watch the charts, and finish with a Review plus a quick look-back chat — the Retro.",
     visual: (
       <Pills items={["Planning", "Board", "Daily", "Charts", "Review", "Retro"]} />
     ),
   },
   {
-    eyebrow: "You're set",
-    title: "Create, edit, report",
-    body: "Add or edit anything with the inline panels — hover a table row for Edit. Generate client-ready reports and documents from Reports and Documents. Reopen this guide anytime from the sidebar.",
-    visual: <Pills items={["Add", "Edit", "Report", "Export", "⌘K"]} />,
+    eyebrow: "That's it!",
+    title: "You already know enough to start",
+    body: "See a + or an Edit button? Use it — adding and editing are safe, and deleting always asks first. Need a client report or meeting notes? The Reports and Documents pages write them for you. Now pick a client and dive in.",
+    visual: <Pills items={["Add", "Edit", "Report", "Safe to try", "Quick search (⌘K)"]} />,
+    caption: "Want this tour again? It's the “? How to use” button in the menu.",
   },
 ];
 
@@ -193,6 +222,9 @@ export function HowToWizard({
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">{s.body}</p>
           <div className="mt-6">{s.visual}</div>
+          {s.caption && (
+            <p className="mt-4 text-xs text-muted">{s.caption}</p>
+          )}
         </div>
 
         {/* footer: progress + controls */}
