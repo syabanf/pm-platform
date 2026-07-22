@@ -317,9 +317,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Auto-opens once for a signed-in first-time user; reopenable from the sidebar.
   const { open: howToOpen, setOpen: setHowToOpen } = useHowTo(!!currentUser);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [demoRun, setDemoRun] = useState(0);
   const playDemo = () => {
     setHowToOpen(false);
     setDrawerOpen(false);
+    setDemoRun((n) => n + 1); // replays even if the tour is already on screen
     setDemoOpen(true);
   };
   const initial = currentUser?.name.charAt(0) ?? "?";
@@ -350,7 +352,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onClose={() => setHowToOpen(false)}
         onPlayDemo={playDemo}
       />
-      <DemoTour open={demoOpen} onClose={() => setDemoOpen(false)} />
+      <DemoTour
+        open={demoOpen}
+        runId={demoRun}
+        onClose={() => setDemoOpen(false)}
+      />
 
       {/* Swipe in from the left edge to open the drawer (touch, mobile only). */}
       {!drawerOpen && (

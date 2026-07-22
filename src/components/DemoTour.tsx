@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clientPath, modulePath, productPath, projectPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
@@ -114,9 +114,12 @@ function useDemoSteps(): DemoStep[] {
 export function DemoTour({
   open,
   onClose,
+  runId = 0,
 }: {
   open: boolean;
   onClose: () => void;
+  /** Bump to restart the tour even if it is already open. */
+  runId?: number;
 }) {
   const router = useRouter();
   const steps = useDemoSteps();
@@ -124,10 +127,11 @@ export function DemoTour({
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Restart from the top each time the demo is opened.
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
+  // Restart from the top whenever the demo is opened — or replayed while it is
+  // already open, which is why this keys on runId and not just `open`.
+  const [prevRun, setPrevRun] = useState(`${open}:${runId}`);
+  if (`${open}:${runId}` !== prevRun) {
+    setPrevRun(`${open}:${runId}`);
     if (open) {
       setI(0);
       setPaused(false);
@@ -136,44 +140,174 @@ export function DemoTour({
   }
 
   const isLast = i >= steps.length - 1;
-  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const [cursor, setCursor] = useState<{
+    x: number;
+    y: number;
+    ms: number;
+  } | null>(null);
   const [ring, setRing] = useState<DOMRect | null>(null);
   const [pressing, setPressing] = useState(false);
+  // Where the pointer currently is, readable inside effects without making the
+  // cursor state a dependency (which would restart the step on every move).
+  const cursorRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Stop driving the moment the real user takes over. Their events are
+  // trusted; the pointer's own synthetic click() is not, so this never
+  // pauses on the tour's own actions.
+  useEffect(() => {
+    if (!open) return;
+    const yield_ = (e: Event) => {
+      if (!e.isTrusted) return;
+      const el = e.target as Element | null;
+      if (el?.closest?.('[role="status"]')) return; // the tour's own controls
+      setPaused(true);
+    };
+    window.addEventListener("pointerdown", yield_, true);
+    window.addEventListener("keydown", yield_, true);
+    return () => {
+      window.removeEventListener("pointerdown", yield_, true);
+      window.removeEventListener("keydown", yield_, true);
+    };
+  }, [open]);
+
+  // A ring drawn from a stale rect is worse than none.
+  useEffect(() => {
+    if (!open) return;
+    const drop = () => setRing(null);
+    window.addEventListener("resize", drop);
+    window.addEventListener("scroll", drop, true);
+    return () => {
+      window.removeEventListener("resize", drop);
+      window.removeEventListener("scroll", drop, true);
+    };
+  }, [open]);
 
   // Drive the app: fly the pointer to the real link for this stop, highlight
   // it, then actually click it — so navigation happens the way a user's click
-  // would. Falls back to a plain route push if that link isn't on screen.
+  // would. Every stage re-checks the DOM and degrades to a route push, so a
+  // re-render, a vanished element or a swallowed click can't strand the tour.
   useEffect(() => {
-    if (!open) return;
+    if (!open || paused) return;
     const href = steps[i]?.href;
     if (!href) return;
 
-    const target = [
-      ...document.querySelectorAll<HTMLAnchorElement>(`a[href="${href}"]`),
-    ].find((el) => {
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0;
-    });
+    const reduced =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Re-query every time: React may have replaced the node since we looked.
+    const find = (): HTMLAnchorElement | null => {
+      try {
+        return (
+          [
+            ...document.querySelectorAll<HTMLAnchorElement>(
+              `a[href="${CSS.escape(href)}"]`
+            ),
+          ].find((el) => {
+            const r = el.getBoundingClientRect();
+            return (
+              r.width > 0 &&
+              r.height > 0 &&
+              r.bottom > 0 &&
+              r.top < window.innerHeight
+            );
+          }) ?? null
+        );
+      } catch {
+        return null;
+      }
+    };
 
     let cancelled = false;
     const timers: number[] = [];
     const at = (ms: number, fn: () => void) =>
-      timers.push(window.setTimeout(() => !cancelled && fn(), ms));
+      timers.push(
+        window.setTimeout(() => {
+          if (cancelled) return;
+          try {
+            fn();
+          } catch {
+            fallback(); // never let one bad stage stall the tour
+          }
+        }, ms)
+      );
+    const fallback = () => {
+      setRing(null);
+      setPressing(false);
+      try {
+        router.push(href);
+      } catch {
+        /* nothing left to try */
+      }
+    };
+    const place = (x: number, y: number, ms: number) => {
+      cursorRef.current = { x, y };
+      setCursor({ x, y, ms });
+    };
 
-    if (!target) {
-      at(250, () => router.push(href));
+    const first = find();
+    if (!first) {
+      at(200, fallback);
     } else {
-      target.scrollIntoView({ block: "center", behavior: "smooth" });
-      at(280, () => {
-        const r = target.getBoundingClientRect();
-        setCursor({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      try {
+        first.scrollIntoView({
+          block: "center",
+          behavior: reduced ? "auto" : "smooth",
+        });
+      } catch {
+        /* scrolling is a nicety, not a requirement */
+      }
+
+      const settleAt = reduced ? 0 : 300;
+      let landing = { x: 0, y: 0 };
+      let travel = 0;
+
+      at(settleAt, () => {
+        const el = find();
+        if (!el) return fallback();
+        const r = el.getBoundingClientRect();
         setRing(r);
+
+        // Land somewhere plausible inside the target, not dead centre.
+        const jitter = (span: number) => (Math.random() - 0.5) * span * 0.4;
+        landing = {
+          x: r.left + r.width / 2 + jitter(r.width),
+          y: r.top + r.height / 2 + jitter(r.height),
+        };
+
+        // Longer distances take longer to cross, the way a hand does.
+        const from = cursorRef.current ?? { x: landing.x, y: landing.y - 240 };
+        const dist = Math.hypot(landing.x - from.x, landing.y - from.y);
+        travel = reduced ? 0 : Math.min(900, 260 + dist * 0.55);
+
+        if (reduced) {
+          place(landing.x, landing.y, 0);
+          return;
+        }
+        // Overshoot slightly, then settle back — nobody stops on a dime.
+        const over = 1 + Math.min(0.06, dist / 6000);
+        place(
+          from.x + (landing.x - from.x) * over,
+          from.y + (landing.y - from.y) * over,
+          travel
+        );
+        at(settleAt + travel, () => place(landing.x, landing.y, 140));
       });
-      at(980, () => setPressing(true));
-      at(1180, () => {
+
+      // A beat of hesitation before committing, then the press and the click.
+      const hesitate = reduced ? 0 : 150 + Math.random() * 140;
+      at(settleAt + 900 + hesitate, () => setPressing(true));
+      at(settleAt + 900 + hesitate + 170, () => {
         setPressing(false);
         setRing(null);
-        target.click();
+        const el = find();
+        if (!el) return fallback();
+        el.click();
+      });
+
+      // Safety net: if that click never actually moved us, push the route.
+      at(settleAt + 900 + hesitate + 800, () => {
+        if (window.location.pathname !== href) router.push(href);
       });
     }
 
@@ -181,7 +315,7 @@ export function DemoTour({
       cancelled = true;
       timers.forEach(clearTimeout);
     };
-  }, [open, i, steps, router]);
+  }, [open, paused, i, steps, router]);
 
   // Advance on a timer (setState happens in the interval, never in the body).
   useEffect(() => {
@@ -223,8 +357,12 @@ export function DemoTour({
       {cursor && (
         <div
           aria-hidden
-          className="print-hide pointer-events-none fixed z-[75] transition-all duration-700 ease-in-out"
-          style={{ top: cursor.y, left: cursor.x }}
+          className="print-hide pointer-events-none fixed z-[75] transition-all ease-in-out"
+          style={{
+            top: cursor.y,
+            left: cursor.x,
+            transitionDuration: `${cursor.ms}ms`,
+          }}
         >
           {pressing && (
             <span className="absolute -left-3 -top-3 block h-6 w-6 rounded-full border-2 border-brand opacity-70" />
