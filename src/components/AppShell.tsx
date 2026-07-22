@@ -10,6 +10,7 @@ import {
 } from "@/components/CommandPalette";
 import { OnlineStatus } from "@/components/OnlineStatus";
 import { HowToWizard, useHowTo } from "@/components/HowToWizard";
+import { DemoTour } from "@/components/DemoTour";
 import { usePrototype } from "@/lib/store";
 
 interface NavChild {
@@ -315,6 +316,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { currentUser } = usePrototype();
   // Auto-opens once for a signed-in first-time user; reopenable from the sidebar.
   const { open: howToOpen, setOpen: setHowToOpen } = useHowTo(!!currentUser);
+  const [demoOpen, setDemoOpen] = useState(false);
+  const playDemo = () => {
+    setHowToOpen(false);
+    setDrawerOpen(false);
+    setDemoOpen(true);
+  };
   const initial = currentUser?.name.charAt(0) ?? "?";
   const isTabRoot = TAB_ROOTS.includes(pathname);
   const pageTitle = usePageTitle(pathname);
@@ -338,7 +345,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <RouteTracker />
       <OnlineStatus />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-      <HowToWizard open={howToOpen} onClose={() => setHowToOpen(false)} />
+      <HowToWizard
+        open={howToOpen}
+        onClose={() => setHowToOpen(false)}
+        onPlayDemo={playDemo}
+      />
+      <DemoTour open={demoOpen} onClose={() => setDemoOpen(false)} />
 
       {/* Swipe in from the left edge to open the drawer (touch, mobile only). */}
       {!drawerOpen && (
@@ -453,10 +465,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <SidebarNav />
-        <div className="px-4 pb-2">
+        <div className="flex gap-2 px-4 pb-2">
           <button
             onClick={() => setHowToOpen(true)}
-            className="flex w-full items-center gap-2 border border-line px-3 py-2 text-xs text-muted hover:border-black hover:text-ink"
+            className="flex flex-1 items-center gap-2 border border-line px-3 py-2 text-xs text-muted hover:border-black hover:text-ink"
           >
             <span
               aria-hidden
@@ -465,6 +477,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ?
             </span>
             How to use
+          </button>
+          <button
+            onClick={playDemo}
+            title="Play a guided demo"
+            className="flex items-center gap-1.5 border border-line px-3 py-2 text-xs text-muted hover:border-black hover:text-ink"
+          >
+            <span aria-hidden className="text-[9px] leading-none">
+              ▶
+            </span>
+            Demo
           </button>
         </div>
         <div className="border-t border-line px-3 py-4">

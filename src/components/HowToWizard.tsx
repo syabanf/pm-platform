@@ -160,9 +160,11 @@ const steps: Step[] = [
 export function HowToWizard({
   open,
   onClose,
+  onPlayDemo,
 }: {
   open: boolean;
   onClose: () => void;
+  onPlayDemo?: () => void;
 }) {
   const [step, setStep] = useState(0);
 
@@ -243,6 +245,18 @@ export function HowToWizard({
             {step > 0 && (
               <Button variant="secondary" size="sm" onClick={() => setStep(step - 1)}>
                 Back
+              </Button>
+            )}
+            {isLast && onPlayDemo && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  markSeen();
+                  onPlayDemo();
+                }}
+              >
+                Watch the demo
               </Button>
             )}
             {isLast ? (
