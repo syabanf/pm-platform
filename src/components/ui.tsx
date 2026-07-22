@@ -156,7 +156,9 @@ export function ToggleButton({
 const CONTAINER_MAX = {
   "2xl": "max-w-2xl",
   "4xl": "max-w-4xl",
-  "6xl": "max-w-6xl",
+  // "6xl" is the app-wide default; widened so data-dense pages (tables,
+  // boards, KPI strips) use more of a large screen instead of a lost column.
+  "6xl": "max-w-[88rem]",
 } as const;
 
 export function PageContainer({

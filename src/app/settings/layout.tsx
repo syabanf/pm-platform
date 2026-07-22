@@ -6,7 +6,7 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-12">
+    <div className="mx-auto max-w-[88rem] px-5 py-8 md:px-10 md:py-12">
       <div className="label">Settings</div>
       <h1 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl text-ink">
         Master Data

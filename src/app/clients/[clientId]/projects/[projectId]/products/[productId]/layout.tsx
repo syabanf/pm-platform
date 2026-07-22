@@ -31,7 +31,7 @@ export default function ProductLayout({
     product.clientId !== clientId
   ) {
     return (
-      <div className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-12 text-sm text-muted">
+      <div className="mx-auto max-w-[88rem] px-5 py-8 md:px-10 md:py-12 text-sm text-muted">
         Module not found — it may have been removed in this session.{" "}
         <Link href="/clients" className="text-ink underline">
           Back to clients
@@ -43,7 +43,7 @@ export default function ProductLayout({
   const base = productPath(product);
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-12">
+    <div className="mx-auto max-w-[88rem] px-5 py-8 md:px-10 md:py-12">
       <Breadcrumb
         crumbs={[
           { label: "Clients", href: "/clients" },

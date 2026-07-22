@@ -40,7 +40,7 @@ const generators = [
 
 export default function DocumentsIndexPage() {
   return (
-    <div className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-12">
+    <div className="mx-auto max-w-[88rem] px-5 py-8 md:px-10 md:py-12">
       <div className="label">Documents</div>
       <h1 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl text-ink">
         Generate Document
