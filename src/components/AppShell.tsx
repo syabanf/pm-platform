@@ -9,6 +9,7 @@ import {
   useCommandPalette,
 } from "@/components/CommandPalette";
 import { OnlineStatus } from "@/components/OnlineStatus";
+import { HowToWizard, useHowTo } from "@/components/HowToWizard";
 import { usePrototype } from "@/lib/store";
 
 interface NavChild {
@@ -294,6 +295,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
   const { currentUser } = usePrototype();
+  // Auto-opens once for a signed-in first-time user; reopenable from the sidebar.
+  const { open: howToOpen, setOpen: setHowToOpen } = useHowTo(!!currentUser);
   const initial = currentUser?.name.charAt(0) ?? "?";
   const isTabRoot = TAB_ROOTS.includes(pathname);
   const pageTitle = usePageTitle(pathname);
@@ -317,6 +320,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <RouteTracker />
       <OnlineStatus />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <HowToWizard open={howToOpen} onClose={() => setHowToOpen(false)} />
 
       {/* Mobile / tablet-portrait top bar */}
       <header className="print-hide fixed inset-x-0 top-0 z-40 h-[calc(3.5rem+env(safe-area-inset-top))] border-b border-line bg-paper px-4 pt-[env(safe-area-inset-top)] lg:hidden">
@@ -419,6 +423,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <SidebarNav />
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setHowToOpen(true)}
+            className="flex w-full items-center gap-2 border border-line px-3 py-2 text-xs text-muted hover:border-black hover:text-ink"
+          >
+            <span
+              aria-hidden
+              className="flex h-4 w-4 items-center justify-center border border-current text-[10px] font-medium leading-none"
+            >
+              ?
+            </span>
+            How to use
+          </button>
+        </div>
         <div className="border-t border-line px-3 py-4">
           <Link
             href="/profile"
