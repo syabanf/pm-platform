@@ -2,7 +2,8 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { PageTabs } from "@/components/PageTabs";
+import { PageTabs, type Tab } from "@/components/PageTabs";
+import { SwipeTabs } from "@/components/SwipeTabs";
 import { StatusPill } from "@/components/StatusPill";
 import { usePrototype, useSprint } from "@/lib/store";
 
@@ -37,6 +38,16 @@ export default function SprintLayout({
   const product = products.find((p) => p.id === productId);
   const component = product?.modules.find((m) => m.id === sprint.moduleId);
 
+  // Shared between the tab bar and the swipe-between-tabs gesture.
+  const tabs: Tab[] = [
+    { label: "Planning", href: `${base}/planning` },
+    { label: "Board", href: `${base}/board` },
+    { label: "Daily", href: `${base}/daily` },
+    { label: "Charts", href: `${base}/burndown` },
+    { label: "Review", href: `${base}/review` },
+    { label: "Retro", href: `${base}/retro` },
+  ];
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 border border-black p-5">
@@ -56,18 +67,11 @@ export default function SprintLayout({
       </div>
 
       <div className="mt-6">
-        <PageTabs
-          tabs={[
-            { label: "Planning", href: `${base}/planning` },
-            { label: "Board", href: `${base}/board` },
-            { label: "Daily", href: `${base}/daily` },
-            { label: "Charts", href: `${base}/burndown` },
-            { label: "Review", href: `${base}/review` },
-            { label: "Retro", href: `${base}/retro` },
-          ]}
-        />
+        <PageTabs tabs={tabs} />
       </div>
-      <div className="mt-8">{children}</div>
+      <SwipeTabs tabs={tabs} className="mt-8">
+        {children}
+      </SwipeTabs>
     </div>
   );
 }

@@ -3,7 +3,8 @@
 import { use } from "react";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/Breadcrumb";
-import { PageTabs } from "@/components/PageTabs";
+import { PageTabs, type Tab } from "@/components/PageTabs";
+import { SwipeTabs } from "@/components/SwipeTabs";
 import { StatusPill } from "@/components/StatusPill";
 import { PageHeader } from "@/components/ui";
 import { clientPath, productPath, projectPath } from "@/lib/data";
@@ -42,6 +43,19 @@ export default function ProductLayout({
 
   const base = productPath(product);
 
+  // Jira project order: work first (Summary → Backlog → Board → Reports), then
+  // taxonomy/config (Components → pages → people). Shared so the tab bar and
+  // the swipe-between-tabs gesture stay in lockstep.
+  const tabs: Tab[] = [
+    { label: "Overview", href: base, exact: true },
+    { label: "Backlog", href: `${base}/backlog` },
+    { label: "Sprints", href: `${base}/sprints` },
+    { label: "Reports", href: `${base}/reports` },
+    { label: "Components", href: `${base}/modules` },
+    { label: "Decision Log", href: `${base}/decisions` },
+    { label: "Members", href: `${base}/members` },
+  ];
+
   return (
     <div className="mx-auto max-w-[88rem] px-5 py-8 md:px-10 md:py-12">
       <Breadcrumb
@@ -62,21 +76,11 @@ export default function ProductLayout({
       </div>
 
       <div className="mt-8">
-        <PageTabs
-          // Jira project order: work first (Summary → Backlog → Board →
-          // Reports), then taxonomy/config (Components → pages → people).
-          tabs={[
-            { label: "Overview", href: base, exact: true },
-            { label: "Backlog", href: `${base}/backlog` },
-            { label: "Sprints", href: `${base}/sprints` },
-            { label: "Reports", href: `${base}/reports` },
-            { label: "Components", href: `${base}/modules` },
-            { label: "Decision Log", href: `${base}/decisions` },
-            { label: "Members", href: `${base}/members` },
-          ]}
-        />
+        <PageTabs tabs={tabs} />
       </div>
-      <div className="mt-10">{children}</div>
+      <SwipeTabs tabs={tabs} className="mt-10">
+        {children}
+      </SwipeTabs>
     </div>
   );
 }

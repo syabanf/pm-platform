@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
@@ -293,6 +293,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Drawer gestures: swipe in from the left edge to open, swipe left to close.
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const onDrawerTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipe.current = { x: t.clientX, y: t.clientY };
+  };
+  const drawerSwipe = (e: React.TouchEvent, open: boolean) => {
+    const s = swipe.current;
+    swipe.current = null;
+    if (!s) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    if (open && dx > 0) setDrawerOpen(true);
+    if (!open && dx < 0) setDrawerOpen(false);
+  };
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
   const { currentUser } = usePrototype();
   // Auto-opens once for a signed-in first-time user; reopenable from the sidebar.
@@ -321,6 +339,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <OnlineStatus />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <HowToWizard open={howToOpen} onClose={() => setHowToOpen(false)} />
+
+      {/* Swipe in from the left edge to open the drawer (touch, mobile only). */}
+      {!drawerOpen && (
+        <div
+          aria-hidden
+          className="fixed inset-y-0 left-0 z-30 w-5 lg:hidden"
+          onTouchStart={onDrawerTouchStart}
+          onTouchEnd={(e) => drawerSwipe(e, true)}
+        />
+      )}
 
       {/* Mobile / tablet-portrait top bar */}
       <header className="print-hide fixed inset-x-0 top-0 z-40 h-[calc(3.5rem+env(safe-area-inset-top))] border-b border-line bg-paper px-4 pt-[env(safe-area-inset-top)] lg:hidden">
@@ -406,6 +434,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <aside
+        onTouchStart={onDrawerTouchStart}
+        onTouchEnd={(e) => drawerSwipe(e, false)}
         className={`print-hide fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-line bg-paper transition-transform duration-200 ease-out lg:z-30 lg:w-56 lg:translate-x-0 ${
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
