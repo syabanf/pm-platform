@@ -93,8 +93,9 @@ RETURNING *;
 
 -- name: ListTaskDod :many
 SELECT * FROM task_dod
-WHERE task_id = $1
-ORDER BY position;
+WHERE task_id = sqlc.arg('task_id')
+ORDER BY position
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: ToggleTaskDodItem :one
 UPDATE task_dod
@@ -200,7 +201,8 @@ WHERE id = $1;
 
 -- name: ListReportTemplates :many
 SELECT * FROM report_templates
-ORDER BY name, id;
+ORDER BY name, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpsertReportTemplate :one
 INSERT INTO report_templates (id, name, audience, visibility, sections)
@@ -301,7 +303,8 @@ RETURNING *;
 
 -- name: ListRoles :many
 SELECT * FROM roles
-ORDER BY label, id;
+ORDER BY label, id
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpsertRole :one
 INSERT INTO roles (id, label, permissions)
@@ -315,8 +318,9 @@ RETURNING *;
 
 -- name: ListMasterValues :many
 SELECT * FROM master_lists
-WHERE key = $1
-ORDER BY position, value;
+WHERE key = sqlc.arg('key')
+ORDER BY position, value
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: AddMasterValue :one
 INSERT INTO master_lists (key, value, position)

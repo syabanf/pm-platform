@@ -46,7 +46,7 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool) *echo.Echo {
 	// Without a ceiling a single request can persist an arbitrarily large row
 	// that every later list request then has to serialise again.
 	e.Use(middleware.BodyLimit(cfg.MaxBodySize))
-	e.Use(requestTimeout(cfg.RequestTimeout))
+	e.Use(requestTimeout(cfg.RequestTimeout, cfg.DeleteTimeout))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: strings.Split(cfg.CORSOrigins, ","),
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodOptions},
@@ -68,10 +68,20 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool) *echo.Echo {
 // requestTimeout bounds a request end to end. It replaces the request context,
 // which is what makes the deadline reach the database driver — Echo's own
 // Timeout middleware leaves the query running.
-func requestTimeout(d time.Duration) echo.MiddlewareFunc {
+//
+// DELETE gets its own, larger budget. Deleting a client cascades through
+// eighteen foreign keys, and for a large tenant that is legitimately slow —
+// measured at 41 s for 302,400 tasks, where the ordinary 15 s cap made the
+// tenant permanently undeletable: every attempt rolled back after writing
+// ~99 MB of WAL, with no size at which it would ever recover.
+func requestTimeout(d, deleteBudget time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			ctx, cancel := context.WithTimeout(c.Request().Context(), d)
+			budget := d
+			if c.Request().Method == http.MethodDelete {
+				budget = deleteBudget
+			}
+			ctx, cancel := context.WithTimeout(c.Request().Context(), budget)
 			defer cancel()
 			c.SetRequest(c.Request().WithContext(ctx))
 			return next(c)
@@ -112,6 +122,36 @@ func (s *Server) withTx(ctx context.Context, fn func(*db.Queries) error) error {
 	// so it already applies here — and, unlike a SET LOCAL, to the DELETE and
 	// UPDATE paths that never open a transaction at all.
 	if err := fn(s.q.WithTx(tx)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// deleteTx runs a delete inside a transaction whose statement budget matches
+// the request's. The pool-wide statement_timeout is sized for ordinary queries;
+// a cascade over a large tenant needs longer, and being killed halfway is worse
+// than being slow — the work is rolled back and the caller is told nothing
+// useful.
+//
+// It also gives callers a place to take locks in the same order the cascade
+// does. DELETE FROM products locks the product and then its sprints; a DELETE
+// of one sprint fires products.current_sprint_id ON DELETE SET NULL, which
+// locks them the other way round. That is an AB-BA cycle, and it deadlocked
+// 15.5% of overlapping deletes — with 2,372 of 2,373 products carrying a
+// current sprint, the precondition is the normal state, not an edge case.
+func (s *Server) deleteTx(ctx context.Context, fn func(*db.Queries) error) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+
+	q := s.q.WithTx(tx)
+	if err := q.SetStatementTimeout(ctx,
+		strconv.FormatInt(s.cfg.DeleteTimeout.Milliseconds(), 10)); err != nil {
+		return err
+	}
+	if err := fn(q); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

@@ -59,9 +59,11 @@ SELECT * FROM sprints
 WHERE id = $1;
 
 -- name: ListSprintsByProduct :many
+-- No id tiebreaker: UNIQUE (product_id, number) already makes this a total
+-- order, and adding one costs the index-scan-backward plan.
 SELECT * FROM sprints
 WHERE product_id = sqlc.arg('product_id')
-ORDER BY number DESC, id
+ORDER BY number DESC
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: ListSprintsByModule :many
@@ -133,8 +135,9 @@ SELECT sm.sprint_id,
        m.role_label AS member_role_label
 FROM sprint_members sm
 JOIN members m ON m.id = sm.member_id
-WHERE sm.sprint_id = $1
-ORDER BY m.name ASC, m.id ASC;
+WHERE sm.sprint_id = sqlc.arg('sprint_id')
+ORDER BY m.name ASC, m.id ASC
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: RemoveSprintMember :exec
 DELETE FROM sprint_members
@@ -182,8 +185,9 @@ SELECT sbi.sprint_id,
        bi.ai_suggestions
 FROM sprint_backlog_items sbi
 JOIN backlog_items bi ON bi.id = sbi.backlog_item_id
-WHERE sbi.sprint_id = $1
-ORDER BY sbi.position ASC, bi.title ASC, bi.id ASC;
+WHERE sbi.sprint_id = sqlc.arg('sprint_id')
+ORDER BY sbi.position ASC, bi.title ASC, bi.id ASC
+LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: RemoveSprintBacklogItem :exec
 DELETE FROM sprint_backlog_items
@@ -244,3 +248,8 @@ RETURNING *;
 -- name: DeleteBacklogItem :exec
 DELETE FROM backlog_items
 WHERE id = $1;
+
+-- name: SetStatementTimeout :exec
+-- set_config, not SET LOCAL: the latter cannot take a parameter. `true` scopes
+-- it to the surrounding transaction.
+SELECT set_config('statement_timeout', sqlc.arg('ms'), true);

@@ -205,7 +205,11 @@ func (s *Server) deleteClient(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.q.DeleteClient(c.Request().Context(), id); err != nil {
+	// A whole-tenant cascade is legitimately slow; deleteTx gives it a budget
+	// that matches, instead of rolling it back at the ordinary request timeout.
+	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries) error {
+		return q.DeleteClient(c.Request().Context(), id)
+	}); err != nil {
 		return dbErr(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -319,7 +323,11 @@ func (s *Server) deleteProject(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.q.DeleteProject(c.Request().Context(), id); err != nil {
+	// A whole-tenant cascade is legitimately slow; deleteTx gives it a budget
+	// that matches, instead of rolling it back at the ordinary request timeout.
+	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries) error {
+		return q.DeleteProject(c.Request().Context(), id)
+	}); err != nil {
 		return dbErr(err)
 	}
 	return c.NoContent(http.StatusNoContent)

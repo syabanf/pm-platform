@@ -87,7 +87,7 @@ type Querier interface {
 	ListDecisionsByProduct(ctx context.Context, arg ListDecisionsByProductParams) ([]Decision, error)
 	ListGeneratedReportsByProduct(ctx context.Context, arg ListGeneratedReportsByProductParams) ([]GeneratedReport, error)
 	// ----------------------------------------------------------- master_lists ---
-	ListMasterValues(ctx context.Context, key string) ([]MasterList, error)
+	ListMasterValues(ctx context.Context, arg ListMasterValuesParams) ([]MasterList, error)
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]Member, error)
 	ListModulesByProduct(ctx context.Context, arg ListModulesByProductParams) ([]Module, error)
 	ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error)
@@ -98,16 +98,18 @@ type Querier interface {
 	// ----------------------------------------------------------- report_queue ---
 	ListReportQueue(ctx context.Context, arg ListReportQueueParams) ([]ReportQueue, error)
 	// ------------------------------------------------------- report_templates ---
-	ListReportTemplates(ctx context.Context) ([]ReportTemplate, error)
+	ListReportTemplates(ctx context.Context, arg ListReportTemplatesParams) ([]ReportTemplate, error)
 	// ------------------------------------------------------------------ roles ---
-	ListRoles(ctx context.Context) ([]Role, error)
-	ListSprintBacklogItems(ctx context.Context, sprintID string) ([]ListSprintBacklogItemsRow, error)
-	ListSprintMembers(ctx context.Context, sprintID string) ([]ListSprintMembersRow, error)
+	ListRoles(ctx context.Context, arg ListRolesParams) ([]Role, error)
+	ListSprintBacklogItems(ctx context.Context, arg ListSprintBacklogItemsParams) ([]ListSprintBacklogItemsRow, error)
+	ListSprintMembers(ctx context.Context, arg ListSprintMembersParams) ([]ListSprintMembersRow, error)
 	// number is only unique per product, so it cannot order a cross-product list
 	// on its own.
 	ListSprintsByModule(ctx context.Context, arg ListSprintsByModuleParams) ([]Sprint, error)
+	// No id tiebreaker: UNIQUE (product_id, number) already makes this a total
+	// order, and adding one costs the index-scan-backward plan.
 	ListSprintsByProduct(ctx context.Context, arg ListSprintsByProductParams) ([]Sprint, error)
-	ListTaskDod(ctx context.Context, taskID string) ([]TaskDod, error)
+	ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]TaskDod, error)
 	ListTasksByBacklogItem(ctx context.Context, backlogItemID string) ([]Task, error)
 	ListTasksBySprint(ctx context.Context, arg ListTasksBySprintParams) ([]Task, error)
 	// Taken before the sprint lock so the ordering matches the cascade's:
@@ -140,6 +142,9 @@ type Querier interface {
 	// The pointer may only name a sprint of this very product. A mismatch matches
 	// no row, which the handler reports as a 400 rather than silently storing it.
 	SetProductCurrentSprint(ctx context.Context, arg SetProductCurrentSprintParams) (Product, error)
+	// set_config, not SET LOCAL: the latter cannot take a parameter. `true` scopes
+	// it to the surrounding transaction.
+	SetStatementTimeout(ctx context.Context, ms string) error
 	// --------------------------------------------------------------- task_dod ---
 	SetTaskDodItem(ctx context.Context, arg SetTaskDodItemParams) (TaskDod, error)
 	ToggleTaskDodItem(ctx context.Context, arg ToggleTaskDodItemParams) (TaskDod, error)

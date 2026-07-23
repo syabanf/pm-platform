@@ -28,6 +28,10 @@ type Config struct {
 	// DELETE paths get it too — otherwise a contended delete waits the whole
 	// StatementTimeout while holding a pool connection.
 	LockTimeout time.Duration
+	// DeleteTimeout is the budget for a DELETE, which cascades and can be
+	// legitimately slow on a large tenant. RequestTimeout is far too short for
+	// one, and a half-finished cascade is rolled back for nothing.
+	DeleteTimeout time.Duration
 	// MaxDBConns is set explicitly: pgx defaults to the machine's CPU count,
 	// which quietly becomes the API's real concurrency limit. Remember the
 	// budget is per process: replicas x MaxDBConns must stay under the server's
@@ -58,6 +62,7 @@ func Load() (Config, error) {
 		RequestTimeout:   getenvDuration("REQUEST_TIMEOUT", 15*time.Second),
 		StatementTimeout: getenvDuration("STATEMENT_TIMEOUT", 5*time.Second),
 		LockTimeout:      getenvDuration("LOCK_TIMEOUT", 250*time.Millisecond),
+		DeleteTimeout:    getenvDuration("DELETE_TIMEOUT", 120*time.Second),
 		MaxDBConns:       int32(getenvInt("MAX_DB_CONNS", 25)),
 		MinDBConns:       int32(getenvInt("MIN_DB_CONNS", 2)),
 		MaxConnIdleTime:  getenvDuration("MAX_CONN_IDLE_TIME", 5*time.Minute),

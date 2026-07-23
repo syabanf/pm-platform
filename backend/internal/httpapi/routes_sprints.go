@@ -333,11 +333,19 @@ func (s *Server) listSprintMembers(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListSprintMembers(c.Request().Context(), sprintID)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	rows, err := s.q.ListSprintMembers(c.Request().Context(), db.ListSprintMembersParams{
+		SprintID: sprintID,
+		Lim:      limit + 1,
+		Off:      offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) addSprintMember(c echo.Context) error {
@@ -397,11 +405,19 @@ func (s *Server) listSprintBacklogItems(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListSprintBacklogItems(c.Request().Context(), sprintID)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	rows, err := s.q.ListSprintBacklogItems(c.Request().Context(), db.ListSprintBacklogItemsParams{
+		SprintID: sprintID,
+		Lim:      limit + 1,
+		Off:      offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) addSprintBacklogItem(c echo.Context) error {

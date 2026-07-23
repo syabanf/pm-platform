@@ -627,11 +627,18 @@ const listMasterValues = `-- name: ListMasterValues :many
 SELECT key, value, position FROM master_lists
 WHERE key = $1
 ORDER BY position, value
+LIMIT $3 OFFSET $2
 `
 
+type ListMasterValuesParams struct {
+	Key string `json:"key"`
+	Off int32  `json:"off"`
+	Lim int32  `json:"lim"`
+}
+
 // ----------------------------------------------------------- master_lists ---
-func (q *Queries) ListMasterValues(ctx context.Context, key string) ([]MasterList, error) {
-	rows, err := q.db.Query(ctx, listMasterValues, key)
+func (q *Queries) ListMasterValues(ctx context.Context, arg ListMasterValuesParams) ([]MasterList, error) {
+	rows, err := q.db.Query(ctx, listMasterValues, arg.Key, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -742,11 +749,17 @@ const listReportTemplates = `-- name: ListReportTemplates :many
 
 SELECT id, name, audience, visibility, sections, created_at, updated_at FROM report_templates
 ORDER BY name, id
+LIMIT $2 OFFSET $1
 `
 
+type ListReportTemplatesParams struct {
+	Off int32 `json:"off"`
+	Lim int32 `json:"lim"`
+}
+
 // ------------------------------------------------------- report_templates ---
-func (q *Queries) ListReportTemplates(ctx context.Context) ([]ReportTemplate, error) {
-	rows, err := q.db.Query(ctx, listReportTemplates)
+func (q *Queries) ListReportTemplates(ctx context.Context, arg ListReportTemplatesParams) ([]ReportTemplate, error) {
+	rows, err := q.db.Query(ctx, listReportTemplates, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -777,11 +790,17 @@ const listRoles = `-- name: ListRoles :many
 
 SELECT id, label, permissions FROM roles
 ORDER BY label, id
+LIMIT $2 OFFSET $1
 `
 
+type ListRolesParams struct {
+	Off int32 `json:"off"`
+	Lim int32 `json:"lim"`
+}
+
 // ------------------------------------------------------------------ roles ---
-func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
-	rows, err := q.db.Query(ctx, listRoles)
+func (q *Queries) ListRoles(ctx context.Context, arg ListRolesParams) ([]Role, error) {
+	rows, err := q.db.Query(ctx, listRoles, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -804,10 +823,17 @@ const listTaskDod = `-- name: ListTaskDod :many
 SELECT task_id, position, label, done FROM task_dod
 WHERE task_id = $1
 ORDER BY position
+LIMIT $3 OFFSET $2
 `
 
-func (q *Queries) ListTaskDod(ctx context.Context, taskID string) ([]TaskDod, error) {
-	rows, err := q.db.Query(ctx, listTaskDod, taskID)
+type ListTaskDodParams struct {
+	TaskID string `json:"taskId"`
+	Off    int32  `json:"off"`
+	Lim    int32  `json:"lim"`
+}
+
+func (q *Queries) ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]TaskDod, error) {
+	rows, err := q.db.Query(ctx, listTaskDod, arg.TaskID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}

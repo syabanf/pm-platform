@@ -429,7 +429,14 @@ FROM sprint_backlog_items sbi
 JOIN backlog_items bi ON bi.id = sbi.backlog_item_id
 WHERE sbi.sprint_id = $1
 ORDER BY sbi.position ASC, bi.title ASC, bi.id ASC
+LIMIT $3 OFFSET $2
 `
+
+type ListSprintBacklogItemsParams struct {
+	SprintID string `json:"sprintId"`
+	Off      int32  `json:"off"`
+	Lim      int32  `json:"lim"`
+}
 
 type ListSprintBacklogItemsRow struct {
 	SprintID           string   `json:"sprintId"`
@@ -447,8 +454,8 @@ type ListSprintBacklogItemsRow struct {
 	AiSuggestions      []string `json:"aiSuggestions"`
 }
 
-func (q *Queries) ListSprintBacklogItems(ctx context.Context, sprintID string) ([]ListSprintBacklogItemsRow, error) {
-	rows, err := q.db.Query(ctx, listSprintBacklogItems, sprintID)
+func (q *Queries) ListSprintBacklogItems(ctx context.Context, arg ListSprintBacklogItemsParams) ([]ListSprintBacklogItemsRow, error) {
+	rows, err := q.db.Query(ctx, listSprintBacklogItems, arg.SprintID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +501,14 @@ FROM sprint_members sm
 JOIN members m ON m.id = sm.member_id
 WHERE sm.sprint_id = $1
 ORDER BY m.name ASC, m.id ASC
+LIMIT $3 OFFSET $2
 `
+
+type ListSprintMembersParams struct {
+	SprintID string `json:"sprintId"`
+	Off      int32  `json:"off"`
+	Lim      int32  `json:"lim"`
+}
 
 type ListSprintMembersRow struct {
 	SprintID        string  `json:"sprintId"`
@@ -507,8 +521,8 @@ type ListSprintMembersRow struct {
 	MemberRoleLabel string  `json:"memberRoleLabel"`
 }
 
-func (q *Queries) ListSprintMembers(ctx context.Context, sprintID string) ([]ListSprintMembersRow, error) {
-	rows, err := q.db.Query(ctx, listSprintMembers, sprintID)
+func (q *Queries) ListSprintMembers(ctx context.Context, arg ListSprintMembersParams) ([]ListSprintMembersRow, error) {
+	rows, err := q.db.Query(ctx, listSprintMembers, arg.SprintID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -592,7 +606,7 @@ func (q *Queries) ListSprintsByModule(ctx context.Context, arg ListSprintsByModu
 const listSprintsByProduct = `-- name: ListSprintsByProduct :many
 SELECT id, product_id, module_id, number, name, goal, start_date, end_date, working_days, days_left, status, committed, completed, progress, risk, created_at, updated_at FROM sprints
 WHERE product_id = $1
-ORDER BY number DESC, id
+ORDER BY number DESC
 LIMIT $3 OFFSET $2
 `
 
@@ -602,6 +616,8 @@ type ListSprintsByProductParams struct {
 	Lim       int32  `json:"lim"`
 }
 
+// No id tiebreaker: UNIQUE (product_id, number) already makes this a total
+// order, and adding one costs the index-scan-backward plan.
 func (q *Queries) ListSprintsByProduct(ctx context.Context, arg ListSprintsByProductParams) ([]Sprint, error) {
 	rows, err := q.db.Query(ctx, listSprintsByProduct, arg.ProductID, arg.Off, arg.Lim)
 	if err != nil {
@@ -751,6 +767,17 @@ type RemoveSprintMemberParams struct {
 
 func (q *Queries) RemoveSprintMember(ctx context.Context, arg RemoveSprintMemberParams) error {
 	_, err := q.db.Exec(ctx, removeSprintMember, arg.SprintID, arg.MemberID)
+	return err
+}
+
+const setStatementTimeout = `-- name: SetStatementTimeout :exec
+SELECT set_config('statement_timeout', $1, true)
+`
+
+// set_config, not SET LOCAL: the latter cannot take a parameter. `true` scopes
+// it to the surrounding transaction.
+func (q *Queries) SetStatementTimeout(ctx context.Context, ms string) error {
+	_, err := q.db.Exec(ctx, setStatementTimeout, ms)
 	return err
 }
 

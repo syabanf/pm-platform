@@ -259,14 +259,19 @@ func (s *Server) listTaskDod(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListTaskDod(c.Request().Context(), taskID)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	rows, err := s.q.ListTaskDod(c.Request().Context(), db.ListTaskDodParams{
+		TaskID: taskID,
+		Lim:    limit + 1,
+		Off:    offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.TaskDod{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) setTaskDodItem(c echo.Context) error {

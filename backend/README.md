@@ -157,20 +157,19 @@ Endpoint groups, all under `/api/v1`:
 | products (UI "Modules") | `/products`, `/products/{id}`, `/products/{id}/current-sprint` | yes |
 | modules (UI "Components") | `/products/{id}/modules`, `/modules/{id}`, `/modules/{id}/status` | yes |
 | sprints | `/products/{id}/sprints`, `/sprints/{id}`, `/modules/{id}/sprints` | yes |
-| sprint membership | `/sprints/{id}/members`, `/sprints/{id}/members/{memberId}` | no |
-| sprint backlog | `/sprints/{id}/backlog`, `/sprints/{id}/backlog/{itemId}` | no |
+| sprint membership | `/sprints/{id}/members`, `/sprints/{id}/members/{memberId}` | yes |
+| sprint backlog | `/sprints/{id}/backlog`, `/sprints/{id}/backlog/{itemId}` | yes |
 | backlog | `/products/{id}/backlog`, `/modules/{id}/backlog`, `/backlog/{id}` | yes |
 | tasks | `/sprints/{id}/tasks`, `/tasks/{id}`, `/tasks/{id}/column`, `/tasks/{id}/dod` | yes (list) |
 | members | `/members`, `/members/{id}` | yes |
 | decisions | `/products/{id}/decisions`, `/decisions/{id}` | yes |
 | reports | `/report-templates`, `/report-queue`, `/generated-reports` | queue + generated |
-| settings | `/roles`, `/lists/{key}`, `/settings` | no |
+| settings | `/roles`, `/lists/{key}`, `/settings` | yes (except `/settings`, a singleton) |
 | probes | `/livez`, `/readyz`, `/healthz` — at the root, not under `/api/v1` | — |
 
-"Paginated: no" means **unbounded**, not small. Those endpoints ignore `?limit`
-and return the whole set; a load test found a sprint holding 4,898 committed
-items answering 1.3 MB to a request that asked for 5. Paginating them is the
-next outstanding fix.
+Every list is paginated. The last six were not, on the assumption they were
+small; a load test found a sprint holding 4,898 committed items answering
+1.3 MB to a request that asked for 5, so that assumption is gone.
 
 ## Limits
 
@@ -181,6 +180,7 @@ next outstanding fix.
 | Page size | 200, max 1000 | — | an unpaginated list is a read amplifier |
 | Request | 15 s | `REQUEST_TIMEOUT` | bounds the handler |
 | Statement | 5 s | `STATEMENT_TIMEOUT` | survives a client hanging up; frees the connection |
+| DELETE request + statement | 120 s | `DELETE_TIMEOUT` | a whole-tenant cascade crosses eighteen foreign keys — 41 s for 302k tasks. At the ordinary 15 s a large tenant was permanently undeletable, rolling back ~99 MB of WAL per attempt |
 | Lock wait, every statement | 250 ms | `LOCK_TIMEOUT` | one hot row must not park the pool. Set on the connection, so DELETE and plain UPDATE get it too — not only transactions |
 | Pool connections | 25 (min 2) | `MAX_DB_CONNS`, `MIN_DB_CONNS` | pgx defaults to CPU count, which silently caps concurrency. **Per process** — replicas x this must stay under the server's `max_connections` |
 | Idle connection reaped after | 5 min | `MAX_CONN_IDLE_TIME` | a pool that only grows turns one burst into a permanent share of the connection budget (reaped on pgx's 60 s health check, so allow for that) |

@@ -77,14 +77,18 @@ type upsertReportTemplateRequest struct {
 }
 
 func (s *Server) listReportTemplates(c echo.Context) error {
-	rows, err := s.q.ListReportTemplates(c.Request().Context())
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	rows, err := s.q.ListReportTemplates(c.Request().Context(), db.ListReportTemplatesParams{
+		Lim: limit + 1,
+		Off: offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.ReportTemplate{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) upsertReportTemplate(c echo.Context) error {
@@ -320,14 +324,18 @@ type upsertRoleRequest struct {
 }
 
 func (s *Server) listRoles(c echo.Context) error {
-	rows, err := s.q.ListRoles(c.Request().Context())
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	rows, err := s.q.ListRoles(c.Request().Context(), db.ListRolesParams{
+		Lim: limit + 1,
+		Off: offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.Role{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) upsertRole(c echo.Context) error {
@@ -366,14 +374,19 @@ func (s *Server) listMasterValues(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListMasterValues(c.Request().Context(), key)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	rows, err := s.q.ListMasterValues(c.Request().Context(), db.ListMasterValuesParams{
+		Key: key,
+		Lim: limit + 1,
+		Off: offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
-	if rows == nil {
-		rows = []db.MasterList{}
-	}
-	return c.JSON(http.StatusOK, rows)
+	return paged(c, rows, limit)
 }
 
 func (s *Server) addMasterValue(c echo.Context) error {

@@ -288,7 +288,11 @@ func (s *Server) deleteProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.q.DeleteProduct(c.Request().Context(), id); err != nil {
+	// The cascade origin: it locks the product first by itself, so this only
+	// needs the larger statement budget.
+	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries) error {
+		return q.DeleteProduct(c.Request().Context(), id)
+	}); err != nil {
 		return dbErr(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -438,7 +442,25 @@ func (s *Server) deleteModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.q.DeleteModule(c.Request().Context(), id); err != nil {
+	ctx := c.Request().Context()
+
+	// Same reasoning as deleteSprint: this clears module_id on the product's
+	// sprints and backlog items, which the product cascade also touches. Lock
+	// the product first so the two orders cannot cross.
+	err = s.deleteTx(ctx, func(q *db.Queries) error {
+		module, getErr := q.GetModule(ctx, id)
+		if getErr != nil {
+			if errors.Is(getErr, pgx.ErrNoRows) {
+				return nil
+			}
+			return getErr
+		}
+		if _, lockErr := q.LockProductForUpdate(ctx, module.ProductID); lockErr != nil {
+			return lockErr
+		}
+		return q.DeleteModule(ctx, id)
+	})
+	if err != nil {
 		return dbErr(err)
 	}
 	return c.NoContent(http.StatusNoContent)
