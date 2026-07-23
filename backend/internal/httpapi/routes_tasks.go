@@ -100,7 +100,10 @@ func (s *Server) listTasksBySprint(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListTasksBySprint(c.Request().Context(), db.ListTasksBySprintParams{
 		SprintID: sprintID,
 		Lim:      limit + 1,
@@ -341,7 +344,10 @@ type updateMemberRequest struct {
 }
 
 func (s *Server) listMembers(c echo.Context) error {
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListMembers(c.Request().Context(), db.ListMembersParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
@@ -472,7 +478,10 @@ func (s *Server) listDecisionsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListDecisionsByProduct(c.Request().Context(), db.ListDecisionsByProductParams{
 		ProductID: productID,
 		Lim:       limit + 1,

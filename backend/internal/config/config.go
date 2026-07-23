@@ -23,11 +23,22 @@ type Config struct {
 	// running and its pool connection held.
 	RequestTimeout   time.Duration
 	StatementTimeout time.Duration
+	// LockTimeout bounds how long any statement waits for a row lock. It is set
+	// on the connection rather than per transaction, so the plain UPDATE and
+	// DELETE paths get it too — otherwise a contended delete waits the whole
+	// StatementTimeout while holding a pool connection.
+	LockTimeout time.Duration
 	// MaxDBConns is set explicitly: pgx defaults to the machine's CPU count,
-	// which quietly becomes the API's real concurrency limit.
-	MaxDBConns  int32
-	MinDBConns  int32
-	MaxBodySize string
+	// which quietly becomes the API's real concurrency limit. Remember the
+	// budget is per process: replicas x MaxDBConns must stay under the server's
+	// max_connections.
+	MaxDBConns int32
+	MinDBConns int32
+	// Without these a pool that grew during a burst holds those connections
+	// forever, and a rolling deploy overlaps two full-sized pools.
+	MaxConnIdleTime time.Duration
+	MaxConnLifetime time.Duration
+	MaxBodySize     string
 }
 
 // Load reads configuration from the environment, applying sane defaults for
@@ -46,8 +57,11 @@ func Load() (Config, error) {
 
 		RequestTimeout:   getenvDuration("REQUEST_TIMEOUT", 15*time.Second),
 		StatementTimeout: getenvDuration("STATEMENT_TIMEOUT", 5*time.Second),
+		LockTimeout:      getenvDuration("LOCK_TIMEOUT", 250*time.Millisecond),
 		MaxDBConns:       int32(getenvInt("MAX_DB_CONNS", 25)),
 		MinDBConns:       int32(getenvInt("MIN_DB_CONNS", 2)),
+		MaxConnIdleTime:  getenvDuration("MAX_CONN_IDLE_TIME", 5*time.Minute),
+		MaxConnLifetime:  getenvDuration("MAX_CONN_LIFETIME", 60*time.Minute),
 		MaxBodySize:      getenv("MAX_BODY_SIZE", "1M"),
 	}
 

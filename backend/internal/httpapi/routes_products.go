@@ -113,7 +113,10 @@ func (s *Server) registerProductRoutes(g *echo.Group) {
 
 func (s *Server) listProducts(c echo.Context) error {
 	ctx := c.Request().Context()
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 
 	if projectID := c.QueryParam("projectId"); projectID != "" {
 		rows, err := s.q.ListProductsByProject(ctx, db.ListProductsByProjectParams{
@@ -298,7 +301,10 @@ func (s *Server) listModulesByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListModulesByProduct(c.Request().Context(), db.ListModulesByProductParams{
 		ProductID: productID,
 		Lim:       limit + 1,

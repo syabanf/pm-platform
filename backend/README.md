@@ -167,6 +167,11 @@ Endpoint groups, all under `/api/v1`:
 | settings | `/roles`, `/lists/{key}`, `/settings` | no |
 | probes | `/livez`, `/readyz`, `/healthz` — at the root, not under `/api/v1` | — |
 
+"Paginated: no" means **unbounded**, not small. Those endpoints ignore `?limit`
+and return the whole set; a load test found a sprint holding 4,898 committed
+items answering 1.3 MB to a request that asked for 5. Paginating them is the
+next outstanding fix.
+
 ## Limits
 
 | Limit | Default | Env | Why |
@@ -176,8 +181,11 @@ Endpoint groups, all under `/api/v1`:
 | Page size | 200, max 1000 | — | an unpaginated list is a read amplifier |
 | Request | 15 s | `REQUEST_TIMEOUT` | bounds the handler |
 | Statement | 5 s | `STATEMENT_TIMEOUT` | survives a client hanging up; frees the connection |
-| Lock wait when sequencing | 250 ms | — | one hot product must not park the pool |
-| Pool connections | 25 (min 2) | `MAX_DB_CONNS`, `MIN_DB_CONNS` | pgx defaults to CPU count, which silently caps concurrency |
+| Lock wait, every statement | 250 ms | `LOCK_TIMEOUT` | one hot row must not park the pool. Set on the connection, so DELETE and plain UPDATE get it too — not only transactions |
+| Pool connections | 25 (min 2) | `MAX_DB_CONNS`, `MIN_DB_CONNS` | pgx defaults to CPU count, which silently caps concurrency. **Per process** — replicas x this must stay under the server's `max_connections` |
+| Idle connection reaped after | 5 min | `MAX_CONN_IDLE_TIME` | a pool that only grows turns one burst into a permanent share of the connection budget (reaped on pgx's 60 s health check, so allow for that) |
+| Connection retired after | 60 min | `MAX_CONN_LIFETIME` | bounds the damage of a connection that goes bad quietly |
+| `?offset` | 1,000,000 | — | past this OFFSET is the wrong tool; refused with 400 rather than answered wrongly |
 
 ## Health probes
 

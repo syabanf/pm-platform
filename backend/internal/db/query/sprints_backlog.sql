@@ -96,12 +96,6 @@ RETURNING *;
 DELETE FROM sprints
 WHERE id = $1;
 
--- name: SetLockTimeout :exec
--- Bounds how long a sequencing transaction will queue on a contended row.
--- Without it one hot product can park every pool connection on the same lock
--- until statement_timeout fires, and reads of unrelated data starve behind it.
-SET LOCAL lock_timeout = '250ms';
-
 -- name: NextSprintNumber :one
 SELECT COALESCE(MAX(number), 0) + 1 AS next_number
 FROM sprints

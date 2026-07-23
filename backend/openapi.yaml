@@ -667,7 +667,12 @@ paths:
     get:
       tags: [sprints, members]
       summary: List a sprint's members
-      description: Not paginated — a sprint team is small and bounded.
+      description: |
+        **Not paginated, and not bounded.** A sprint team is usually small, but nothing enforces that: `?limit` is ignored and the whole set
+        is returned. A load test found one sprint holding 4,898 committed items
+        answering 1.3 MB to a request that asked for 5, so treat the size of this
+        response as a function of your data, not of the request. Paginating these
+        is a known outstanding fix.
       operationId: listSprintMembers
       responses:
         '200':
@@ -728,7 +733,14 @@ paths:
     get:
       tags: [sprints, backlog]
       summary: List a sprint's committed backlog
-      description: Not paginated. Ordered by `position`.
+      description: |
+        **Not paginated, and not bounded.** `?limit` is ignored and the whole set
+        is returned. A load test found one sprint holding 4,898 committed items
+        answering 1.3 MB to a request that asked for 5, so treat the size of this
+        response as a function of your data, not of the request. Paginating these
+        is a known outstanding fix.
+
+        Ordered by `position`.
       operationId: listSprintBacklogItems
       responses:
         '200':
@@ -990,7 +1002,14 @@ paths:
     get:
       tags: [tasks]
       summary: List a task's Definition of Done
-      description: Not paginated. Ordered by `position`.
+      description: |
+        **Not paginated, and not bounded.** `?limit` is ignored and the whole set
+        is returned. A load test found one sprint holding 4,898 committed items
+        answering 1.3 MB to a request that asked for 5, so treat the size of this
+        response as a function of your data, not of the request. Paginating these
+        is a known outstanding fix.
+
+        Ordered by `position`.
       operationId: listTaskDod
       responses:
         '200':
@@ -1211,7 +1230,12 @@ paths:
     get:
       tags: [reports]
       summary: List report templates
-      description: Not paginated.
+      description: |
+        **Not paginated, and not bounded.** `?limit` is ignored and the whole set
+        is returned. A load test found one sprint holding 4,898 committed items
+        answering 1.3 MB to a request that asked for 5, so treat the size of this
+        response as a function of your data, not of the request. Paginating these
+        is a known outstanding fix.
       operationId: listReportTemplates
       responses:
         '200':
@@ -1411,7 +1435,12 @@ paths:
     get:
       tags: [settings]
       summary: List roles
-      description: Not paginated.
+      description: |
+        **Not paginated, and not bounded.** `?limit` is ignored and the whole set
+        is returned. A load test found one sprint holding 4,898 committed items
+        answering 1.3 MB to a request that asked for 5, so treat the size of this
+        response as a function of your data, not of the request. Paginating these
+        is a known outstanding fix.
       operationId: listRoles
       responses:
         '200':
@@ -1460,7 +1489,14 @@ paths:
     get:
       tags: [settings]
       summary: Read a master list
-      description: Not paginated. Ordered by `position`.
+      description: |
+        **Not paginated, and not bounded.** `?limit` is ignored and the whole set
+        is returned. A load test found one sprint holding 4,898 committed items
+        answering 1.3 MB to a request that asked for 5, so treat the size of this
+        response as a function of your data, not of the request. Paginating these
+        is a known outstanding fix.
+
+        Ordered by `position`.
       operationId: listMasterValues
       responses:
         '200':
@@ -1631,8 +1667,10 @@ components:
       in: query
       description: |
         Rows to skip. Postgres walks and discards them, so deep offsets get
-        progressively more expensive — prefer narrowing by parent id.
-      schema: { type: integer, minimum: 0, default: 0 }
+        progressively more expensive — prefer narrowing by parent id. Values
+        above 1,000,000 are refused with a 400 rather than silently answered
+        with a different page.
+      schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
     ClientId:  { name: clientId,  in: path, required: true, schema: { type: string } }
     ProjectId: { name: projectId, in: path, required: true, schema: { type: string } }
     ProductId:
@@ -1681,9 +1719,10 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     Unavailable:
       description: |
-        The request took too long. The statement timeout is 5 s and the whole
-        request is capped at 15 s; readiness returns this when the pool is
-        saturated.
+        Retryable. Either the request took too long — the statement timeout is
+        5 s and the whole request is capped at 15 s — or the database could not
+        take it: out of connection slots, restarting, or the connection dropped.
+        Never a bug on the caller's side, and always worth retrying.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }

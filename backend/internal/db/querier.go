@@ -137,10 +137,6 @@ type Querier interface {
 	NextSprintNumber(ctx context.Context, productID string) (int32, error)
 	RemoveSprintBacklogItem(ctx context.Context, arg RemoveSprintBacklogItemParams) error
 	RemoveSprintMember(ctx context.Context, arg RemoveSprintMemberParams) error
-	// Bounds how long a sequencing transaction will queue on a contended row.
-	// Without it one hot product can park every pool connection on the same lock
-	// until statement_timeout fires, and reads of unrelated data starve behind it.
-	SetLockTimeout(ctx context.Context) error
 	// The pointer may only name a sprint of this very product. A mismatch matches
 	// no row, which the handler reports as a 400 rather than silently storing it.
 	SetProductCurrentSprint(ctx context.Context, arg SetProductCurrentSprintParams) (Product, error)

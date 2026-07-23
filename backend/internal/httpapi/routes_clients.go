@@ -102,7 +102,10 @@ func (s *Server) registerClientRoutes(g *echo.Group) {
 // ---------------------------------------------------------------- clients ---
 
 func (s *Server) listClients(c echo.Context) error {
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListClients(c.Request().Context(), db.ListClientsParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
@@ -213,7 +216,10 @@ func (s *Server) listProjectsByClient(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListProjectsByClient(c.Request().Context(), db.ListProjectsByClientParams{
 		ClientID: id,
 		Lim:      limit + 1,
@@ -228,7 +234,10 @@ func (s *Server) listProjectsByClient(c echo.Context) error {
 // --------------------------------------------------------------- projects ---
 
 func (s *Server) listProjects(c echo.Context) error {
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListProjects(c.Request().Context(), db.ListProjectsParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)

@@ -132,7 +132,10 @@ func (s *Server) listSprintsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListSprintsByProduct(c.Request().Context(), db.ListSprintsByProductParams{
 		ProductID: productID,
 		Lim:       limit + 1,
@@ -149,7 +152,10 @@ func (s *Server) listSprintsByModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListSprintsByModule(c.Request().Context(), db.ListSprintsByModuleParams{
 		ModuleID: ptr(moduleID),
 		Lim:      limit + 1,
@@ -487,7 +493,10 @@ func (s *Server) listBacklogItemsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListBacklogItemsByProduct(c.Request().Context(), db.ListBacklogItemsByProductParams{
 		ProductID: productID,
 		Lim:       limit + 1,
@@ -504,7 +513,10 @@ func (s *Server) listBacklogItemsByModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListBacklogItemsByModule(c.Request().Context(), db.ListBacklogItemsByModuleParams{
 		ModuleID: ptr(moduleID),
 		Lim:      limit + 1,

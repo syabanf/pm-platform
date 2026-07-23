@@ -144,7 +144,10 @@ type updateReportQueueStatusRequest struct {
 }
 
 func (s *Server) listReportQueue(c echo.Context) error {
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListReportQueue(c.Request().Context(), db.ListReportQueueParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
@@ -239,7 +242,10 @@ func (s *Server) listGeneratedReportsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	limit, offset := page(c)
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
 	rows, err := s.q.ListGeneratedReportsByProduct(c.Request().Context(), db.ListGeneratedReportsByProductParams{
 		ProductID: productID,
 		Lim:       limit + 1,

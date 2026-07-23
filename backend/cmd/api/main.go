@@ -46,6 +46,11 @@ func run() error {
 	}
 	poolCfg.MaxConns = cfg.MaxDBConns
 	poolCfg.MinConns = cfg.MinDBConns
+	// A pool that only ever grows turns one traffic burst into a permanent
+	// share of the server's connection budget, and makes a rolling deploy need
+	// twice the slots.
+	poolCfg.MaxConnIdleTime = cfg.MaxConnIdleTime
+	poolCfg.MaxConnLifetime = cfg.MaxConnLifetime
 	// A server-side statement_timeout is the only backstop that survives a
 	// client hanging up: it stops the query, which releases the connection.
 	if poolCfg.ConnConfig.RuntimeParams == nil {
@@ -54,6 +59,15 @@ func run() error {
 	if _, set := poolCfg.ConnConfig.RuntimeParams["statement_timeout"]; !set {
 		poolCfg.ConnConfig.RuntimeParams["statement_timeout"] =
 			strconv.FormatInt(cfg.StatementTimeout.Milliseconds(), 10)
+	}
+	// Set on the connection, not per transaction: a DELETE or a plain UPDATE
+	// never runs inside withTx, so a per-transaction setting left exactly the
+	// paths that block longest without a bound. Waiting for a lock now fails at
+	// LockTimeout with 55P03, which the API answers as a retryable 409, instead
+	// of holding a pool connection for the whole statement_timeout.
+	if _, set := poolCfg.ConnConfig.RuntimeParams["lock_timeout"]; !set {
+		poolCfg.ConnConfig.RuntimeParams["lock_timeout"] =
+			strconv.FormatInt(cfg.LockTimeout.Milliseconds(), 10)
 	}
 
 	pool, err := pgxpool.NewWithConfig(poolCtx, poolCfg)

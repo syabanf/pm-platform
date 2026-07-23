@@ -754,18 +754,6 @@ func (q *Queries) RemoveSprintMember(ctx context.Context, arg RemoveSprintMember
 	return err
 }
 
-const setLockTimeout = `-- name: SetLockTimeout :exec
-SET LOCAL lock_timeout = '250ms'
-`
-
-// Bounds how long a sequencing transaction will queue on a contended row.
-// Without it one hot product can park every pool connection on the same lock
-// until statement_timeout fires, and reads of unrelated data starve behind it.
-func (q *Queries) SetLockTimeout(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, setLockTimeout)
-	return err
-}
-
 const updateBacklogItem = `-- name: UpdateBacklogItem :one
 UPDATE backlog_items
 SET module_id           = COALESCE($1, module_id),

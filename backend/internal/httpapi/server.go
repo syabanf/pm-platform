@@ -108,11 +108,10 @@ func (s *Server) withTx(ctx context.Context, fn func(*db.Queries) error) error {
 	// connection instead of returning it to the pool.
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
 
-	q := s.q.WithTx(tx)
-	if err := q.SetLockTimeout(ctx); err != nil {
-		return err
-	}
-	if err := fn(q); err != nil {
+	// lock_timeout is a connection-level runtime parameter (see cmd/api/main.go),
+	// so it already applies here — and, unlike a SET LOCAL, to the DELETE and
+	// UPDATE paths that never open a transaction at all.
+	if err := fn(s.q.WithTx(tx)); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -149,6 +148,8 @@ func errorHandler(err error, c echo.Context) {
 		status, msg = http.StatusServiceUnavailable, "the request took too long"
 	default:
 		if s, m, ok := constraintError(err); ok {
+			status, msg = s, m
+		} else if s, m, ok := infraError(err); ok {
 			status, msg = s, m
 		}
 	}
@@ -211,6 +212,32 @@ func camelCase(s string) string {
 	return strings.Join(parts, "")
 }
 
+// infraError maps the Postgres codes that mean "the database cannot take this
+// request right now" onto 503. They are not the caller's fault and they are not
+// bugs, but 500 says both: clients and CDNs do not retry a 500, and on-call
+// cannot tell it from a real fault. 503 is retryable and honest.
+//
+// Connection exhaustion is the common one. The connection budget is per
+// process, so replicas x MaxDBConns can quietly exceed the server's
+// max_connections and every affected request answers 53300.
+func infraError(err error) (int, string, bool) {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return 0, "", false
+	}
+	switch pgErr.Code {
+	case "53300": // too_many_connections
+		return http.StatusServiceUnavailable, "the service is at capacity, please retry", true
+	case "53100", "53200", "53400": // disk_full, out_of_memory, configuration_limit_exceeded
+		return http.StatusServiceUnavailable, "the service is out of resources, please retry", true
+	case "57P01", "57P02", "57P03": // admin_shutdown, crash_shutdown, cannot_connect_now
+		return http.StatusServiceUnavailable, "the database is restarting, please retry", true
+	case "08000", "08003", "08006", "08001", "08004": // connection_exception family
+		return http.StatusServiceUnavailable, "lost the database connection, please retry", true
+	}
+	return 0, "", false
+}
+
 // constraintError maps a Postgres error onto a 4xx. Every code here is caused
 // by what the client sent, so answering 500 would be a lie — and the client
 // cannot fix what it is never told about.
@@ -245,6 +272,8 @@ func constraintError(err error) (int, string, bool) {
 		return http.StatusBadRequest, "a value is too long for its column", true
 	case "22003": // numeric_value_out_of_range
 		return http.StatusBadRequest, "a number is outside the range this field can store", true
+	case "2201X", "2201W": // invalid OFFSET / LIMIT value
+		return http.StatusBadRequest, "limit and offset must not be negative", true
 	case "22P05", "22021": // untranslatable_character, character_not_in_repertoire
 		return http.StatusBadRequest, "text contains characters the database cannot store", true
 	case "54000": // program_limit_exceeded
@@ -329,19 +358,31 @@ func derefSlice[T any](p *[]T) []T {
 const (
 	defaultPageSize = 200
 	maxPageSize     = 1000
+	// Past this, OFFSET is the wrong tool anyway — Postgres walks and discards
+	// every skipped row. Bounding it also keeps the value inside the int32 the
+	// query takes: converting an out-of-range int silently wrapped to a
+	// negative OFFSET, which the database rejected as an opaque 500.
+	maxOffset = 1_000_000
 )
 
-// page reads ?limit and ?offset, clamped. Callers that send neither get the
-// first defaultPageSize rows and an X-Has-More header when there are more.
-func page(c echo.Context) (limit, offset int32) {
+// page reads ?limit and ?offset. limit is clamped; an offset too large to
+// answer is refused rather than quietly turned into a different query.
+func page(c echo.Context) (limit, offset int32, err error) {
 	limit, offset = defaultPageSize, 0
-	if v, err := strconv.Atoi(c.QueryParam("limit")); err == nil && v > 0 {
+	if v, convErr := strconv.Atoi(c.QueryParam("limit")); convErr == nil && v > 0 {
 		limit = int32(min(v, maxPageSize))
 	}
-	if v, err := strconv.Atoi(c.QueryParam("offset")); err == nil && v > 0 {
-		offset = int32(v)
+	if raw := c.QueryParam("offset"); raw != "" {
+		v, convErr := strconv.Atoi(raw)
+		if convErr == nil && v > maxOffset {
+			return 0, 0, echo.NewHTTPError(http.StatusBadRequest,
+				fmt.Sprintf("offset must not exceed %d — narrow the list by parent id instead", maxOffset))
+		}
+		if convErr == nil && v > 0 {
+			offset = int32(v)
+		}
 	}
-	return limit, offset
+	return limit, offset, nil
 }
 
 // paged writes a list response, trimming the extra row that page() asked for
