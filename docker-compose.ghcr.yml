@@ -1,0 +1,83 @@
+services:
+  frontend:
+    image: ${GHCR_IMAGE_PREFIX:-ghcr.io/syabanf/pm-platform}-frontend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    ports:
+      - "${APP_PORT:-8081}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - public
+      - private
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  backend:
+    image: ${GHCR_IMAGE_PREFIX:-ghcr.io/syabanf/pm-platform}-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      APP_ENV: production
+      PORT: "8080"
+      DATABASE_URL: postgres://${DB_USER:-wit}:${DB_PASSWORD:?DB_PASSWORD must be set}@db:5432/${DB_NAME:-wit_sprint_os}?sslmode=disable
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS must be set}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - private
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  migrate:
+    image: ${GHCR_IMAGE_PREFIX:-ghcr.io/syabanf/pm-platform}-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    entrypoint: ["/usr/local/bin/migrate"]
+    command:
+      - -path=/app/migrations
+      - -database=postgres://${DB_USER:-wit}:${DB_PASSWORD:?DB_PASSWORD must be set}@db:5432/${DB_NAME:-wit_sprint_os}?sslmode=disable
+      - up
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - private
+    restart: "on-failure:5"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-wit}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      POSTGRES_DB: ${DB_NAME:-wit_sprint_os}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - private
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  public:
+  private:
+    internal: true
+
+volumes:
+  postgres_data:
