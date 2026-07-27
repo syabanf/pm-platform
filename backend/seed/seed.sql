@@ -20,7 +20,10 @@
 \if :{?tasks_per}        \else \set tasks_per 20           \endif
 \if :{?members}          \else \set members 2000           \endif
 
-TRUNCATE clients, members, roles, master_lists, report_templates RESTART IDENTITY CASCADE;
+-- Only truncate what the seeder owns. Master data (roles, master_lists,
+-- report_templates, workspace_settings) and the initial member come from
+-- migration 000004 and are left in place.
+TRUNCATE clients RESTART IDENTITY CASCADE;
 
 -- ---------------------------------------------------------------- clients ---
 INSERT INTO clients (id, name, industry, status, client_pic, wit_owner,
@@ -85,6 +88,7 @@ SELECT
 FROM products pr, generate_series(1, :components_per) k;
 
 -- ---------------------------------------------------------------- members ---
+-- members survive the client-only truncate, so a re-run must not collide.
 INSERT INTO members (id, name, email, role, role_label, skill_tags,
                      allocation, capacity_days, workload, status)
 SELECT
@@ -92,7 +96,7 @@ SELECT
     (ARRAY['Andi','Siti','Budi','Dewi','Fahmi','Rina','Yoga','Putri'])[1 + i % 8]
         || ' ' ||
     (ARRAY['Wijaya','Rahma','Santoso','Lestari','Pratama','Hakim'])[1 + i % 6],
-    'member' || i || '@wit.example',
+    'member' || i || '@wit.id',
     (ARRAY['pm','be','fe','qa','ux'])[1 + i % 5],
     (ARRAY['Project Manager','Backend Engineer','Frontend Engineer',
            'QA Engineer','UX Designer'])[1 + i % 5],
@@ -101,7 +105,8 @@ SELECT
     (ARRAY[10.0, 8.0, 5.0, 6.5])[1 + i % 4],
     i % 90,
     (ARRAY['active','active','active','inactive','temporary'])[1 + i % 5]
-FROM generate_series(1, :members) i;
+FROM generate_series(1, :members) i
+ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------- backlog_items ---
 -- module_id names a Component of this very product, which is what the composite
@@ -247,31 +252,8 @@ SELECT
     (ARRAY['open','planned','done'])[1 + q % 3]
 FROM products pr, generate_series(1, 2) q;
 
--- -------------------------------------------------- roles / lists / config ---
-INSERT INTO roles (id, label, permissions) VALUES
-    ('admin',    'Administrator', '{"all": true}'),
-    ('lead',     'Delivery Lead', '{"read": true, "write": true}'),
-    ('member',   'Team Member',   '{"read": true}'),
-    ('observer', 'Observer',      '{"read": true}');
-
-INSERT INTO master_lists (key, value, position)
-SELECT k.key, v.value, v.pos - 1
-FROM (VALUES ('priority'), ('task-status'), ('industry')) AS k(key),
-     LATERAL (
-        SELECT value, row_number() OVER () AS pos
-        FROM unnest(CASE k.key
-            WHEN 'priority'    THEN ARRAY['low','medium','high','critical']
-            WHEN 'task-status' THEN ARRAY['selected','ready','in-progress','in-review','qa','done','blocked']
-            ELSE ARRAY['Manufacturing','Banking','Energy','Automotive']
-        END) AS value
-     ) v;
-
-INSERT INTO report_templates (id, name, audience, visibility, sections) VALUES
-    ('tpl-sprint', 'Sprint Review',  'Delivery team', 'internal',
-        ARRAY['Goal','Completed','Carried over','Risks']),
-    ('tpl-client', 'Client Summary', 'Client sponsor', 'client-facing',
-        ARRAY['Progress','Decisions needed','Next sprint']);
-
-INSERT INTO workspace_settings (id) VALUES (TRUE) ON CONFLICT (id) DO NOTHING;
+-- Master data (roles, lists, report templates, workspace settings) and the
+-- initial member are seeded by migration 000004, not here — see the TRUNCATE
+-- note above.
 
 ANALYZE;

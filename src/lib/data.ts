@@ -262,6 +262,21 @@ export const projects: Project[] = [
 
 export const members: Member[] = [
   {
+    // The account the workspace starts with, mirroring the backend's seeded
+    // admin (migration 000004). Signing in with this address gets you the
+    // administrator; anything unrecognised still falls back to the lead.
+    id: "admin",
+    name: "Admin",
+    email: "admin@wit.id",
+    role: "admin",
+    roleLabel: "Administrator",
+    skillTags: ["PM"],
+    allocation: 100,
+    capacityDays: 10,
+    workload: 0,
+    status: "active",
+  },
+  {
     id: "fahmi",
     name: "Fahmi",
     email: "fahmi@wit.id",

@@ -15,4 +15,5 @@ func (s *Server) routes(g *echo.Group) {
 	s.registerSprintRoutes(g)
 	s.registerTaskRoutes(g)
 	s.registerSettingsRoutes(g)
+	s.registerUserRoutes(g)
 }

@@ -133,7 +133,7 @@ Two request conventions are worth knowing:
 
 ## API reference
 
-[`openapi.yaml`](openapi.yaml) is the full reference — all 79 operations with
+[`openapi.yaml`](openapi.yaml) is the full reference — all 86 operations with
 request and response schemas, enum values, status codes and the behaviour notes
 that are easy to get wrong. It is OpenAPI 3.1 and machine-readable, so you can
 generate a client from it rather than hand-writing one:
@@ -165,11 +165,62 @@ Endpoint groups, all under `/api/v1`:
 | decisions | `/products/{id}/decisions`, `/decisions/{id}` | yes |
 | reports | `/report-templates`, `/report-queue`, `/generated-reports` | queue + generated |
 | settings | `/roles`, `/lists/{key}`, `/settings` | yes (except `/settings`, a singleton) |
+| users | `/users`, `/users/{id}` | yes |
+| auth | `/auth/register`, `/auth/verify`, `/auth/resend-verification`, `/auth/login` | — |
 | probes | `/livez`, `/readyz`, `/healthz` — at the root, not under `/api/v1` | — |
 
 Every list is paginated. The last six were not, on the assumption they were
 small; a load test found a sprint holding 4,898 committed items answering
 1.3 MB to a request that asked for 5, so that assumption is gone.
+
+## Accounts and registration
+
+Two different things, deliberately not one table:
+
+- **members** — people work is assigned to. Capacity, skills, allocation.
+- **users** — logins. Email, bcrypt password hash, role. A user may point at the
+  member it acts as.
+
+The flow:
+
+```
+POST /auth/register    -> pending account + verification token
+POST /auth/verify      -> address proven, account becomes active
+POST /auth/login       -> refused while pending
+POST /auth/resend-verification  -> new token, previous one invalidated
+```
+
+Two things are held to deliberately: the password hash is selected by exactly
+one query (`GetUserForAuth`) and never reaches a response, and the verification
+token is stored as `sha256(token)` so the table cannot be used to verify anyone.
+`users_test.go` fails the build if either stops being true.
+
+Register and resend answer the same way whether the address is known or not, so
+neither can be used to find out who has an account.
+
+**No mail is sent.** There is no mailer wired up, so outside production the
+token is returned in the response body to make the flow completable; production
+only logs it. Wiring a mailer means sending it and dropping it from the body —
+nothing else in the flow changes. There are no sessions or tokens after login
+either; it confirms the credentials and returns the account.
+
+Every environment starts with one administrator, seeded by migration:
+
+| | |
+| --- | --- |
+| email | `admin@wit.id` |
+| password | `wit-admin-changeme` |
+
+**Change it.** The hash is in `000005_users.up.sql` and therefore in the
+repository; it is a bootstrap credential, not a secret.
+
+## Master data
+
+`migrate up` seeds the reference data every environment needs — roles, the
+settings lists, report templates, the workspace singleton and one member. It
+used to live only in `seed/seed.sql`, which is a development convenience, so a
+production database came up with `GET /roles` and `GET /lists/{key}` empty.
+Every insert is idempotent, and `make seed` no longer touches those tables.
 
 ## Limits
 

@@ -56,6 +56,14 @@ type Decision struct {
 	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
 }
 
+type EmailVerificationToken struct {
+	TokenHash  string             `json:"tokenHash"`
+	UserID     string             `json:"userId"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	ConsumedAt pgtype.Timestamptz `json:"consumedAt"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+}
+
 type GeneratedReport struct {
 	ID          string             `json:"id"`
 	ProductID   string             `json:"productId"`
@@ -214,6 +222,19 @@ type TaskDod struct {
 	Position int32  `json:"position"`
 	Label    string `json:"label"`
 	Done     bool   `json:"done"`
+}
+
+type User struct {
+	ID              string             `json:"id"`
+	Email           string             `json:"email"`
+	PasswordHash    string             `json:"passwordHash"`
+	Name            string             `json:"name"`
+	Role            string             `json:"role"`
+	MemberID        *string            `json:"memberId"`
+	Status          string             `json:"status"`
+	EmailVerifiedAt pgtype.Timestamptz `json:"emailVerifiedAt"`
+	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type WorkspaceSetting struct {

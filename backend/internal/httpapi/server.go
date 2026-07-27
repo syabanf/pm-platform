@@ -220,6 +220,19 @@ var multiColumnConstraints = map[string]string{
 	"workspace_settings_settings_check": "settings must be a JSON object and under 64 KB",
 }
 
+// isForeignKeyViolation reports whether err is a 23503 on the named constraint,
+// so a handler can turn a specific broken reference into a specific message.
+func isForeignKeyViolation(err error, constraint string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23503" && pgErr.ConstraintName == constraint
+}
+
+// isUniqueViolation reports whether err is a 23505 on the named constraint.
+func isUniqueViolation(err error, constraint string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == constraint
+}
+
 // fieldFromConstraint turns "sprint_members_allocation_check" into
 // "allocation", and "members_capacity_days_check" into "capacityDays" — the
 // name the caller actually sent. The column name is already part of the public

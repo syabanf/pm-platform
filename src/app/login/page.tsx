@@ -6,7 +6,7 @@ import { members, workspaceDefaults } from "@/lib/data";
 import { Button, Input } from "@/components/ui";
 import { usePrototype } from "@/lib/store";
 
-const DEMO_IDS = ["fahmi", "risya", "reyza", "christian"];
+const DEMO_IDS = ["admin", "fahmi", "risya", "reyza"];
 
 export default function LoginPage() {
   const router = useRouter();

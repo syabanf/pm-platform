@@ -19,6 +19,10 @@ type Querier interface {
 	AddSprintBacklogItem(ctx context.Context, arg AddSprintBacklogItemParams) (SprintBacklogItem, error)
 	// --------------------------------------------------------- sprint_members ---
 	AddSprintMember(ctx context.Context, arg AddSprintMemberParams) (SprintMember, error)
+	// Consuming is a conditional UPDATE, not a read-then-write: two clicks on the
+	// same link race, and only the one that flips consumed_at from NULL matches a
+	// row. The loser gets no row and is told the link is already used.
+	ConsumeVerificationToken(ctx context.Context, tokenHash string) (ConsumeVerificationTokenRow, error)
 	// ---------------------------------------------------------- backlog_items ---
 	CreateBacklogItem(ctx context.Context, arg CreateBacklogItemParams) (BacklogItem, error)
 	// ---------------------------------------------------------------- clients ---
@@ -57,6 +61,15 @@ type Querier interface {
 	// must belong to the product that owns the sprint. A mismatch matches no row,
 	// which the handler reports as a 400.
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
+	// Users: authentication accounts, distinct from members.
+	//
+	// The password hash is confined to one query. Every read the API serialises
+	// returns an explicit column list without it, so there is no path by which a
+	// hash can be marshalled into a response; only GetUserForAuth selects it, and
+	// its result is never written to the client.
+	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	// ------------------------------------------------ email verification ---
+	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) (EmailVerificationToken, error)
 	DeleteBacklogItem(ctx context.Context, id string) error
 	DeleteClient(ctx context.Context, id string) error
 	DeleteDecision(ctx context.Context, id string) error
@@ -79,8 +92,16 @@ type Querier interface {
 	GetProject(ctx context.Context, id string) (Project, error)
 	GetSprint(ctx context.Context, id string) (Sprint, error)
 	GetTask(ctx context.Context, id string) (Task, error)
+	GetUser(ctx context.Context, id string) (GetUserRow, error)
+	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
+	// The only query that returns the hash. Used to verify a password; its result
+	// must never be serialised to a client.
+	GetUserForAuth(ctx context.Context, email string) (GetUserForAuthRow, error)
+	GetVerificationToken(ctx context.Context, tokenHash string) (GetVerificationTokenRow, error)
 	// ------------------------------------------------------ workspace_settings --
 	GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, error)
+	// Called before issuing a new link, so an earlier mail cannot still be used.
+	InvalidateUserVerificationTokens(ctx context.Context, userID string) error
 	ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error)
 	ListBacklogItemsByProduct(ctx context.Context, arg ListBacklogItemsByProductParams) ([]BacklogItem, error)
 	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)
@@ -112,6 +133,7 @@ type Querier interface {
 	ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]TaskDod, error)
 	ListTasksByBacklogItem(ctx context.Context, backlogItemID string) ([]Task, error)
 	ListTasksBySprint(ctx context.Context, arg ListTasksBySprintParams) ([]Task, error)
+	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
 	// Taken before the sprint lock so the ordering matches the cascade's:
 	// DELETE FROM products reaches backlog_items before sprints, so locking the
 	// sprint first and the item second is an AB-BA cycle that deadlocks every
@@ -133,6 +155,7 @@ type Querier interface {
 	LockProductForUpdate(ctx context.Context, id string) (string, error)
 	LockSprintForUpdate(ctx context.Context, id string) (string, error)
 	MarkGeneratedReportSent(ctx context.Context, id string) (GeneratedReport, error)
+	MarkUserVerified(ctx context.Context, id string) (MarkUserVerifiedRow, error)
 	MoveTask(ctx context.Context, arg MoveTaskParams) (Task, error)
 	NextModulePosition(ctx context.Context, productID string) (int32, error)
 	NextSprintBacklogPosition(ctx context.Context, sprintID string) (int32, error)

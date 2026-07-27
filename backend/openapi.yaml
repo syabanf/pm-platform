@@ -77,6 +77,23 @@ tags:
     description: Report templates, the queue, and generated reports.
   - name: settings
     description: Roles, master lists and workspace configuration.
+  - name: users
+    description: Login accounts. Distinct from members — a member is someone work is assigned to, a user is someone who signs in.
+  - name: auth
+    description: |
+      Registration, email verification and sign-in.
+
+      The flow is: `POST /auth/register` creates a **pending** account and issues
+      a verification token; `POST /auth/verify` proves the address and makes the
+      account **active**; `POST /auth/login` refuses until then.
+      `POST /auth/resend-verification` issues a fresh token and invalidates the
+      previous one.
+
+      No mail is sent yet — there is no mailer wired up. Outside production the
+      token comes back in the response body so the flow can be completed; in
+      production it is only written to the log, and delivering it is the next
+      step. There are no sessions or tokens after login either: it confirms the
+      credentials and returns the account.
   - name: health
     description: Liveness and readiness probes. These live at the root, not under `/api/v1`.
 
@@ -1575,6 +1592,223 @@ paths:
         '413': { $ref: '#/components/responses/TooLarge' }
         '400': { $ref: '#/components/responses/BadRequest' }
 
+  # --------------------------------------------------------------- users ---
+  /users:
+    get:
+      tags: [users]
+      summary: List users
+      operationId: listUsers
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of users. Never includes the password hash.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [users]
+      summary: Create a user directly
+      description: |
+        Creates an account without the registration flow — for an administrator
+        adding a colleague. The account is **pending** until its address is
+        verified, exactly as a self-registered one is.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserCreate' }
+      responses:
+        '201':
+          description: The created user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: That email is already registered.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /users/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [users]
+      summary: Get a user
+      operationId: getUser
+      responses:
+        '200':
+          description: The user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # ---------------------------------------------------------------- auth ---
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Register an account
+      description: |
+        Creates a **pending** account and issues a verification token.
+
+        An address that is already registered gets the same `202` answer as a
+        new one — this endpoint deliberately does not reveal who has an account.
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 72 }
+                name: { type: string }
+      responses:
+        '201':
+          description: Registered. Verification pending.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificationPending' }
+        '202':
+          description: |
+            Accepted. Returned when the address is already registered — the same
+            shape as `201` minus the token, so the two cannot be told apart.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificationPending' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /auth/verify:
+    post:
+      tags: [auth]
+      summary: Verify an email address
+      description: |
+        Consumes the token from the verification link. On success the account
+        moves from **pending** to **active** and can sign in.
+
+        Consuming is atomic, so two clicks on the same link cannot both succeed:
+        the second gets `409`.
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200':
+          description: Verified.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400':
+          description: The token is unknown or malformed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: That link has already been used.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '410':
+          description: That link has expired — request a new one.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /auth/resend-verification:
+    post:
+      tags: [auth]
+      summary: Send a fresh verification link
+      description: |
+        Invalidates any outstanding link for the address and issues a new one.
+        Always answers `202`, whether the address is unknown, already verified,
+        or genuinely pending — same reason as register.
+      operationId: resendVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202':
+          description: Accepted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificationPending' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Sign in
+      description: |
+        Verifies the credentials and returns the account. There is no session or
+        token yet — remembering the result is the caller's job.
+
+        An unknown email and a wrong password produce the same `401`.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401':
+          description: Invalid email or password.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: The address is not verified, or the account is not active.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   # -------------------------------------------------------------- probes ---
   # These are mounted at the root, not under /api/v1, hence the server override.
   /livez:
@@ -2253,6 +2487,52 @@ components:
         status: { $ref: '#/components/schemas/ReportStatus' }
 
     # ---------------------------------------------------------- settings ---
+    UserStatus:
+      type: string
+      enum: [pending, active, inactive, suspended]
+      description: '`pending` until the address is verified; login refuses it.'
+    User:
+      type: object
+      description: An account. The password hash is never included.
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        role: { type: string, description: 'An id from the roles table.' }
+        memberId:
+          type: [string, 'null']
+          description: The member this login acts as, if any.
+        status: { $ref: '#/components/schemas/UserStatus' }
+        emailVerifiedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the address was proven. Null means never.
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    UserCreate:
+      type: object
+      required: [email, password, name]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 72 }
+        name: { type: string }
+        role: { type: string, default: member }
+        memberId: { type: string }
+    VerificationPending:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        status: { type: string, examples: [pending] }
+        message: { type: string }
+        verificationToken:
+          type: string
+          description: |
+            Only present when `APP_ENV` is not production. There is no mailer, so
+            outside production the token is returned here to make the flow
+            completable; production omits it.
+        note: { type: string }
+
     Role:
       type: object
       properties:
