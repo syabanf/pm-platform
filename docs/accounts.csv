@@ -1,0 +1,8 @@
+name,email,role,one_click,status
+Admin,admin@wit.id,Administrator,yes,active
+Fahmi,fahmi@wit.id,Delivery Lead,yes,active
+Risya,risya@wit.id,System Analyst,yes,active
+Reyza,reyza@wit.id,Fullstack Developer,yes,active
+Aditiya,aditiya@wit.id,Backend Developer,no,active
+Christian,christian@wit.id,QA Engineer,no,active
+Vinza,vinza@wit.id,Technical Writer,no,active
