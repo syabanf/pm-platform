@@ -20,6 +20,10 @@ of that module, and it owns its own **Sprints**.
 > The backend tables follow the code, not the UI. Nothing is broken — just read
 > `product` as "Module" and `module` as "Component".
 
+New here, or back after a while? **[docs/OVERVIEW.md](docs/OVERVIEW.md)** is the
+whole system on one page — both halves, the naming trap, accounts, the API, and
+what is still open.
+
 ## Running it
 
 ```bash

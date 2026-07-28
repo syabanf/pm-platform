@@ -6,6 +6,9 @@ Go + Echo + PostgreSQL REST API for the WIT Sprint OS delivery hierarchy.
 > app in `../src` still runs entirely off its in-memory prototype store and does
 > not call this API yet. Nothing in the frontend imports from here.
 
+For the system as a whole — both halves, accounts, what is still open — see
+[docs/OVERVIEW.md](../docs/OVERVIEW.md).
+
 ## Stack
 
 | Concern    | Choice                                                        |
@@ -208,9 +211,18 @@ token is stored as `sha256(token)` so the table cannot be used to verify anyone.
 Register and resend answer the same way whether the address is known or not, so
 neither can be used to find out who has an account.
 
-**No mail is sent.** There is no mailer wired up, so outside production the
-token is returned in the response body to make the flow completable; production
-only logs it. Wiring a mailer means sending it and dropping it from the body —
+**No mail is sent.** There is no mailer wired up, so the token needs somewhere
+to go, and which of three modes is in force is printed at boot:
+
+| `APP_ENV` | `VERIFICATION_TOKEN_IN_LOG` | What happens |
+| --------- | --------------------------- | ------------ |
+| not production | — | the token comes back in the response body |
+| production | `true` | the token is written to the log — treat the log as a secret |
+| production | unset | `/auth/register` and `/auth/resend-verification` refuse with 503 |
+
+The last row is deliberate: creating a pending account and telling someone to
+check an inbox nothing was sent to is worse than refusing, because it looks like
+it worked. Wiring a mailer means sending the token and removing the fork —
 nothing else in the flow changes. There are no sessions or tokens after login
 either; it confirms the credentials and returns the account.
 
