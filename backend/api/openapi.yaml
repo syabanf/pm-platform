@@ -2564,13 +2564,17 @@ components:
     UserCreate:
       type: object
       required: [email, password, name]
+      description: |
+        `role` and `memberId` are **not** accepted. Nothing authenticates this
+        request yet, so letting a caller pick its own role was an unauthenticated
+        way to mint an administrator. Every account created over HTTP is a plain
+        `member`; promoting one, or linking it to a member, is an operator action
+        against the database until there is a credential to check.
       properties:
         id: { type: string }
         email: { type: string, format: email }
         password: { type: string, minLength: 8, maxLength: 72 }
         name: { type: string }
-        role: { type: string, default: member }
-        memberId: { type: string }
     VerificationPending:
       type: object
       properties:
@@ -2580,9 +2584,12 @@ components:
         verificationToken:
           type: string
           description: |
-            Only present when `APP_ENV` is not production. There is no mailer, so
-            outside production the token is returned here to make the flow
-            completable; production omits it.
+            Only present when `APP_ENV` is not production. There is no mailer,
+            so outside production the token is returned here to make the flow
+            completable. In production it is omitted: either
+            `VERIFICATION_TOKEN_IN_LOG=true` sends it to the log instead, or the
+            endpoint refuses with a 503 rather than creating an account that
+            could never be verified.
         note: { type: string }
 
     Role:

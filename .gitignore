@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the template belongs in the repo: the backend README tells a newcomer
+# to copy it, and it holds only local placeholders.
+!.env.example
 
 # vercel
 .vercel

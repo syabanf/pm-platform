@@ -38,7 +38,11 @@ INSERT INTO report_templates (id, name, audience, visibility, sections) VALUES
         ARRAY['Goal','Completed','Carried over','Risks']),
     ('tpl-client', 'Client Summary', 'Client sponsor', 'client-facing',
         ARRAY['Progress','Decisions needed','Next sprint'])
-ON CONFLICT (id) DO NOTHING;
+-- No conflict target: report_templates.name is UNIQUE as well as the id, and a
+-- target only arbitrates the constraint it names. A database that already has a
+-- template called 'Sprint Review' under a different id would otherwise abort
+-- this migration and leave schema_migrations dirty.
+ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------- initial member ---
 -- One member every environment starts with, so the app has a delivery lead to
@@ -47,4 +51,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO members (id, name, email, role, role_label, skill_tags, allocation, capacity_days, status)
 VALUES ('mbr-owner', 'WIT Admin', 'admin@wit.id',
         'admin', 'Administrator', ARRAY['PM'], 100, 10, 'active')
-ON CONFLICT (id) DO NOTHING;
+-- Untargeted for the same reason: members.email is UNIQUE, and admin@wit.id is
+-- exactly the address an existing deployment is likely to have already given
+-- its own administrator.
+ON CONFLICT DO NOTHING;

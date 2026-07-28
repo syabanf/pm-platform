@@ -81,6 +81,19 @@ func run() error {
 	}
 	log.Printf("connected to postgres")
 
+	// Say which of the three verification modes this process is in, so a broken
+	// registration flow is visible at boot rather than at the first sign-up.
+	switch {
+	case cfg.Env != "production":
+		log.Printf("verification: token returned in the response (APP_ENV=%s)", cfg.Env)
+	case cfg.VerificationTokenInLog:
+		log.Printf("verification: token written to THIS LOG — treat the log as a secret")
+	default:
+		log.Printf("verification: NO delivery configured — /auth/register and " +
+			"/auth/resend-verification will refuse. Set VERIFICATION_TOKEN_IN_LOG=true " +
+			"to complete sign-ups by hand until a mailer exists.")
+	}
+
 	e := httpapi.NewServer(cfg, pool)
 	srv := &http.Server{
 		Addr:         cfg.Addr(),

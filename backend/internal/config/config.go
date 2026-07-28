@@ -43,6 +43,12 @@ type Config struct {
 	MaxConnIdleTime time.Duration
 	MaxConnLifetime time.Duration
 	MaxBodySize     string
+	// VerificationTokenInLog lets an operator run in production before a mailer
+	// exists: the verification token is written to the log so a link can be
+	// completed by hand. Off by default — a token in a log is a credential in a
+	// log — and without it, and without a mailer, registration refuses rather
+	// than creating accounts nobody can ever verify.
+	VerificationTokenInLog bool
 }
 
 // Load reads configuration from the environment, applying sane defaults for
@@ -68,6 +74,8 @@ func Load() (Config, error) {
 		MaxConnIdleTime:  getenvDuration("MAX_CONN_IDLE_TIME", 5*time.Minute),
 		MaxConnLifetime:  getenvDuration("MAX_CONN_LIFETIME", 60*time.Minute),
 		MaxBodySize:      getenv("MAX_BODY_SIZE", "1M"),
+
+		VerificationTokenInLog: getenv("VERIFICATION_TOKEN_IN_LOG", "") == "true",
 	}
 
 	if cfg.DatabaseURL == "" {

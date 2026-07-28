@@ -60,5 +60,13 @@ CREATE INDEX email_verification_tokens_user_id_idx ON email_verification_tokens 
 INSERT INTO users (id, email, password_hash, name, role, member_id, status, email_verified_at)
 VALUES ('usr-admin', 'admin@wit.id',
         '$2a$10$ri3EraKDEjepi7sVhROqK.yg2twJ5Y/vKEOOsetJ.6MDqIaCDSDFC',
-        'WIT Admin', 'admin', 'mbr-owner', 'active', now())
-ON CONFLICT (id) DO NOTHING;
+        'WIT Admin', 'admin',
+        -- Looked up rather than named: 000004 skips seeding mbr-owner when the
+        -- address is already taken by a member of the deployment's own, and a
+        -- literal here would then violate the foreign key and fail this
+        -- migration. A subquery yields NULL in that case, which the nullable
+        -- column accepts — the account still exists, just unlinked.
+        (SELECT id FROM members WHERE id = 'mbr-owner'), 'active', now())
+-- Untargeted: users.email is UNIQUE too, so a deployment that already has an
+-- account at this address must not fail the migration.
+ON CONFLICT DO NOTHING;

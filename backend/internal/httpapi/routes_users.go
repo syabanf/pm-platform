@@ -39,11 +39,29 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 //	POST /auth/resend-verification  -> issues a fresh token, invalidating the old
 //	POST /auth/login                -> refuses until the address is verified
 //
-// There is no mailer wired up, so the link cannot actually be delivered. Rather
-// than pretend, the token is returned in the response only when APP_ENV is not
-// production, and always written to the log. Wiring a real mailer means sending
-// it and dropping it from the body — the rest of the flow does not change.
+// There is no mailer wired up, so the link cannot actually be delivered. Outside
+// production the token comes back in the response, which is enough to drive the
+// flow in development and in tests. In production it must not, so there has to
+// be somewhere else for it to go: set VERIFICATION_TOKEN_IN_LOG=true and it is
+// written to the log for an operator to pass on by hand.
+//
+// With neither — production and no opt-in — registration refuses instead of
+// creating an account that can never be verified and whose owner would be told
+// to check an inbox nothing was sent to. Wiring a real mailer means sending the
+// token and removing this fork; the rest of the flow does not change.
 const verificationTokenTTL = 24 * time.Hour
+
+// canDeliverVerification reports whether a token issued now could actually
+// reach the person who needs it.
+func (s *Server) canDeliverVerification() bool {
+	return s.cfg.Env != "production" || s.cfg.VerificationTokenInLog
+}
+
+// errNoVerificationDelivery is the honest answer when it could not.
+func errNoVerificationDelivery() error {
+	return echo.NewHTTPError(http.StatusServiceUnavailable,
+		"registration is unavailable: this deployment has no way to deliver a verification link")
+}
 
 // newVerificationToken returns the token to put in a link and the hash to store.
 // Only the hash is persisted: the table then holds nothing that can verify an
@@ -71,13 +89,18 @@ func newUserID() string {
 	return "usr-" + hex.EncodeToString(b[:])
 }
 
+// role and memberId are deliberately absent. Nothing authenticates this
+// request — there are no sessions yet — so a caller choosing its own role was
+// simply an unauthenticated way to mint an administrator, which is exactly the
+// restriction /auth/register was written to enforce. Both fields grant
+// authority, so neither is the caller's to set: an account created over HTTP is
+// a plain member, and promoting one is an operator action against the database
+// until there is something to check a credential against.
 type createUserRequest struct {
 	ID       *string `json:"id"`
 	Email    string  `json:"email"`
 	Password string  `json:"password"`
 	Name     string  `json:"name"`
-	Role     *string `json:"role"`
-	MemberID *string `json:"memberId"`
 }
 
 type registerRequest struct {
@@ -154,14 +177,14 @@ func (s *Server) createUser(c echo.Context) error {
 		Email:        email,
 		PasswordHash: string(hash),
 		Name:         req.Name,
-		Role:         orDefault(deref(req.Role), "member"),
-		MemberID:     req.MemberID,
+		Role:         "member",
 	})
 	if err != nil {
-		// role is a foreign key to roles(id); an unknown one is the caller's
-		// mistake, not a missing record in the usual sense.
-		if isForeignKeyViolation(err, "users_role_fkey") {
-			return echo.NewHTTPError(http.StatusBadRequest, "role does not exist")
+		// Two different unique constraints, and saying "id" for both sent
+		// callers off retrying with a fresh id forever when the address was
+		// the problem.
+		if isUniqueViolation(err, "users_email_key") {
+			return echo.NewHTTPError(http.StatusConflict, "that email is already registered")
 		}
 		return dbErr(err)
 	}
@@ -228,8 +251,14 @@ func (s *Server) issueVerification(c echo.Context, userID string) (string, error
 	}); err != nil {
 		return "", err
 	}
-	// Stands in for the mail that would carry it.
-	log.Printf("verification token issued for user %s (expires in %s)", userID, verificationTokenTTL)
+	// Stands in for the mail that would carry it. The token is only written
+	// when the log is deliberately the delivery channel; otherwise just the
+	// fact, so a token never lands in a log by accident.
+	if s.cfg.VerificationTokenInLog {
+		log.Printf("verification token for user %s (expires in %s): %s", userID, verificationTokenTTL, token)
+	} else {
+		log.Printf("verification token issued for user %s (expires in %s)", userID, verificationTokenTTL)
+	}
 	return token, nil
 }
 
@@ -264,6 +293,11 @@ func (s *Server) register(c echo.Context) error {
 	}
 	if len(req.Password) < 8 || len(req.Password) > 72 {
 		return echo.NewHTTPError(http.StatusBadRequest, "password must be between 8 and 72 characters")
+	}
+	// Checked before the account exists: a pending account nobody can verify is
+	// worse than a refusal, because it looks like it worked.
+	if !s.canDeliverVerification() {
+		return errNoVerificationDelivery()
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -353,6 +387,9 @@ func (s *Server) resendVerification(c echo.Context) error {
 	email := strings.TrimSpace(strings.ToLower(req.Email))
 	if email == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "email is required")
+	}
+	if !s.canDeliverVerification() {
+		return errNoVerificationDelivery()
 	}
 
 	// Same shape of answer whatever the truth is: unknown address, already
