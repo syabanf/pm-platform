@@ -1,0 +1,10 @@
+.git
+bin
+.env
+*.log
+*.out
+coverage.*
+README.md
+openapi.yaml
+seed
+test

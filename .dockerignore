@@ -1,0 +1,13 @@
+.git
+.github
+.claude
+.claude-flow
+node_modules
+.next
+coverage
+backend
+docs
+*.log
+.env
+.env.*
+!.env.example
