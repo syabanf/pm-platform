@@ -133,17 +133,27 @@ Two request conventions are worth knowing:
 
 ## API reference
 
-[`openapi.yaml`](openapi.yaml) is the full reference — all 86 operations with
-request and response schemas, enum values, status codes and the behaviour notes
-that are easy to get wrong. It is OpenAPI 3.1 and machine-readable, so you can
-generate a client from it rather than hand-writing one:
+**The running service documents itself.** Start it and open
+**http://localhost:8080/docs** — a browsable reference with every operation, its
+parameters, request and response schemas, and a runnable `curl` for each. The
+page is drawn from the specification the binary was built with, so it always
+describes the version actually running, and it loads nothing from a CDN, so it
+works offline.
+
+| Route | What it serves |
+| ----- | -------------- |
+| `/docs` | the reference page |
+| `/openapi.yaml` | the specification, for generating a client |
+| `/openapi.json` | the same document as JSON |
+
+The source is [`api/openapi.yaml`](api/openapi.yaml) — OpenAPI 3.1, 89
+operations, embedded into the binary at build time with `go:embed`.
 
 ```bash
-npx @redocly/cli preview-docs backend/openapi.yaml     # browsable docs
-npx @redocly/cli lint backend/openapi.yaml             # validate it
+npx @redocly/cli lint backend/api/openapi.yaml         # validate it
 ```
 
-The spec cannot drift: `TestOpenAPIMatchesRouter` compares every documented
+The spec cannot drift from the code either: `TestOpenAPIMatchesRouter` compares every documented
 path and method against the real `g.GET(...)` registrations and fails the build
 when they disagree in either direction. Add a route without documenting it, or
 document one that does not exist, and `go test ./...` says so.

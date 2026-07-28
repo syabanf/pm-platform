@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WIT Sprint OS API</title>
+<style>
+  /* Matches the app: paper, hairlines, one red accent, no shadows. */
+  :root {
+    --ink: #111; --paper: #fff; --line: #e6e6e1; --muted: #737373;
+    --brand: #ed1c24; --wash: #faf9f7;
+    --get: #1a7f5a; --post: #1f5fa8; --patch: #9a6a00; --put: #6b4ea8; --delete: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #ececec; --paper: #131313; --line: #2a2a2a; --muted: #9a9a9a; --wash: #1a1a1a;
+      --get: #4bbf8e; --post: #6aa9e9; --patch: #d8a534; --put: #a98fd8; --delete: #e8695f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 15px/1.6 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  a { color: inherit; }
+
+  .label {
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+
+  /* ------------------------------------------------------------- layout --- */
+  .wrap { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } aside { display: none; } }
+
+  aside {
+    border-right: 1px solid var(--line); padding: 24px 0 64px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; padding: 0 20px 4px; font-weight: 700; letter-spacing: -.02em; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); }
+  .search { margin: 16px 20px; width: calc(100% - 40px); padding: 7px 10px;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; }
+  .search:focus { outline: 2px solid var(--ink); outline-offset: -2px; }
+  .navgroup { margin-top: 18px; }
+  .navgroup > .label { padding: 0 20px 6px; display: block; }
+  .navlink {
+    display: flex; gap: 8px; align-items: baseline; padding: 4px 20px;
+    text-decoration: none; font-size: 13px; color: var(--muted);
+  }
+  .navlink:hover { color: var(--ink); background: var(--wash); }
+  .navlink .m { font-size: 10px; font-weight: 700; min-width: 42px; }
+
+  main { padding: 40px 40px 120px; max-width: 900px; }
+  @media (max-width: 640px) { main { padding: 24px 18px 80px; } }
+
+  h1 { font-size: 30px; letter-spacing: -.02em; margin: 4px 0 8px; }
+  h2 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+       margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-weight: 500; }
+  h3 { font-size: 17px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; }
+  .lede { color: var(--muted); }
+
+  .intro { border: 1px solid var(--line); padding: 20px 22px; margin: 24px 0 8px; background: var(--wash); }
+  .intro p:last-child { margin-bottom: 0; }
+  .intro table { margin: 10px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 8px 0 16px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  td code { font-size: 12.5px; }
+
+  /* --------------------------------------------------------- operations --- */
+  .op { border: 1px solid var(--line); margin: 0 0 12px; }
+  .op > summary {
+    display: flex; gap: 12px; align-items: baseline; padding: 12px 16px;
+    cursor: pointer; list-style: none;
+  }
+  .op > summary::-webkit-details-marker { display: none; }
+  .op > summary:hover { background: var(--wash); }
+  .op[open] > summary { border-bottom: 1px solid var(--line); }
+  .method { font-size: 11px; font-weight: 700; letter-spacing: .06em; min-width: 52px; }
+  .path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; }
+  .opsum { color: var(--muted); font-size: 13px; margin-left: auto; text-align: right; }
+  @media (max-width: 640px) { .opsum { display: none; } }
+  .GET { color: var(--get); } .POST { color: var(--post); }
+  .PATCH { color: var(--patch); } .PUT { color: var(--put); } .DELETE { color: var(--delete); }
+
+  .body { padding: 16px 16px 6px; }
+  .body h4 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+             color: var(--muted); font-weight: 500; margin: 18px 0 6px; }
+  .body h4:first-child { margin-top: 0; }
+  .desc { font-size: 14px; }
+  .desc code { background: var(--wash); padding: 1px 4px; font-size: 12.5px; border: 1px solid var(--line); }
+  .desc table { font-size: 13px; }
+  .desc strong { font-weight: 600; }
+  pre {
+    background: var(--wash); border: 1px solid var(--line); padding: 12px 14px;
+    overflow-x: auto; font-size: 12.5px; line-height: 1.5; margin: 6px 0 0;
+  }
+  .req { color: var(--brand); font-size: 11px; }
+  .status { font-weight: 600; font-family: ui-monospace, monospace; }
+  .s2 { color: var(--get); } .s4 { color: var(--patch); } .s5 { color: var(--delete); }
+  .empty { color: var(--muted); font-style: italic; padding: 24px 0; }
+  .curl { margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside>
+    <div class="brand"><span>WIT</span><span class="dot"></span></div>
+    <div class="label" style="padding:0 20px">API reference</div>
+    <input class="search" id="q" type="search" placeholder="Filter operations…" aria-label="Filter operations">
+    <nav id="nav"></nav>
+  </aside>
+  <main id="main"><p class="empty">Loading the specification…</p></main>
+</div>
+
+<script>
+"use strict";
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const METHODS = ["get", "post", "put", "patch", "delete"];
+
+/** Resolves a local $ref against the document. */
+function deref(node, doc, seen = 0) {
+  if (!node || typeof node !== "object" || seen > 20) return node;
+  if (node.$ref && node.$ref.startsWith("#/")) {
+    let t = doc;
+    for (const part of node.$ref.slice(2).split("/")) t = t && t[part];
+    return deref(t, doc, seen + 1);
+  }
+  return node;
+}
+
+/**
+ * The smallest useful markdown: paragraphs, tables, code, bold, lists, quotes.
+ *
+ * The descriptions in the spec are hard-wrapped, so a paragraph or a list item
+ * routinely spans several lines. Lines are therefore gathered into blocks first
+ * and only then rendered — rendering line by line splits a sentence in half at
+ * the wrap point.
+ */
+function md(src) {
+  if (!src) return "";
+
+  const inline = (s) =>
+    esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // 1. Gather lines into blocks. A blank line ends a block; so does a line that
+  //    starts a different kind of block. Anything else continues the current one.
+  const blocks = [];
+  let cur = null;
+  const push = () => { if (cur) blocks.push(cur); cur = null; };
+
+  for (const raw of String(src).split("\n")) {
+    const line = raw.trim();
+    if (!line) { push(); continue; }
+
+    const kind =
+      line.startsWith("|") ? "table" :
+      /^[-*] /.test(line) ? "list" :
+      line.startsWith("> ") ? "quote" :
+      line.startsWith("#") ? "heading" : "para";
+
+    // A table row and a heading are always their own line; a list item starts a
+    // new item but stays in the same list.
+    if (kind === "table") {
+      if (!cur || cur.kind !== "table") { push(); cur = { kind, rows: [] }; }
+      cur.rows.push(line);
+    } else if (kind === "list") {
+      if (!cur || cur.kind !== "list") { push(); cur = { kind, items: [] }; }
+      cur.items.push(line.replace(/^[-*] /, ""));
+    } else if (kind === "heading") {
+      push();
+      blocks.push({ kind, text: line.replace(/^#+\s*/, "") });
+    } else if (kind === "quote") {
+      if (!cur || cur.kind !== "quote") { push(); cur = { kind, text: "" }; }
+      cur.text += (cur.text ? " " : "") + line.slice(2);
+    } else {
+      // A plain line continues a list item or a quote it is indented under.
+      if (cur && cur.kind === "list") {
+        cur.items[cur.items.length - 1] += " " + line;
+      } else if (cur && cur.kind === "quote") {
+        cur.text += " " + line;
+      } else {
+        if (!cur || cur.kind !== "para") { push(); cur = { kind: "para", text: "" }; }
+        cur.text += (cur.text ? " " : "") + line;
+      }
+    }
+  }
+  push();
+
+  // 2. Render.
+  let html = "";
+  for (const b of blocks) {
+    if (b.kind === "para") html += `<p>${inline(b.text)}</p>`;
+    else if (b.kind === "heading") html += `<h4>${inline(b.text)}</h4>`;
+    else if (b.kind === "quote") html += `<p><em>${inline(b.text)}</em></p>`;
+    else if (b.kind === "list") html += "<ul>" + b.items.map((i) => `<li>${inline(i)}</li>`).join("") + "</ul>";
+    else if (b.kind === "table") {
+      const rows = b.rows
+        .map((r) => r.split("|").slice(1, -1).map((c) => c.trim()))
+        .filter((cells) => !cells.every((c) => /^:?-+:?$/.test(c)));
+      if (!rows.length) continue;
+      const [head, ...rest] = rows;
+      html +=
+        "<table><thead><tr>" + head.map((c) => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>" +
+        rest.map((cells) => "<tr>" + cells.map((c) => `<td>${inline(c)}</td>`).join("") + "</tr>").join("") +
+        "</tbody></table>";
+    }
+  }
+  return html;
+}
+
+/** A one-line human description of a schema. */
+function typeOf(schema, doc) {
+  const s = deref(schema, doc);
+  if (!s) return "";
+  if (s.enum) return s.enum.map((e) => `<code>${esc(e)}</code>`).join(" · ");
+  if (s.allOf) return s.allOf.map((x) => typeOf(x, doc)).filter(Boolean).join(" + ") || "object";
+  let t = Array.isArray(s.type) ? s.type.filter((x) => x !== "null").join("|") || "null" : s.type;
+  if (s.type && Array.isArray(s.type) && s.type.includes("null")) t += ", nullable";
+  if (t === "array") t = `array of ${typeOf(s.items, doc) || "object"}`;
+  const bits = [];
+  if (s.format) bits.push(s.format);
+  if (s.minimum !== undefined) bits.push(`min ${s.minimum}`);
+  if (s.maximum !== undefined) bits.push(`max ${s.maximum}`);
+  if (s.default !== undefined) bits.push(`default ${s.default}`);
+  return (t || "object") + (bits.length ? ` <span class="label">(${bits.join(", ")})</span>` : "");
+}
+
+/** Flattens a schema into a property table, following allOf. */
+function propsOf(schema, doc) {
+  const s = deref(schema, doc);
+  if (!s) return { props: {}, required: [] };
+  if (s.allOf) {
+    return s.allOf.reduce(
+      (acc, part) => {
+        const p = propsOf(part, doc);
+        return { props: { ...acc.props, ...p.props }, required: [...acc.required, ...p.required] };
+      },
+      { props: {}, required: [] }
+    );
+  }
+  if (s.type === "array") return propsOf(s.items, doc);
+  return { props: s.properties || {}, required: s.required || [] };
+}
+
+function schemaTable(schema, doc) {
+  const { props, required } = propsOf(schema, doc);
+  const keys = Object.keys(props);
+  if (!keys.length) {
+    const s = deref(schema, doc);
+    return s && s.description ? `<p class="desc">${md(s.description)}</p>` : "";
+  }
+  return (
+    '<table><thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead><tbody>' +
+    keys
+      .map((k) => {
+        const p = deref(props[k], doc);
+        const req = required.includes(k) ? ' <span class="req">required</span>' : "";
+        return `<tr><td><code>${esc(k)}</code>${req}</td><td>${typeOf(props[k], doc)}</td><td>${md(p.description || "")}</td></tr>`;
+      })
+      .join("") +
+    "</tbody></table>"
+  );
+}
+
+/** An example request, so the page is usable without a client. */
+function curlFor(method, path, op, doc) {
+  const base = location.origin + "/api/v1";
+  const url = base + path.replace(/\{(\w+)\}/g, (_, n) => "{" + n + "}");
+  let cmd = method === "get" ? `curl ${url}` : `curl -X ${method.toUpperCase()} ${url}`;
+  if (op.requestBody) {
+    const schema =
+      op.requestBody.content &&
+      op.requestBody.content["application/json"] &&
+      op.requestBody.content["application/json"].schema;
+    const { props, required } = propsOf(schema, doc);
+    const sample = {};
+    for (const k of (required.length ? required : Object.keys(props)).slice(0, 3)) {
+      const p = deref(props[k], doc) || {};
+      const t = Array.isArray(p.type) ? p.type[0] : p.type;
+      sample[k] = p.enum ? p.enum[0] : t === "integer" || t === "number" ? 0 : t === "boolean" ? true : t === "array" ? [] : "…";
+    }
+    if (Object.keys(sample).length) {
+      cmd += ` \\\n  -H 'content-type: application/json' \\\n  -d '${JSON.stringify(sample)}'`;
+    }
+  }
+  return `<pre class="curl">${esc(cmd)}</pre>`;
+}
+
+function operationHTML(method, path, op, doc) {
+  const id = (method + path).replace(/[^\w]+/g, "-").toLowerCase();
+  let out = `<details class="op" id="${id}"><summary>
+      <span class="method ${method.toUpperCase()}">${method.toUpperCase()}</span>
+      <span class="path">${esc(path)}</span>
+      <span class="opsum">${esc(op.summary || "")}</span>
+    </summary><div class="body">`;
+
+  if (op.description) out += `<div class="desc">${md(op.description)}</div>`;
+
+  const params = (op.parameters || []).map((p) => deref(p, doc)).filter(Boolean);
+  if (params.length) {
+    out += "<h4>Parameters</h4><table><thead><tr><th>Name</th><th>In</th><th>Type</th><th>Notes</th></tr></thead><tbody>";
+    for (const p of params) {
+      const req = p.required ? ' <span class="req">required</span>' : "";
+      out += `<tr><td><code>${esc(p.name)}</code>${req}</td><td>${esc(p.in)}</td><td>${typeOf(p.schema, doc)}</td><td>${md(p.description || "")}</td></tr>`;
+    }
+    out += "</tbody></table>";
+  }
+
+  const rb = deref(op.requestBody, doc);
+  if (rb) {
+    const schema = rb.content && rb.content["application/json"] && rb.content["application/json"].schema;
+    out += "<h4>Request body</h4>" + schemaTable(schema, doc);
+  }
+
+  if (op.responses) {
+    out += "<h4>Responses</h4><table><thead><tr><th>Status</th><th>Meaning</th></tr></thead><tbody>";
+    for (const [code, resRaw] of Object.entries(op.responses)) {
+      const res = deref(resRaw, doc) || {};
+      const cls = code.startsWith("2") ? "s2" : code.startsWith("4") ? "s4" : "s5";
+      out += `<tr><td><span class="status ${cls}">${esc(code)}</span></td><td>${md(res.description || "")}</td></tr>`;
+    }
+    out += "</tbody></table>";
+  }
+
+  out += "<h4>Example</h4>" + curlFor(method, path, op, doc);
+  return out + "</div></details>";
+}
+
+function render(doc) {
+  const main = document.getElementById("main");
+  const nav = document.getElementById("nav");
+
+  // Group operations by their first tag, in the order the spec declares tags.
+  const groups = new Map();
+  for (const t of doc.tags || []) groups.set(t.name, { desc: t.description, ops: [] });
+  for (const [path, item] of Object.entries(doc.paths || {})) {
+    for (const method of METHODS) {
+      const op = item[method];
+      if (!op) continue;
+      const tag = (op.tags && op.tags[0]) || "other";
+      if (!groups.has(tag)) groups.set(tag, { desc: "", ops: [] });
+      groups.get(tag).ops.push({ method, path, op });
+    }
+  }
+
+  let html = `<h1>${esc(doc.info.title)}</h1>
+    <p class="lede">Version ${esc(doc.info.version)} · OpenAPI ${esc(doc.openapi)}</p>
+    <div class="intro">${md(doc.info.description || "")}</div>`;
+
+  let navHTML = "";
+  for (const [tag, g] of groups) {
+    if (!g.ops.length) continue;
+    const anchor = "tag-" + tag.replace(/[^\w]+/g, "-");
+    html += `<h2 id="${anchor}">${esc(tag)}</h2>`;
+    if (g.desc) html += `<p class="lede desc">${md(g.desc)}</p>`;
+    navHTML += `<div class="navgroup"><a class="label" href="#${anchor}" style="display:block;padding:0 20px 6px;text-decoration:none">${esc(tag)}</a>`;
+    for (const { method, path, op } of g.ops) {
+      html += operationHTML(method, path, op, doc);
+      const id = (method + path).replace(/[^\w]+/g, "-").toLowerCase();
+      navHTML += `<a class="navlink" href="#${id}" data-op="${esc(method + " " + path)}">
+        <span class="m ${method.toUpperCase()}">${method.toUpperCase()}</span>
+        <span>${esc(path.replace(/^\/api\/v1/, ""))}</span></a>`;
+    }
+    navHTML += "</div>";
+  }
+
+  main.innerHTML = html;
+  nav.innerHTML = navHTML;
+
+  // Opening a link from the sidebar should expand the operation it names.
+  const openTarget = () => {
+    const el = document.getElementById(location.hash.slice(1));
+    if (el && el.tagName === "DETAILS") { el.open = true; el.scrollIntoView({ block: "start" }); }
+  };
+  window.addEventListener("hashchange", openTarget);
+  if (location.hash) openTarget();
+
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => {
+    const term = q.value.trim().toLowerCase();
+    for (const link of nav.querySelectorAll(".navlink")) {
+      link.style.display = !term || link.dataset.op.toLowerCase().includes(term) ? "" : "none";
+    }
+    for (const group of nav.querySelectorAll(".navgroup")) {
+      const any = [...group.querySelectorAll(".navlink")].some((l) => l.style.display !== "none");
+      group.style.display = any ? "" : "none";
+    }
+  });
+}
+
+fetch("/openapi.json")
+  .then((r) => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then(render)
+  .catch((e) => {
+    document.getElementById("main").innerHTML =
+      `<p class="empty">Could not load /openapi.json — ${esc(e.message)}</p>`;
+  });
+</script>
+</body>
+</html>

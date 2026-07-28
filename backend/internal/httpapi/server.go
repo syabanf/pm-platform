@@ -59,6 +59,10 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool) *echo.Echo {
 	e.GET("/readyz", s.ready)
 	e.GET("/healthz", s.ready)
 
+	// /docs, /openapi.yaml, /openapi.json — the reference, served by the thing
+	// it describes, so they cannot disagree about which version is running.
+	registerDocsRoutes(e)
+
 	api := e.Group("/api/v1")
 	s.routes(api)
 

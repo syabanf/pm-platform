@@ -17,7 +17,7 @@ import (
 // free of a YAML dependency it otherwise has no use for. That works because the
 // file's shape is fixed: path keys sit at two spaces, methods at four.
 func TestOpenAPIMatchesRouter(t *testing.T) {
-	specOps, err := operationsInSpec("../../openapi.yaml")
+	specOps, err := operationsInSpec("../../api/openapi.yaml")
 	if err != nil {
 		t.Fatalf("reading spec: %v", err)
 	}

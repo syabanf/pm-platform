@@ -96,6 +96,10 @@ tags:
       credentials and returns the account.
   - name: health
     description: Liveness and readiness probes. These live at the root, not under `/api/v1`.
+  - name: reference
+    description: |
+      This document, and the page that renders it. Also at the root, because the
+      description of the API is not part of the API.
 
 paths:
   # ------------------------------------------------------------- clients ---
@@ -1873,6 +1877,54 @@ paths:
                 properties:
                   status: { type: string, examples: [ok] }
         '503': { $ref: '#/components/responses/Unavailable' }
+
+  /docs:
+    servers: *rootServer
+    get:
+      tags: [reference]
+      summary: Browsable API reference
+      description: |
+        Renders this specification as a page. The service carries the document it
+        was built with and draws the reference itself, without loading a viewer
+        from a CDN, so the reference works offline and always describes the
+        version that is actually running.
+      operationId: docs
+      responses:
+        '200':
+          description: The reference page.
+          content:
+            text/html:
+              schema: { type: string }
+
+  /openapi.yaml:
+    servers: *rootServer
+    get:
+      tags: [reference]
+      summary: This specification, as YAML
+      description: The source document, for generating a client.
+      operationId: openapiYAML
+      responses:
+        '200':
+          description: The OpenAPI document.
+          content:
+            application/yaml:
+              schema: { type: string }
+
+  /openapi.json:
+    servers: *rootServer
+    get:
+      tags: [reference]
+      summary: This specification, as JSON
+      description: |
+        The same document converted to JSON, for tools that prefer it — and what
+        the reference page itself fetches.
+      operationId: openapiJSON
+      responses:
+        '200':
+          description: The OpenAPI document.
+          content:
+            application/json:
+              schema: { type: object }
 
 components:
   parameters:
