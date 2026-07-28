@@ -29,36 +29,36 @@ func newSprintScopedID(prefix string) string {
 // --------------------------------------------------------------- bodies ---
 
 type createSprintRequest struct {
-	ID          *string    `json:"id"`
-	ModuleID    *string    `json:"moduleId"`
-	Number      *int32     `json:"number"`
-	Name        string     `json:"name"`
-	Goal        string     `json:"goal"`
-	StartDate   *time.Time `json:"startDate"`
-	EndDate     *time.Time `json:"endDate"`
-	WorkingDays *int32     `json:"workingDays"`
-	DaysLeft    *int32     `json:"daysLeft"`
-	Status      *string    `json:"status"`
-	Committed   *int32     `json:"committed"`
-	Completed   *int32     `json:"completed"`
-	Progress    *int32     `json:"progress"`
-	Risk        *string    `json:"risk"`
+	ID          *string `json:"id"`
+	ModuleID    *string `json:"moduleId"`
+	Number      *int32  `json:"number"`
+	Name        string  `json:"name"`
+	Goal        string  `json:"goal"`
+	StartDate   *string `json:"startDate"`
+	EndDate     *string `json:"endDate"`
+	WorkingDays *int32  `json:"workingDays"`
+	DaysLeft    *int32  `json:"daysLeft"`
+	Status      *string `json:"status"`
+	Committed   *int32  `json:"committed"`
+	Completed   *int32  `json:"completed"`
+	Progress    *int32  `json:"progress"`
+	Risk        *string `json:"risk"`
 }
 
 type updateSprintRequest struct {
-	ModuleID    *string    `json:"moduleId"`
-	Number      *int32     `json:"number"`
-	Name        *string    `json:"name"`
-	Goal        *string    `json:"goal"`
-	StartDate   *time.Time `json:"startDate"`
-	EndDate     *time.Time `json:"endDate"`
-	WorkingDays *int32     `json:"workingDays"`
-	DaysLeft    *int32     `json:"daysLeft"`
-	Status      *string    `json:"status"`
-	Committed   *int32     `json:"committed"`
-	Completed   *int32     `json:"completed"`
-	Progress    *int32     `json:"progress"`
-	Risk        *string    `json:"risk"`
+	ModuleID    *string `json:"moduleId"`
+	Number      *int32  `json:"number"`
+	Name        *string `json:"name"`
+	Goal        *string `json:"goal"`
+	StartDate   *string `json:"startDate"`
+	EndDate     *string `json:"endDate"`
+	WorkingDays *int32  `json:"workingDays"`
+	DaysLeft    *int32  `json:"daysLeft"`
+	Status      *string `json:"status"`
+	Committed   *int32  `json:"committed"`
+	Completed   *int32  `json:"completed"`
+	Progress    *int32  `json:"progress"`
+	Risk        *string `json:"risk"`
 }
 
 type addSprintMemberRequest struct {
@@ -181,6 +181,14 @@ func (s *Server) createSprint(c echo.Context) error {
 	if req.Name == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
 	}
+	startDate, err := parseDate(req.StartDate)
+	if err != nil {
+		return err
+	}
+	endDate, err := parseDate(req.EndDate)
+	if err != nil {
+		return err
+	}
 
 	id := deref(req.ID)
 	if id == "" {
@@ -208,8 +216,8 @@ func (s *Server) createSprint(c echo.Context) error {
 			Number:      *req.Number,
 			Name:        req.Name,
 			Goal:        req.Goal,
-			StartDate:   req.StartDate,
-			EndDate:     req.EndDate,
+			StartDate:   startDate,
+			EndDate:     endDate,
 			WorkingDays: workingDays,
 			DaysLeft:    daysLeft,
 			Status:      status,
@@ -245,8 +253,8 @@ func (s *Server) createSprint(c echo.Context) error {
 			Number:      number,
 			Name:        req.Name,
 			Goal:        req.Goal,
-			StartDate:   req.StartDate,
-			EndDate:     req.EndDate,
+			StartDate:   startDate,
+			EndDate:     endDate,
 			WorkingDays: workingDays,
 			DaysLeft:    daysLeft,
 			Status:      status,
@@ -290,6 +298,15 @@ func (s *Server) updateSprint(c echo.Context) error {
 		return err
 	}
 
+	startDate, err := parseDate(req.StartDate)
+	if err != nil {
+		return err
+	}
+	endDate, err := parseDate(req.EndDate)
+	if err != nil {
+		return err
+	}
+
 	// Partial update: only the named fields are written.
 	arg := db.UpdateSprintParams{
 		ID:          id,
@@ -297,8 +314,8 @@ func (s *Server) updateSprint(c echo.Context) error {
 		Number:      req.Number,
 		Name:        req.Name,
 		Goal:        req.Goal,
-		StartDate:   req.StartDate,
-		EndDate:     req.EndDate,
+		StartDate:   startDate,
+		EndDate:     endDate,
 		WorkingDays: req.WorkingDays,
 		DaysLeft:    req.DaysLeft,
 		Status:      req.Status,

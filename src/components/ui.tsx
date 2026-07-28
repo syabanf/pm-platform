@@ -106,6 +106,15 @@ export const Textarea = forwardRef<
   return <textarea ref={ref} className={cx(inputClass, className)} {...rest} />;
 });
 
+/**
+ * A labelled form control.
+ *
+ * The label is a real `<label>` wrapping the control, which is what gives the
+ * control its accessible name — it used to be a `<div>`, so every input in the
+ * app announced as "edit, blank" and the visible text was read as unrelated
+ * prose. Wrapping associates implicitly, so no call site has to invent an id,
+ * and clicking the text focuses the control.
+ */
 export function Field({
   label,
   children,
@@ -114,10 +123,10 @@ export function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <div className="label mb-1.5">{label}</div>
+    <label className="block">
+      <span className="label mb-1.5 block">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }
 

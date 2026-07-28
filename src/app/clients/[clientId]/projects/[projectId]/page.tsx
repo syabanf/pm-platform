@@ -18,7 +18,7 @@ import {
   allOf,
 } from "@/components/ui";
 import { clientPath, productPath } from "@/lib/data";
-import { newId, usePrototype } from "@/lib/store";
+import { blockedCountFor, newId, usePrototype } from "@/lib/store";
 import type { Product } from "@/lib/types";
 
 type ProductDraft = {
@@ -55,6 +55,7 @@ export default function ProjectDetailPage({
     projects,
     products,
     sprints,
+    tasks,
     productsCrud,
     removeProductCascade,
     showToast,
@@ -81,7 +82,11 @@ export default function ProjectDetailPage({
   const projectProducts = products.filter((p) => p.projectId === project.id);
   const atRisk = projectProducts.filter((p) => p.risk !== "low").length;
   const activeSprints = projectProducts.filter((p) => p.currentSprintId).length;
-  const blocked = projectProducts.reduce((sum, p) => sum + p.blockedCount, 0);
+  // Summed from live task status; products.blockedCount is a seed nothing maintains.
+  const blocked = projectProducts.reduce(
+    (sum, p) => sum + blockedCountFor(sprints, tasks, p.id),
+    0
+  );
 
   const filteredProducts = projectProducts.filter(
     (p) =>

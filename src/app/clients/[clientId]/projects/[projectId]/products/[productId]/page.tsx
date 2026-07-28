@@ -6,7 +6,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { AIInsightBlock, AICoachSlideOver } from "@/components/AICoachPanel";
 import { EmptyState, KpiStrip } from "@/components/ui";
 import { modulePath, productPath } from "@/lib/data";
-import { usePrototype } from "@/lib/store";
+import { blockedCountFor, usePrototype } from "@/lib/store";
 
 export default function ProductOverviewPage({
   params,
@@ -14,8 +14,10 @@ export default function ProductOverviewPage({
   params: Promise<{ productId: string }>;
 }) {
   const { productId } = use(params);
-  const { products, sprints } = usePrototype();
+  const { products, sprints, tasks } = usePrototype();
   const product = products.find((p) => p.id === productId);
+  // Counted from the board, not the seeded products.blockedCount, which nothing updates.
+  const blockedNow = blockedCountFor(sprints, tasks, productId);
   if (!product) return null;
   const sprint = product.currentSprintId
     ? sprints.find((s) => s.id === product.currentSprintId)
@@ -54,9 +56,9 @@ export default function ProductOverviewPage({
           { value: `${product.health}%`, label: "Module Health" },
           { value: product.velocity, label: "Velocity" },
           {
-            value: product.blockedCount,
+            value: blockedNow,
             label: "Blocked",
-            tone: product.blockedCount > 0 ? "danger" : "neutral",
+            tone: blockedNow > 0 ? "danger" : "neutral",
           },
           {
             value:

@@ -16,7 +16,7 @@ import {
   sprintPath,
   velocityInsight,
 } from "@/lib/data";
-import { usePrototype } from "@/lib/store";
+import { blockedCountFor, usePrototype } from "@/lib/store";
 
 const TODAY = "2026-07-08";
 
@@ -296,10 +296,12 @@ export default function HomePage() {
                               </span>
                               <StatusPill
                                 status={
-                                  product.blockedCount > 1 ? "blocked" : product.risk
+                                  blockedCountFor(sprints, tasks, product.id) > 1
+                                    ? "blocked"
+                                    : product.risk
                                 }
                                 label={
-                                  product.blockedCount > 1
+                                  blockedCountFor(sprints, tasks, product.id) > 1
                                     ? "blocked"
                                     : `${product.risk} risk`
                                 }

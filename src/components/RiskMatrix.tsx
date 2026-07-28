@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { productPath } from "@/lib/data";
-import { usePrototype } from "@/lib/store";
+import { blockedCountFor, usePrototype } from "@/lib/store";
 
 const riskY: Record<string, number> = { high: 0, medium: 1, low: 2 };
 const riskLabels = ["High risk", "Medium risk", "Low risk"];
 
 /** Products plotted by health (x) and risk band (y) — where to look first. */
 export function RiskMatrix({ compact = false }: { compact?: boolean }) {
-  const { products } = usePrototype();
+  const { products, sprints, tasks } = usePrototype();
   const router = useRouter();
 
   const width = 640;
@@ -120,7 +120,7 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
 
         {/* product dots — one per lane, label beside the dot on its own line */}
         {placed.map(({ product, cx, cy, labelSide }) => {
-          const blocked = product.blockedCount > 1;
+          const blocked = blockedCountFor(sprints, tasks, product.id) > 1;
           const r = compact ? 5 : 6;
           const label =
             product.name.length > 20

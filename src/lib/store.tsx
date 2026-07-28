@@ -575,3 +575,63 @@ export function useSprint(sprintId: string): Sprint | null {
   const { sprints } = usePrototype();
   return sprints.find((s) => s.id === sprintId) ?? null;
 }
+
+/**
+ * What a sprint has actually finished, counted from the board.
+ *
+ * `committed` stays a stored number — it is what the team promised at planning
+ * and does not change because a card moved. `completed` must not be stored:
+ * nothing in the app wrote it, so a team could finish every task and the charts
+ * would still report the seeded figure. The Charts tab tells the reader these
+ * come "from task status", and now they do.
+ */
+export function useSprintProgress(sprintId: string): {
+  committed: number;
+  completed: number;
+  remaining: number;
+  percent: number;
+} {
+  const { sprints, tasks } = usePrototype();
+  const sprint = sprints.find((s) => s.id === sprintId);
+  const mine = tasks.filter((t) => t.sprintId === sprintId);
+
+  // Fall back to the planned figure only when there is no board to count.
+  const committed = mine.length
+    ? mine.reduce((sum, t) => sum + t.estimate, 0)
+    : (sprint?.committed ?? 0);
+  const completed = mine
+    .filter((t) => t.column === "done")
+    .reduce((sum, t) => sum + t.estimate, 0);
+
+  return {
+    committed,
+    completed,
+    remaining: Math.max(0, committed - completed),
+    percent: committed > 0 ? Math.round((completed / committed) * 100) : 0,
+  };
+}
+
+/**
+ * How many tasks are blocked right now across a module's sprints.
+ *
+ * products.blockedCount is a seeded counter no user action updates, so clearing
+ * every blocker on the board left the module, project and portfolio pages still
+ * reporting the original number.
+ */
+export function blockedCountFor(
+  sprints: Sprint[],
+  tasks: Task[],
+  productId: string
+): number {
+  const ids = new Set(
+    sprints.filter((s) => s.productId === productId).map((s) => s.id)
+  );
+  return tasks.filter((t) => ids.has(t.sprintId) && t.column === "blocked")
+    .length;
+}
+
+/** Hook form of blockedCountFor, for a page that shows one module. */
+export function useProductBlocked(productId: string): number {
+  const { sprints, tasks } = usePrototype();
+  return blockedCountFor(sprints, tasks, productId);
+}

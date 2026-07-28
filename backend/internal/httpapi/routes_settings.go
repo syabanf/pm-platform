@@ -52,20 +52,6 @@ func newSettingsID(prefix string) string {
 	return prefix + "-" + hex.EncodeToString(b[:])
 }
 
-// parseSettingsDate accepts "2006-01-02" or RFC3339 and returns a DATE value.
-func parseSettingsDate(raw *string) (*time.Time, error) {
-	if raw == nil || *raw == "" {
-		return nil, nil
-	}
-	if t, err := time.Parse("2006-01-02", *raw); err == nil {
-		return ptr(t), nil
-	}
-	if t, err := time.Parse(time.RFC3339, *raw); err == nil {
-		return ptr(t.UTC().Truncate(24 * time.Hour)), nil
-	}
-	return nil, echo.NewHTTPError(http.StatusBadRequest, "invalid date: expected YYYY-MM-DD")
-}
-
 // ---------------------------------------------------------- report_templates ---
 
 type upsertReportTemplateRequest struct {
@@ -170,7 +156,7 @@ func (s *Server) createReportQueueItem(c echo.Context) error {
 	if req.ProductID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "productId is required")
 	}
-	due, err := parseSettingsDate(req.Due)
+	due, err := parseDate(req.Due)
 	if err != nil {
 		return err
 	}
@@ -269,7 +255,7 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 	if req.ProductID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "productId is required")
 	}
-	generatedOn, err := parseSettingsDate(req.GeneratedOn)
+	generatedOn, err := parseDate(req.GeneratedOn)
 	if err != nil {
 		return err
 	}

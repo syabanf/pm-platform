@@ -68,8 +68,8 @@ export default function LoginPage() {
           </p>
 
           <form onSubmit={submit} className="mt-8 space-y-4">
-            <div>
-              <label className="label mb-1.5 block">Email</label>
+            <label className="block">
+              <span className="label mb-1.5 block">Email</span>
               <Input
                 type="email"
                 value={email}
@@ -80,9 +80,9 @@ export default function LoginPage() {
                 placeholder="you@wit.id"
                 autoComplete="username"
               />
-            </div>
-            <div>
-              <label className="label mb-1.5 block">Password</label>
+            </label>
+            <label className="block">
+              <span className="label mb-1.5 block">Password</span>
               <Input
                 type="password"
                 value={password}
@@ -93,7 +93,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 autoComplete="current-password"
               />
-            </div>
+            </label>
             {error && <p className="text-xs text-danger">{error}</p>}
             <Button type="submit" size="lg" fullWidth>
               Sign in

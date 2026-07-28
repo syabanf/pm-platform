@@ -455,6 +455,27 @@ func paged[T any](c echo.Context, rows []T, limit int32) error {
 	return c.JSON(http.StatusOK, rows)
 }
 
+// parseDate accepts "2006-01-02" or RFC 3339 for a DATE column.
+//
+// Every date-only field takes a string and comes through here rather than being
+// typed *time.Time: encoding/json only understands RFC 3339 for a time.Time, so
+// a plain YYYY-MM-DD — what <input type="date"> produces, and what this API
+// documents — failed during binding and was reported as "invalid JSON body",
+// blaming the envelope for a value it never reached.
+func parseDate(raw *string) (*time.Time, error) {
+	if raw == nil || *raw == "" {
+		return nil, nil
+	}
+	if t, err := time.Parse("2006-01-02", *raw); err == nil {
+		return ptr(t), nil
+	}
+	if t, err := time.Parse(time.RFC3339, *raw); err == nil {
+		return ptr(t.UTC().Truncate(24 * time.Hour)), nil
+	}
+	return nil, echo.NewHTTPError(http.StatusBadRequest,
+		"invalid date: expected YYYY-MM-DD or RFC 3339")
+}
+
 // optional records whether a JSON key was present at all. A plain pointer
 // cannot: encoding/json sets a *T to nil for an explicit null exactly as it
 // does for an absent key, so the two are indistinguishable. A type with its own
