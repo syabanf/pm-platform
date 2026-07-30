@@ -26,6 +26,15 @@ what is still open.
 
 ## Running it
 
+The whole stack, in containers:
+
+```bash
+cp .env.example .env      # every variable is already filled in
+docker compose up -d      # http://localhost:8081
+```
+
+Or just the frontend, which needs no configuration at all:
+
 ```bash
 npm install && npm run dev
 ```

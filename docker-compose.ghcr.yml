@@ -20,10 +20,28 @@ services:
     image: ${GHCR_IMAGE_PREFIX:-ghcr.io/syabanf/pm-platform}-backend:${IMAGE_TAG:-latest}
     pull_policy: always
     environment:
-      APP_ENV: production
+      APP_ENV: ${APP_ENV:-production}
       PORT: "8080"
       DATABASE_URL: postgres://${DB_USER:-wit}:${DB_PASSWORD:?DB_PASSWORD must be set}@db:5432/${DB_NAME:-wit_sprint_os}?sslmode=disable
       CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS must be set}
+      # Tunables. Defaults match internal/config/config.go, so a variable left
+      # unset in .env behaves exactly as the binary would on its own.
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-15s}
+      STATEMENT_TIMEOUT: ${STATEMENT_TIMEOUT:-5s}
+      DELETE_TIMEOUT: ${DELETE_TIMEOUT:-120s}
+      LOCK_TIMEOUT: ${LOCK_TIMEOUT:-250ms}
+      READ_TIMEOUT: ${READ_TIMEOUT:-10s}
+      WRITE_TIMEOUT: ${WRITE_TIMEOUT:-20s}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
+      MAX_DB_CONNS: ${MAX_DB_CONNS:-25}
+      MIN_DB_CONNS: ${MIN_DB_CONNS:-2}
+      MAX_CONN_IDLE_TIME: ${MAX_CONN_IDLE_TIME:-5m}
+      MAX_CONN_LIFETIME: ${MAX_CONN_LIFETIME:-60m}
+      MAX_BODY_SIZE: ${MAX_BODY_SIZE:-1M}
+      # APP_ENV is production here, so registration will not hand the
+      # verification token back in the response. With no mailer it needs
+      # somewhere to go, or sign-ups refuse with 503 — see .env.example.
+      VERIFICATION_TOKEN_IN_LOG: ${VERIFICATION_TOKEN_IN_LOG:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -83,9 +83,33 @@ make run                          # API :8080
 
 ### Docker (keduanya)
 
-Repo punya `Dockerfile` di root dan di `backend/`, plus `docker-compose.yml` dan
-`docker-compose.ghcr.yml`, dengan workflow build image di
-`.github/workflows/container-images.yml`.
+```bash
+cp .env.example .env      # semua variabel sudah terisi
+docker compose up -d      # http://localhost:8081
+```
+
+Repo punya `Dockerfile` di root dan di `backend/`, plus `docker-compose.yml`
+(build lokal) dan `docker-compose.ghcr.yml` (menarik image siap pakai), dengan
+workflow build di `.github/workflows/container-images.yml`.
+
+### Konfigurasi
+
+Dua file template, keduanya sudah berisi nilai yang berfungsi:
+
+| File | Untuk |
+| ---- | ----- |
+| `.env.example` | seluruh stack lewat Docker Compose |
+| `backend/.env.example` | backend dijalankan langsung, tanpa Docker |
+
+Salin ke `.env`, itu saja. Menghapus satu baris membuat default bawaan berlaku —
+dan default di compose sengaja dibuat sama dengan default di
+`internal/config/config.go`, jadi variabel yang tidak diset berperilaku persis
+seperti binary-nya sendiri.
+
+> Stack Docker menjalankan backend dengan `APP_ENV=production`, jadi token
+> verifikasi tidak dikembalikan di response. Karena belum ada mailer,
+> `.env.example` menyalakan `VERIFICATION_TOKEN_IN_LOG=true` supaya pendaftaran
+> berfungsi — dengan konsekuensi log harus diperlakukan sebagai rahasia.
 
 ### Perintah harian
 
