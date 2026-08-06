@@ -82,20 +82,28 @@ const staticNavBottom: NavItem[] = [
 
 // Notify on back/forward AND programmatic pushState/replaceState (Next's
 // router), so query-only navigation updates subscribers too.
+//
+// The notification is deferred by a microtask. Next's router calls pushState
+// from inside a useInsertionEffect, and React forbids scheduling an update
+// there — calling back synchronously threw "useInsertionEffect must not
+// schedule updates" on every navigation that changed the query string. A
+// microtask runs after the commit that is complaining, and getTypeParam reads
+// the live URL, so the value React then asks for is still the right one.
 const subscribeToHistory = (callback: () => void) => {
-  window.addEventListener("popstate", callback);
+  const notify = () => queueMicrotask(callback);
+  window.addEventListener("popstate", notify);
   const origPush = history.pushState.bind(history);
   const origReplace = history.replaceState.bind(history);
   history.pushState = (...args) => {
     origPush(...args);
-    callback();
+    notify();
   };
   history.replaceState = (...args) => {
     origReplace(...args);
-    callback();
+    notify();
   };
   return () => {
-    window.removeEventListener("popstate", callback);
+    window.removeEventListener("popstate", notify);
     history.pushState = origPush;
     history.replaceState = origReplace;
   };
