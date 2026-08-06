@@ -94,7 +94,10 @@ export default function SprintsListPage({
             No sprints match the filters.
           </p>
         ) : view === "gantt" ? (
-          <SprintGantt sprints={filtered} basePath={base} />
+          <SprintGantt
+            sprints={filtered}
+            hrefFor={(s) => `${base}/sprints/${s.id}/board`}
+          />
         ) : view === "calendar" ? (
           <SprintCalendar sprints={filtered} />
         ) : (

@@ -48,6 +48,8 @@ export type Masters = Record<MasterListKey, string[]>;
 export interface ViewPrefs {
   board: "kanban" | "swimlanes" | "workload";
   sprints: "list" | "gantt" | "calendar";
+  /** The project page's Modules section: table, or the timeline of its sprints. */
+  projectModules: "list" | "gantt" | "calendar";
 }
 
 export const newId = (prefix: string) =>
@@ -300,6 +302,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
   const [viewPrefs, setViewPrefs] = useState<ViewPrefs>({
     board: "kanban",
     sprints: "list",
+    projectModules: "list",
   });
   const setViewPref = useCallback(
     <K extends keyof ViewPrefs>(key: K, value: ViewPrefs[K]) => {

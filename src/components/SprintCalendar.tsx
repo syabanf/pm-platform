@@ -6,6 +6,8 @@ import type { Sprint } from "@/lib/types";
 const TODAY = "2026-07-08";
 
 interface CalEvent {
+  /** Unique per marker: two modules can put the same words on the same day. */
+  id: string;
   date: string;
   label: string;
   tone: "start" | "review";
@@ -17,22 +19,39 @@ const monthName = (y: number, m: number) =>
 const iso = (y: number, m: number, d: number) =>
   `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
-export function SprintCalendar({ sprints }: { sprints: Sprint[] }) {
+export function SprintCalendar({
+  sprints,
+  labelFor,
+}: {
+  sprints: Sprint[];
+  /**
+   * What to call a sprint on a marker. Defaults to its number, which only
+   * identifies it within one module — a project calendar showing two modules'
+   * "Sprint 01" needs the module name to tell them apart.
+   */
+  labelFor?: (sprint: Sprint) => string;
+}) {
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(6); // July (0-indexed)
 
-  const events: CalEvent[] = sprints.flatMap((sprint) => [
-    {
-      date: sprint.startDate,
-      label: `Sprint ${String(sprint.number).padStart(2, "0")} starts`,
-      tone: "start" as const,
-    },
-    {
-      date: sprint.endDate,
-      label: `Sprint ${String(sprint.number).padStart(2, "0")} review & demo`,
-      tone: "review" as const,
-    },
-  ]);
+  const events: CalEvent[] = sprints.flatMap((sprint) => {
+    const name =
+      labelFor?.(sprint) ?? `Sprint ${String(sprint.number).padStart(2, "0")}`;
+    return [
+      {
+        id: `${sprint.id}-start`,
+        date: sprint.startDate,
+        label: `${name} starts`,
+        tone: "start" as const,
+      },
+      {
+        id: `${sprint.id}-end`,
+        date: sprint.endDate,
+        label: `${name} review & demo`,
+        tone: "review" as const,
+      },
+    ];
+  });
 
   const firstDay = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -101,7 +120,7 @@ export function SprintCalendar({ sprints }: { sprints: Sprint[] }) {
                   <div className="mt-1 space-y-1">
                     {dayEvents.map((event) => (
                       <div
-                        key={event.label}
+                        key={event.id}
                         title={event.label}
                         className={`truncate border-l-2 px-1 py-0.5 text-[10px] leading-tight ${
                           event.tone === "start"

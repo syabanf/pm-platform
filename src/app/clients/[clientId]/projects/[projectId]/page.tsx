@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
+import { ViewSwitcher } from "@/components/ViewSwitcher";
+import { SprintGantt } from "@/components/SprintGantt";
+import { SprintCalendar } from "@/components/SprintCalendar";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field, inputClass } from "@/components/Document";
 import {
@@ -56,6 +59,8 @@ export default function ProjectDetailPage({
     products,
     sprints,
     tasks,
+    viewPrefs,
+    setViewPref,
     productsCrud,
     removeProductCascade,
     showToast,
@@ -82,6 +87,8 @@ export default function ProjectDetailPage({
   const projectProducts = products.filter((p) => p.projectId === project.id);
   const atRisk = projectProducts.filter((p) => p.risk !== "low").length;
   const activeSprints = projectProducts.filter((p) => p.currentSprintId).length;
+  const view = viewPrefs.projectModules;
+
   // Summed from live task status; products.blockedCount is a seed nothing maintains.
   const blocked = projectProducts.reduce(
     (sum, p) => sum + blockedCountFor(sprints, tasks, p.id),
@@ -93,6 +100,14 @@ export default function ProjectDetailPage({
       (statusFilter === "all" || p.status === statusFilter) &&
       (riskFilter === "all" || p.risk === riskFilter)
   );
+  // The timeline draws the sprints of whichever modules survive the filters, so
+  // narrowing to "at risk" narrows the chart with it. Every row has to say
+  // which module it belongs to: sprint numbers only count within one module,
+  // so a project timeline can hold several "Sprint 01".
+  const filteredProductIds = new Set(filteredProducts.map((p) => p.id));
+  const timelineSprints = sprints.filter((s) => filteredProductIds.has(s.productId));
+  const productOf = (s: { productId: string }) =>
+    projectProducts.find((p) => p.id === s.productId)!;
 
   const openCreate = () => {
     setEditingId(null);
@@ -198,14 +213,27 @@ export default function ProjectDetailPage({
       />
 
       <section className="mt-12">
-        <div className="flex items-center justify-between">
-          <h2 className="label">Modules — drill down</h2>
-          <Button
-            size="sm"
-            onClick={() => (panelOpen ? setPanelOpen(false) : openCreate())}
-          >
-            Add Module
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="label">
+            {view === "list" ? "Modules — drill down" : "Modules — timeline"}
+          </h2>
+          <div className="flex items-center gap-3">
+            <ViewSwitcher
+              options={[
+                { id: "list" as const, label: "List" },
+                { id: "gantt" as const, label: "Gantt" },
+                { id: "calendar" as const, label: "Calendar" },
+              ]}
+              value={view}
+              onChange={(v) => setViewPref("projectModules", v)}
+            />
+            <Button
+              size="sm"
+              onClick={() => (panelOpen ? setPanelOpen(false) : openCreate())}
+            >
+              Add Module
+            </Button>
+          </div>
         </div>
 
         {panelOpen && (
@@ -314,6 +342,31 @@ export default function ProjectDetailPage({
               />
               {filteredProducts.length === 0 ? (
                 <EmptyState>No modules match the current filters.</EmptyState>
+              ) : view !== "list" ? (
+                timelineSprints.length === 0 ? (
+                  <EmptyState>
+                    These modules have no sprints yet. Open a module and add one
+                    from its Components tab.
+                  </EmptyState>
+                ) : view === "gantt" ? (
+                  <SprintGantt
+                    sprints={timelineSprints}
+                    hrefFor={(s) =>
+                      `${productPath(productOf(s))}/sprints/${s.id}/board`
+                    }
+                    labelFor={(s) => ({
+                      title: productOf(s).name,
+                      subtitle: `Sprint ${String(s.number).padStart(2, "0")} · ${s.name}`,
+                    })}
+                  />
+                ) : (
+                  <SprintCalendar
+                    sprints={timelineSprints}
+                    labelFor={(s) =>
+                      `${productOf(s).name} · Sprint ${String(s.number).padStart(2, "0")}`
+                    }
+                  />
+                )
               ) : (
                 <DataTable
                   headers={["Module", "Status", "Health", "Velocity", "Current Sprint", "Risk", ""]}

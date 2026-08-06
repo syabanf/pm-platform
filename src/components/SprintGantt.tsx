@@ -10,13 +10,31 @@ const DAY = 24 * 60 * 60 * 1000;
 
 export function SprintGantt({
   sprints,
-  basePath,
+  hrefFor,
+  labelFor,
 }: {
   sprints: Sprint[];
-  basePath: string;
+  /**
+   * Where a bar links to. A resolver rather than a base path because a project
+   * timeline draws sprints from several modules at once, and each one lives
+   * under its own module's URL.
+   */
+  hrefFor: (sprint: Sprint) => string;
+  /**
+   * The row label. Defaults to the sprint number, which is enough inside one
+   * module — but numbers only count within a module, so a project timeline
+   * holding two "Sprint 01"s has to say which module each belongs to.
+   */
+  labelFor?: (sprint: Sprint) => { title: string; subtitle?: string };
 }) {
   if (sprints.length === 0) return null;
-  const ordered = [...sprints].sort((a, b) => a.number - b.number);
+  // By date, not by number: across modules the numbers repeat, and ordering by
+  // them interleaves unrelated work into a meaningless sequence.
+  const ordered = [...sprints].sort(
+    (a, b) =>
+      toDate(a.startDate).getTime() - toDate(b.startDate).getTime() ||
+      a.number - b.number
+  );
 
   const min = Math.min(...ordered.map((s) => toDate(s.startDate).getTime())) - 2 * DAY;
   const max = Math.max(...ordered.map((s) => toDate(s.endDate).getTime())) + 3 * DAY;
@@ -83,17 +101,22 @@ export function SprintGantt({
               sprint.committed > 0
                 ? Math.round((sprint.completed / sprint.committed) * 100)
                 : 0;
+            const label = labelFor?.(sprint) ?? {
+              title: `Sprint ${String(sprint.number).padStart(2, "0")}`,
+            };
             return (
               <div key={sprint.id} className="flex items-center border-b border-line py-4">
                 <div className="w-44 shrink-0 pr-4">
-                  <div className="text-sm font-medium text-ink">
-                    Sprint {String(sprint.number).padStart(2, "0")}
+                  <div className="truncate text-sm font-medium text-ink">
+                    {label.title}
                   </div>
-                  <div className="truncate text-xs text-muted">{sprint.name}</div>
+                  <div className="truncate text-xs text-muted">
+                    {label.subtitle ?? sprint.name}
+                  </div>
                 </div>
                 <div className="relative h-7 flex-1">
                   <Link
-                    href={`${basePath}/sprints/${sprint.id}/board`}
+                    href={hrefFor(sprint)}
                     title={`${sprint.goal} — ${progress}% complete`}
                     className={`animate-grow-x absolute inset-y-0 flex items-center overflow-hidden border px-2 text-[11px] font-medium transition-colors ${
                       sprint.status === "done"
