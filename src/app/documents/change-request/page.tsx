@@ -62,7 +62,7 @@ export default function ChangeRequestPage() {
         <>
           <Field label="Module">
             <div className="flex flex-wrap gap-1.5">
-              {products.slice(0, 4).map((p) => (
+              {products.map((p) => (
                 <ToggleButton
                   key={p.id}
                   active={productId === p.id}

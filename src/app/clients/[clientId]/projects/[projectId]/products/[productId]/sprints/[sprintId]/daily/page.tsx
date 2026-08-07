@@ -4,7 +4,7 @@ import { use } from "react";
 import { DataTable } from "@/components/DataTable";
 import { AIInsightBlock } from "@/components/AICoachPanel";
 import { dailyInsight, dailyUpdates, getMember } from "@/lib/data";
-import { useSprint } from "@/lib/store";
+import { useSprint, useSprintProgress } from "@/lib/store";
 
 const confidenceTone = {
   high: "text-success",
@@ -19,6 +19,11 @@ export default function DailyScrumPage({
 }) {
   const { sprintId } = use(params);
   const sprint = useSprint(sprintId);
+  // The same count the board and the charts show. This used to divide the
+  // seeded `completed` by `committed`, neither of which any action on the board
+  // ever writes — so standup read a number frozen at whatever the fixture said,
+  // and two adjacent tabs disagreed about the same sprint.
+  const { percent } = useSprintProgress(sprintId);
   if (!sprint) return null;
 
   const started = sprint.daysLeft < sprint.workingDays;
@@ -41,10 +46,7 @@ export default function DailyScrumPage({
         </div>
         <div className="text-right">
           <div className="text-3xl font-semibold tabular-nums text-ink">
-            {sprint.committed > 0
-              ? Math.round((sprint.completed / sprint.committed) * 100)
-              : 0}
-            %
+            {percent}%
           </div>
           <div className="label mt-0.5">Progress to Sprint Goal</div>
         </div>

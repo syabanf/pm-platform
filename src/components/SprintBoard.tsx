@@ -40,7 +40,7 @@ function TaskCardView({
   onToggleExpand?: () => void;
   dragging?: boolean;
 }) {
-  const { toggleDod, tasksCrud, members, showToast } = usePrototype();
+  const { toggleDod, tasksCrud, members, moveTask, showToast } = usePrototype();
   const member = members.find((m) => m.id === task.assigneeId);
   const dodDone = task.dod.filter((d) => d.done).length;
   const severity = blockerSeverity(task);
@@ -169,6 +169,26 @@ function TaskCardView({
           <div className="label pt-1">Add a blocker</div>
           <AddBlocker task={task} />
 
+          {/* Dragging was the only way to move a card. There is no drag on a
+              phone inside a horizontal scroller, and none from a keyboard, so
+              for those people the board was read-only. This is the same
+              moveTask the drag handler calls, Definition-of-Done gate and all. */}
+          <div className="label pt-1">Column</div>
+          <label className="block">
+            <span className="sr-only">Move task to column</span>
+            <select
+              value={task.column}
+              onChange={(e) => moveTask(task.id, e.target.value as BoardColumn)}
+              className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
+            >
+              {columns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="label pt-1">Edit task</div>
           <label className="block">
             <span className="sr-only">Task title</span>
@@ -277,25 +297,42 @@ function LaneCell({
   );
 }
 
+/**
+ * Adds a task.
+ *
+ * A swimlane already knows which backlog item it belongs to and passes `item`.
+ * Kanban does not, so it omits it and the form asks — which is what makes this
+ * usable from the view the board actually opens on.
+ */
 function AddTaskForm({
   item,
   sprintId,
+  label = "+ Task",
 }: {
-  item: BacklogItem;
+  item?: BacklogItem;
   sprintId: string;
+  label?: string;
 }) {
-  const { tasksCrud, members, dodTemplate, showToast, sprints } =
+  const { tasksCrud, members, dodTemplate, showToast, sprints, backlog } =
     usePrototype();
+  const sprint = sprints.find((s) => s.id === sprintId);
+  const choices = item
+    ? [item]
+    : backlog.filter((b) => sprint?.backlogItemIds.includes(b.id));
+
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState(members[0]?.id ?? "");
+  const [itemId, setItemId] = useState(choices[0]?.id ?? "");
+
+  const parent = item ?? choices.find((c) => c.id === itemId);
 
   const create = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !parent) return;
     tasksCrud.add({
       id: newId("task"),
       sprintId,
-      backlogItemId: item.id,
+      backlogItemId: parent.id,
       // Due at the end of the sprint it is added to: the last day it could be
       // finished and still count. The board has no field for it, and a task
       // with no date would simply never appear on the calendar.
@@ -303,11 +340,11 @@ function AddTaskForm({
         sprints.find((s) => s.id === sprintId)?.endDate ??
         new Date().toISOString().slice(0, 10),
       title: title.trim(),
-      moduleName: item.title,
+      moduleName: parent.title,
       assigneeId,
       estimate: 1,
       column: "selected",
-      priority: item.priority,
+      priority: parent.priority,
       blockers: [],
       dod: dodTemplate.map((label) => ({ label, done: false })),
     });
@@ -322,7 +359,7 @@ function AddTaskForm({
         onClick={() => setOpen(true)}
         className="mt-2 w-full border border-dashed border-line py-1 text-[11px] text-muted hover:border-black hover:text-ink"
       >
-        + Task
+        {label}
       </button>
     );
   }
@@ -337,6 +374,22 @@ function AddTaskForm({
         placeholder="Task title"
         className="w-full border border-line px-2 py-1 text-xs text-ink focus:border-black focus:outline-none"
       />
+      {!item && (
+        <label className="block">
+          <span className="sr-only">Backlog item this task belongs to</span>
+          <select
+            value={itemId}
+            onChange={(e) => setItemId(e.target.value)}
+            className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
+          >
+            {choices.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <select
         value={assigneeId}
         onChange={(e) => setAssigneeId(e.target.value)}
@@ -476,6 +529,11 @@ export function KanbanBoard({ sprintId }: { sprintId: string }) {
               No items
             </div>
           )}
+          {/* Kanban is the view the board opens on, and until now it had no way
+              to add a task at all — the only form lived in Swimlanes. */}
+          {column.id === "selected" && (
+            <AddTaskForm sprintId={sprintId} label="+ Add task" />
+          )}
         </div>
       </div>
     );
@@ -514,7 +572,7 @@ export function KanbanBoard({ sprintId }: { sprintId: string }) {
  * that needs another adds it in Settings without touching code.
  */
 function AddBlocker({ task }: { task: Task }) {
-  const { tasksCrud, masters } = usePrototype();
+  const { tasksCrud, masters, moveTask, showToast } = usePrototype();
   const categories = masters.blockerCategories;
   const [category, setCategory] = useState(categories[0] ?? "");
   const [text, setText] = useState("");
@@ -528,6 +586,15 @@ function AddBlocker({ task }: { task: Task }) {
       ],
     });
     setText("");
+
+    // Recording a blocker used to redden the card and nothing else: the board's
+    // Blocked counter, the workload flags and the home triage all read the
+    // column, so the one person who wrote down why they were stuck was the one
+    // person nobody heard. Saying it is now the same act as being it.
+    if (task.column !== "blocked" && task.column !== "done") {
+      moveTask(task.id, "blocked");
+      showToast("Blocker recorded — task moved to Blocked.", "info");
+    }
   };
 
   return (
