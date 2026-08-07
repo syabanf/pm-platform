@@ -10,44 +10,81 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// CSV exports. encoding/csv handles the quoting and escaping that hand-joined
-// commas get wrong the moment a value contains a comma, a quote or a newline.
-// Rows are written to the response one at a time rather than built into one
-// string, and the queries are unpaginated on purpose — an export is the whole
-// set.
+// CSV exports, genuinely streamed. The rows are read from the database with a
+// cursor and each is written to the response as it is scanned, so peak memory is
+// one row, not the whole set — the queries are unpaginated on purpose (an export
+// is the whole set) and a large tenant's export must not build up in the heap
+// first. encoding/csv handles the quoting a hand-joined comma gets wrong.
 func (s *Server) registerExportRoutes(g *echo.Group) {
 	g.GET("/clients/export.csv", s.exportClients)
 	g.GET("/modules/:moduleId/tasks/export.csv", s.exportModuleTasks)
 }
 
-// csvResponse sets the headers and returns a writer to stream rows into. The
-// filename is what a browser saves it as.
-func csvResponse(c echo.Context, filename string) (*csv.Writer, func() error) {
+// sanitizeCSVCell neutralizes spreadsheet formula injection. A value beginning
+// with =, +, -, @, TAB or CR is a formula when the file is opened in Excel or
+// Sheets — so a task titled `=WEBSERVICE(...)` written by one user would run when
+// a delivery lead opens the export. Prefixing a single quote makes the cell
+// literal text. encoding/csv escapes CSV grammar; this handles the spreadsheet
+// semantics it cannot know about.
+func sanitizeCSVCell(v string) string {
+	if v == "" {
+		return v
+	}
+	switch v[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + v
+	}
+	return v
+}
+
+// csvStream sets the CSV headers, then runs write against a fresh csv.Writer,
+// flushing at the end and surfacing any writer error. The header row and the
+// per-row scanning live in write.
+func csvStream(c echo.Context, filename string, write func(*csv.Writer) error) error {
 	h := c.Response().Header()
 	h.Set(echo.HeaderContentType, "text/csv; charset=utf-8")
 	h.Set(echo.HeaderContentDisposition, `attachment; filename="`+filename+`"`)
 	c.Response().WriteHeader(http.StatusOK)
 	w := csv.NewWriter(c.Response())
-	return w, func() error {
-		w.Flush()
-		return w.Error()
+	if err := write(w); err != nil {
+		return err
 	}
+	w.Flush()
+	return w.Error()
 }
 
 func (s *Server) exportClients(c echo.Context) error {
-	rows, err := s.q.ExportClients(c.Request().Context())
+	ctx := c.Request().Context()
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, name, industry, status, health, risk, contract_type,
+		       (archived_at IS NOT NULL) AS archived
+		FROM clients
+		ORDER BY name, id`)
 	if err != nil {
 		return dbErr(err)
 	}
-	w, done := csvResponse(c, "clients.csv")
-	_ = w.Write([]string{"id", "name", "industry", "status", "health", "risk", "contract", "archived"})
-	for _, r := range rows {
-		_ = w.Write([]string{
-			r.ID, r.Name, r.Industry, r.Status, r.Health, r.Risk, r.ContractType,
-			strconv.FormatBool(r.Archived),
-		})
-	}
-	return done()
+	defer rows.Close()
+
+	return csvStream(c, "clients.csv", func(w *csv.Writer) error {
+		if err := w.Write([]string{"id", "name", "industry", "status", "health", "risk", "contract", "archived"}); err != nil {
+			return err
+		}
+		for rows.Next() {
+			var id, name, industry, status, health, risk, contract string
+			var archived bool
+			if err := rows.Scan(&id, &name, &industry, &status, &health, &risk, &contract, &archived); err != nil {
+				return err
+			}
+			if err := w.Write([]string{
+				id, sanitizeCSVCell(name), sanitizeCSVCell(industry),
+				sanitizeCSVCell(status), sanitizeCSVCell(health), sanitizeCSVCell(risk),
+				sanitizeCSVCell(contract), strconv.FormatBool(archived),
+			}); err != nil {
+				return err
+			}
+		}
+		return rows.Err()
+	})
 }
 
 func (s *Server) exportModuleTasks(c echo.Context) error {
@@ -56,25 +93,47 @@ func (s *Server) exportModuleTasks(c echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	// 404 a missing module before streaming a 200 with an empty body, so an
-	// empty file is unambiguously "no tasks", not "wrong id".
+	// 404 a missing module before streaming a 200, so an empty file is
+	// unambiguously "no tasks", not "wrong id".
 	if _, err := s.q.GetModule(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusNotFound, "no such module")
 		}
 		return dbErr(err)
 	}
-	rows, err := s.q.ExportModuleTasks(ctx, id)
+	rows, err := s.pool.Query(ctx, `
+		SELECT t.id, s.number, t.title, t.component_name,
+		       t.board_column, t.priority, t.estimate,
+		       COALESCE(m.name, '')
+		FROM tasks t
+		JOIN sprints s ON s.id = t.sprint_id
+		LEFT JOIN members m ON m.id = t.assignee_id
+		WHERE s.module_id = $1
+		ORDER BY s.number, t.created_at, t.id`, id)
 	if err != nil {
 		return dbErr(err)
 	}
-	w, done := csvResponse(c, "tasks.csv")
-	_ = w.Write([]string{"id", "sprint", "title", "component", "column", "priority", "estimate", "assignee"})
-	for _, r := range rows {
-		_ = w.Write([]string{
-			r.ID, strconv.FormatInt(int64(r.SprintNumber), 10), r.Title, r.ComponentName,
-			r.BoardColumn, r.Priority, strconv.FormatInt(int64(r.Estimate), 10), r.Assignee,
-		})
-	}
-	return done()
+	defer rows.Close()
+
+	return csvStream(c, "tasks.csv", func(w *csv.Writer) error {
+		if err := w.Write([]string{"id", "sprint", "title", "component", "column", "priority", "estimate", "assignee"}); err != nil {
+			return err
+		}
+		for rows.Next() {
+			var tid, title, component, column, priority, assignee string
+			var sprintNumber, estimate int32
+			if err := rows.Scan(&tid, &sprintNumber, &title, &component, &column, &priority, &estimate, &assignee); err != nil {
+				return err
+			}
+			if err := w.Write([]string{
+				tid, strconv.FormatInt(int64(sprintNumber), 10),
+				sanitizeCSVCell(title), sanitizeCSVCell(component),
+				sanitizeCSVCell(column), sanitizeCSVCell(priority),
+				strconv.FormatInt(int64(estimate), 10), sanitizeCSVCell(assignee),
+			}); err != nil {
+				return err
+			}
+		}
+		return rows.Err()
+	})
 }

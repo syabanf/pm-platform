@@ -5,6 +5,8 @@
 --
 -- Velocity, by contrast, is derivable from the sprints table (completed points
 -- per finished sprint), so it needs no snapshot; only burndown does.
+-- The composite primary key (sprint_id, snapshot_on) is itself the index the
+-- read "this sprint, in date order" needs — no separate index required.
 CREATE TABLE sprint_daily_snapshots (
     sprint_id        TEXT    NOT NULL REFERENCES sprints (id) ON DELETE CASCADE,
     snapshot_on      DATE    NOT NULL,
@@ -12,7 +14,3 @@ CREATE TABLE sprint_daily_snapshots (
     completed_points INTEGER NOT NULL,
     PRIMARY KEY (sprint_id, snapshot_on)
 );
-
--- Read is always "this sprint, in date order".
-CREATE INDEX sprint_daily_snapshots_sprint_idx
-    ON sprint_daily_snapshots (sprint_id, snapshot_on);

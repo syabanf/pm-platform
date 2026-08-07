@@ -101,12 +101,21 @@ func auditTarget(c echo.Context, method string, cap *captureWriter) (kind, id st
 // lastCollection returns the last non-parameter path segment, e.g.
 // "/api/v1/modules/:moduleId/sprints" -> "sprints",
 // "/api/v1/clients/:clientId" -> "clients".
+//
+// Verb-suffixed action routes (…/archive, …/restore, …/capture) are named for
+// the resource they act on, not the verb — otherwise the log reads "created a
+// capture" for a snapshot run across every active sprint.
 func lastCollection(path string) string {
 	segs := strings.Split(strings.Trim(path, "/"), "/")
 	for i := len(segs) - 1; i >= 0; i-- {
-		if !strings.HasPrefix(segs[i], ":") {
-			return segs[i]
+		if strings.HasPrefix(segs[i], ":") {
+			continue
 		}
+		switch segs[i] {
+		case "archive", "restore", "capture":
+			continue // skip the verb, name the resource under it
+		}
+		return segs[i]
 	}
 	return ""
 }
