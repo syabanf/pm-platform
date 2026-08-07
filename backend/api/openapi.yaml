@@ -136,6 +136,69 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  # ------------------------------------------------------------- metrics ---
+  /snapshots/capture:
+    post:
+      tags: [rollups]
+      summary: Record today's burndown snapshot for every active sprint
+      description: |
+        A burndown needs history that cannot be reconstructed after the fact —
+        the points remaining on each day. This records today's remaining and
+        completed points for every active sprint, in one statement. Idempotent
+        per day, so a daily (or hourly) cron may call it freely; the latest run
+        wins. Write-gated, so the cron authenticates as a lead or admin.
+      operationId: captureSnapshots
+      responses:
+        '200':
+          description: How many sprints were snapshotted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  captured: { type: integer }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /sprints/{sprintId}/burndown:
+    parameters:
+      - $ref: '#/components/parameters/SprintId'
+    get:
+      tags: [rollups, sprints]
+      summary: A sprint's recorded burndown
+      description: |
+        The real series drawn from daily snapshots, plus the committed total and
+        working days so the ideal line can be drawn against it without a second
+        request. Empty until snapshots have been captured.
+      operationId: sprintBurndown
+      responses:
+        '200':
+          description: The burndown series.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Burndown' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /modules/{moduleId}/velocity:
+    parameters:
+      - $ref: '#/components/parameters/ModuleId'
+    get:
+      tags: [rollups, modules]
+      summary: Completed points per finished sprint
+      description: |
+        Velocity's trend — committed and completed points for each review/done
+        sprint in the module, in sprint order. Computed from the sprints table;
+        no snapshot needed.
+      operationId: moduleVelocity
+      responses:
+        '200':
+          description: The velocity series.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Velocity' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   # ------------------------------------------------------------- clients ---
   /clients:
     get:
@@ -2800,6 +2863,34 @@ components:
       type: string
       enum: [pending, active, inactive, suspended]
       description: '`pending` until the address is verified; login refuses it.'
+    Burndown:
+      type: object
+      description: A sprint's recorded burn plus the lines to draw the ideal against.
+      properties:
+        sprintId: { type: string }
+        committed: { type: integer }
+        workingDays: { type: integer }
+        series:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              remaining: { type: integer }
+              completed: { type: integer }
+    Velocity:
+      type: object
+      description: Completed points per finished sprint, in order.
+      properties:
+        sprints:
+          type: array
+          items:
+            type: object
+            properties:
+              number: { type: integer }
+              name: { type: string }
+              committed: { type: integer }
+              completed: { type: integer }
     PortfolioRollup:
       type: object
       description: Portfolio-wide counters for the home dashboard.

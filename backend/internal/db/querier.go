@@ -20,6 +20,10 @@ type Querier interface {
 	// --------------------------------------------------------- sprint_members ---
 	AddSprintMember(ctx context.Context, arg AddSprintMemberParams) (SprintMember, error)
 	ArchiveClient(ctx context.Context, id string) (int64, error)
+	// Records today's remaining and completed points for every active sprint, in
+	// one statement. Idempotent per day: run it hourly and the latest wins. A daily
+	// cron would hit POST /snapshots/capture; this is what it runs.
+	CaptureActiveSprintSnapshots(ctx context.Context) (int64, error)
 	ClearLoginFailures(ctx context.Context, id string) error
 	// Single-use and time-boxed, same conditional-UPDATE race guard as email
 	// verification: two submits of one link, only the first flips consumed_at.
@@ -158,6 +162,9 @@ type Querier interface {
 	// ------------------------------------------------------------------ roles ---
 	ListRoles(ctx context.Context, arg ListRolesParams) ([]Role, error)
 	ListSprintBacklogItems(ctx context.Context, arg ListSprintBacklogItemsParams) ([]ListSprintBacklogItemsRow, error)
+	// The recorded burn for one sprint, oldest first — the real series a chart draws
+	// instead of a synthesized straight line.
+	ListSprintBurndown(ctx context.Context, sprintID string) ([]ListSprintBurndownRow, error)
 	ListSprintMembers(ctx context.Context, arg ListSprintMembersParams) ([]ListSprintMembersRow, error)
 	// number is only unique per module, so it cannot order a cross-module list
 	// on its own.
@@ -197,6 +204,9 @@ type Querier interface {
 	// the project drill-down recompute per row. Every column is table-qualified so
 	// the shared module_id is never ambiguous.
 	ModuleRollup(ctx context.Context, moduleID string) (ModuleRollupRow, error)
+	// Completed points per finished sprint, in sprint order — velocity's trend,
+	// computed straight from the sprints table (no snapshot needed).
+	ModuleVelocity(ctx context.Context, moduleID string) ([]ModuleVelocityRow, error)
 	MoveTask(ctx context.Context, arg MoveTaskParams) (Task, error)
 	NextComponentPosition(ctx context.Context, moduleID string) (int32, error)
 	NextSprintBacklogPosition(ctx context.Context, sprintID string) (int32, error)

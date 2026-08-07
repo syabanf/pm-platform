@@ -221,6 +221,13 @@ type SprintBacklogItem struct {
 	Position      int32  `json:"position"`
 }
 
+type SprintDailySnapshot struct {
+	SprintID        string    `json:"sprintId"`
+	SnapshotOn      time.Time `json:"snapshotOn"`
+	RemainingPoints int32     `json:"remainingPoints"`
+	CompletedPoints int32     `json:"completedPoints"`
+}
+
 type SprintMember struct {
 	SprintID     string  `json:"sprintId"`
 	MemberID     string  `json:"memberId"`
