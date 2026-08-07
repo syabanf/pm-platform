@@ -108,16 +108,16 @@ screen use the same five words:
 | ------------ | ---------------------------------------------------- |
 | `clients`    | the customer                                         |
 | `projects`   | an engagement for a client                           |
-| `components`    | a module or system built for that engagement        |
-| `components` | one functional part of a component; owns the sprints    |
+| `modules`    | a module or system built for that engagement         |
+| `components` | one functional part of a module; owns the sprints    |
 | `sprints`    | belongs to a component (`component_id`)              |
 
 ```
-clients → projects → components → components → sprints
+clients → projects → modules → components → sprints
 ```
 
-There used to be a translation layer here: the tables said `modules` and
-`components` while the UI said Component and Component, shifted one rung. They now
+There used to be a translation layer here: the tables said `products` and
+`modules` while the UI said Module and Component, shifted one rung. They now
 agree, so nothing has to be read twice.
 
 ## Getting started
