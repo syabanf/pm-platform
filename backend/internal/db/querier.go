@@ -207,8 +207,15 @@ type Querier interface {
 	// The home dashboard in a single request: the counters it used to sum by hand.
 	PortfolioRollup(ctx context.Context) (PortfolioRollupRow, error)
 	// --------------------------------------------------------- login lockout ---
-	// Count one failure and, at the threshold, set the lock. The CASE keeps it one
-	// statement: no read-modify-write race between concurrent wrong guesses.
+	// Count one failure and, at the threshold, set the lock. One statement, so
+	// concurrent wrong guesses cannot race a read-modify-write.
+	//
+	// A lock that has already expired resets the streak to 1 first: otherwise the
+	// stored count stays at the threshold after the first lockout, and a single
+	// attempt per window would re-lock forever — a cheap sustained-lockout DoS. A
+	// fresh burst of `threshold` failures is required to re-lock. The nested CASE
+	// is the same expired-lock test as the count, repeated because SQL cannot see
+	// the new count while computing the lock in the same statement.
 	RecordFailedLogin(ctx context.Context, arg RecordFailedLoginParams) (RecordFailedLoginRow, error)
 	RemoveSprintBacklogItem(ctx context.Context, arg RemoveSprintBacklogItemParams) error
 	RemoveSprintMember(ctx context.Context, arg RemoveSprintMemberParams) error

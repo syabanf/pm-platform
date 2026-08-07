@@ -155,13 +155,28 @@ DELETE FROM sessions WHERE user_id = sqlc.arg('user_id');
 -- --------------------------------------------------------- login lockout ---
 
 -- name: RecordFailedLogin :one
--- Count one failure and, at the threshold, set the lock. The CASE keeps it one
--- statement: no read-modify-write race between concurrent wrong guesses.
+-- Count one failure and, at the threshold, set the lock. One statement, so
+-- concurrent wrong guesses cannot race a read-modify-write.
+--
+-- A lock that has already expired resets the streak to 1 first: otherwise the
+-- stored count stays at the threshold after the first lockout, and a single
+-- attempt per window would re-lock forever — a cheap sustained-lockout DoS. A
+-- fresh burst of `threshold` failures is required to re-lock. The nested CASE
+-- is the same expired-lock test as the count, repeated because SQL cannot see
+-- the new count while computing the lock in the same statement.
 UPDATE users
-SET failed_login_count = failed_login_count + 1,
+SET failed_login_count = CASE
+        WHEN locked_until IS NOT NULL AND locked_until <= now() THEN 1
+        ELSE failed_login_count + 1
+    END,
     locked_until = CASE
-        WHEN failed_login_count + 1 >= sqlc.arg('threshold')::int
-        THEN now() + make_interval(secs => sqlc.arg('lock_seconds')::int)
+        WHEN (CASE
+                WHEN locked_until IS NOT NULL AND locked_until <= now() THEN 1
+                ELSE failed_login_count + 1
+              END) >= sqlc.arg('threshold')::int
+            THEN now() + make_interval(secs => sqlc.arg('lock_seconds')::int)
+        WHEN locked_until IS NOT NULL AND locked_until <= now()
+            THEN NULL -- expired and not re-locking: clear the stale lock
         ELSE locked_until
     END
 WHERE id = sqlc.arg('id')

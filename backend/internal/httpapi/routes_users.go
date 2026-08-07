@@ -267,9 +267,14 @@ func (s *Server) login(c echo.Context) error {
 		return dbErr(err)
 	}
 	// An account under a lock is refused before the password is even checked, so
-	// the lock cannot be worn down by continuing to guess. The message names the
-	// lock rather than the credential — the caller already proved the address by
-	// getting locked, so there is nothing more to hide from them here.
+	// the lock cannot be worn down by continuing to guess.
+	//
+	// Accepted residual: this 429 (vs the 401 an unknown email always gets)
+	// tells an attacker who submits threshold-many wrong passwords that the
+	// address is registered. That is the textbook lockout/enumeration tradeoff —
+	// closing it needs a decoy lock keyed on every submitted email, complexity
+	// out of proportion to a slow oracle that noisily locks real accounts and is
+	// already throttled by the per-IP login limiter. Documented, not defended.
 	if user.LockedUntil.Valid && user.LockedUntil.Time.After(time.Now()) {
 		return echo.NewHTTPError(http.StatusTooManyRequests,
 			"too many failed attempts — this account is locked for a while")
@@ -399,8 +404,16 @@ func (s *Server) forgotPassword(c echo.Context) error {
 	user, err := s.q.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// Same 200 as the success case, so the response does not confirm
-			// which addresses are registered.
+			// Same 200 body as the success case, so the response does not
+			// confirm which addresses are registered.
+			//
+			// Accepted residual: a registered address does two more DB writes
+			// (invalidate + insert the token) before its identical 200, so
+			// response latency differs by a couple of round-trips. Unlike login
+			// there is no heavy bcrypt to equalize — the gap is a few
+			// milliseconds behind network jitter, recoverable only by heavy
+			// sampling. Equalizing means fake DB work, a worse smell than the
+			// channel it closes; documented instead.
 			return c.JSON(http.StatusOK, echo.Map{"status": "if the address exists, a reset link was issued"})
 		}
 		return dbErr(err)

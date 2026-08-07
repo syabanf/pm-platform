@@ -120,3 +120,39 @@ func TestAccountLockout(t *testing.T) {
 			locked.status, locked.raw)
 	}
 }
+
+// TestLockResetsAfterExpiry is the regression for the sustained-lockout DoS: a
+// lock that has expired resets the failure streak, so one wrong attempt after
+// the window does not immediately re-lock. The right password then works.
+func TestLockResetsAfterExpiry(t *testing.T) {
+	h := newHarness(t)
+	admin := h.adminToken()
+	h.expect(h.do("POST", "/api/v1/users", admin, map[string]string{
+		"email": "expiry@example.com", "password": "correct-password", "name": "Exp",
+	}), http.StatusCreated, "create user")
+
+	// Lock it with ten wrong passwords.
+	for i := 0; i < 10; i++ {
+		h.do("POST", "/api/v1/auth/login", "", map[string]string{
+			"email": "expiry@example.com", "password": "wrong",
+		})
+	}
+	// Confirm it is locked.
+	h.expect(h.do("POST", "/api/v1/auth/login", "", map[string]string{
+		"email": "expiry@example.com", "password": "correct-password",
+	}), http.StatusTooManyRequests, "locked")
+
+	// Fast-forward: expire the lock directly.
+	h.exec(t, "UPDATE users SET locked_until = now() - interval '1 minute' WHERE email = 'expiry@example.com'")
+
+	// One more wrong attempt: resets the streak to 1, must NOT re-lock (401, not 429).
+	after := h.do("POST", "/api/v1/auth/login", "", map[string]string{
+		"email": "expiry@example.com", "password": "wrong",
+	})
+	if after.status != http.StatusUnauthorized {
+		t.Fatalf("an expired lock must reset the streak, not re-lock on one attempt: got %d %s",
+			after.status, after.raw)
+	}
+	// And the correct password now works — the account is not stuck locked.
+	h.login("expiry@example.com", "correct-password")
+}
