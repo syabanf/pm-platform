@@ -23,7 +23,7 @@ jobs:
     name: Frontend — lint, unit, browser e2e
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -46,7 +46,7 @@ jobs:
     name: Security — dependency & vulnerability scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The scanner runs on the latest patched Go, not the module's declared
       # floor — a stdlib CVE is fixed by a newer toolchain, and the point of
       # this job is to scan against one that has the fixes.
@@ -99,7 +99,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: backend/go.mod
