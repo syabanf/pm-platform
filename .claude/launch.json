@@ -4,14 +4,14 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "runtimeArgs": ["run", "dev", "--", "--port", "3007"],
+      "port": 3007
     },
     {
       "name": "prod",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "start"],
-      "port": 3000
+      "runtimeArgs": ["next", "start", "--port", "3007"],
+      "port": 3007
     }
   ]
 }

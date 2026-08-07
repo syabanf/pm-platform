@@ -237,7 +237,7 @@ export default function ClientsPage() {
                 <StatusPill status={client.risk} />
               </td>
               <td className="py-4 text-right">
-                <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                   <button
                     onClick={() => openEdit(client)}
                     className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"

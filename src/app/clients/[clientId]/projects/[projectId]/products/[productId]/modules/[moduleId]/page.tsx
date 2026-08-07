@@ -5,32 +5,21 @@ import Link from "next/link";
 import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { Field, inputClass } from "@/components/Document";
 import {
   Button,
   EmptyState,
   FilterBar,
   KpiStrip,
-  Panel,
   allOf,
 } from "@/components/ui";
-import { newId, usePrototype } from "@/lib/store";
+import {
+  SprintPanel,
+  draftFromSprint,
+  emptySprintDraft,
+  type SprintDraft,
+} from "@/components/SprintPanel";
+import { usePrototype } from "@/lib/store";
 import type { Sprint } from "@/lib/types";
-
-const sprintStatuses: Sprint["status"][] = [
-  "planning",
-  "active",
-  "review",
-  "done",
-];
-
-const emptyDraft = {
-  name: "",
-  goal: "",
-  status: "planning" as Sprint["status"],
-  startDate: "",
-  endDate: "",
-};
 
 const readinessLabel: Record<string, string> = {
   ready: "Ready",
@@ -63,7 +52,7 @@ export default function ComponentDetailPage({
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState(emptyDraft);
+  const [draft, setDraft] = useState<SprintDraft>(() => emptySprintDraft());
   const [sprintStatusFilter, setSprintStatusFilter] = useState("all");
 
   if (!product || !component) {
@@ -89,74 +78,14 @@ export default function ComponentDetailPage({
 
   const openCreate = () => {
     setEditingId(null);
-    setDraft(emptyDraft);
+    setDraft(emptySprintDraft(moduleId));
     setPanelOpen(true);
   };
 
   const openEdit = (sprint: Sprint) => {
     setEditingId(sprint.id);
-    setDraft({
-      name: sprint.name,
-      goal: sprint.goal,
-      status: sprint.status,
-      startDate: sprint.startDate,
-      endDate: sprint.endDate,
-    });
+    setDraft(draftFromSprint(sprint));
     setPanelOpen(true);
-  };
-
-  const save = () => {
-    if (!draft.name.trim()) {
-      showToast("Sprint name is required.", "warning");
-      return;
-    }
-    if (editingId) {
-      sprintsCrud.update(editingId, {
-        name: draft.name.trim(),
-        goal: draft.goal.trim(),
-        status: draft.status,
-        startDate: draft.startDate,
-        endDate: draft.endDate,
-      });
-      setPanelOpen(false);
-      showToast("Sprint updated.", "success");
-      return;
-    }
-    const nextNumber =
-      sprints
-        .filter((s) => s.productId === productId)
-        .reduce((max, s) => Math.max(max, s.number), 0) + 1;
-    // Real ISO dates so the sprint schedules on the Gantt/Calendar (a "TBD"
-    // string parses to Invalid Date and collapses the whole Gantt to NaN).
-    const iso = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-        d.getDate()
-      ).padStart(2, "0")}`;
-    const start = new Date();
-    const end = new Date(start);
-    end.setDate(end.getDate() + 13); // ~2 calendar weeks ≈ 10 working days
-    sprintsCrud.add({
-      id: newId("sprint"),
-      productId,
-      moduleId,
-      number: nextNumber,
-      name: draft.name.trim(),
-      goal: draft.goal.trim() || "Sprint goal to be defined.",
-      startDate: iso(start),
-      endDate: iso(end),
-      workingDays: 10,
-      daysLeft: 10,
-      status: "planning",
-      members: [],
-      backlogItemIds: [],
-      committed: 0,
-      completed: 0,
-      progress: 0,
-      risk: "low",
-    });
-    setDraft(emptyDraft);
-    setPanelOpen(false);
-    showToast(`Sprint added to ${component.name}. Plan it next.`, "success");
   };
 
   return (
@@ -208,78 +137,15 @@ export default function ComponentDetailPage({
         </div>
 
         {panelOpen && (
-          <Panel
-            title={editingId ? "Edit Sprint" : undefined}
-            className="animate-in mt-4"
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Sprint Name">
-                <input
-                  value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  className={inputClass}
-                  placeholder="e.g. Data Ingestion Hardening"
-                />
-              </Field>
-              <Field label="Sprint Goal">
-                <input
-                  value={draft.goal}
-                  onChange={(e) => setDraft({ ...draft, goal: e.target.value })}
-                  className={inputClass}
-                />
-              </Field>
-              {editingId && (
-                <>
-                  <Field label="Status">
-                    <select
-                      value={draft.status}
-                      onChange={(e) =>
-                        setDraft({
-                          ...draft,
-                          status: e.target.value as Sprint["status"],
-                        })
-                      }
-                      className={inputClass}
-                    >
-                      {sprintStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Start Date">
-                    <input
-                      type="date"
-                      value={draft.startDate}
-                      onChange={(e) =>
-                        setDraft({ ...draft, startDate: e.target.value })
-                      }
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="End Date">
-                    <input
-                      type="date"
-                      value={draft.endDate}
-                      onChange={(e) =>
-                        setDraft({ ...draft, endDate: e.target.value })
-                      }
-                      className={inputClass}
-                    />
-                  </Field>
-                </>
-              )}
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Button onClick={save}>
-                {editingId ? "Save Changes" : "Create Sprint"}
-              </Button>
-              <Button variant="secondary" onClick={() => setPanelOpen(false)}>
-                Cancel
-              </Button>
-            </div>
-          </Panel>
+          <SprintPanel
+            productId={productId}
+            components={product.modules}
+            lockedModuleId={moduleId}
+            editingId={editingId}
+            draft={draft}
+            setDraft={setDraft}
+            onClose={() => setPanelOpen(false)}
+          />
         )}
 
         <div className="mt-4">
@@ -344,7 +210,7 @@ export default function ComponentDetailPage({
                         {sprint.completed} pts
                       </td>
                       <td className="py-4 text-right">
-                        <div className="flex justify-end gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                           <button
                             onClick={() => openEdit(sprint)}
                             className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"

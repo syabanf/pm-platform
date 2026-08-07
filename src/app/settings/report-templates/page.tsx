@@ -176,7 +176,7 @@ export default function ReportTemplatesPage() {
                 </li>
               ))}
             </ol>
-            <div className="mt-4 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="mt-4 flex gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
               <Button variant="secondary" size="sm" onClick={() => openEdit(tpl)}>
                 Edit
               </Button>

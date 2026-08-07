@@ -77,18 +77,32 @@ function TaskCardView({
           {task.priority}
         </span>
       </div>
-      <div className="mt-2 flex items-center justify-between">
-        <span className="flex h-6 w-6 items-center justify-center bg-soft text-[10px] font-semibold text-ink">
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span
+          className="flex h-6 w-6 items-center justify-center bg-soft text-[10px] font-semibold text-ink"
+          title={member?.name}
+        >
           {member?.name.charAt(0)}
         </span>
-        <button
-          onClick={onToggleExpand}
-          className={`text-[11px] tabular-nums ${
-            dodDone === task.dod.length ? "text-success" : "text-muted"
-          } hover:text-ink`}
-        >
-          DoD {dodDone}/{task.dod.length}
-        </button>
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-[11px] tabular-nums ${
+              dodDone === task.dod.length ? "text-success" : "text-muted"
+            }`}
+          >
+            DoD {dodDone}/{task.dod.length}
+          </span>
+          {/* Says what it opens. It used to be labelled "DoD 2/4", which is a
+              progress count — nobody guesses that it is also how you edit,
+              assign, estimate, unblock or delete the task. */}
+          <button
+            onClick={onToggleExpand}
+            aria-expanded={!!expanded}
+            className="border border-line px-1.5 py-0.5 text-[11px] text-muted hover:border-black hover:text-ink"
+          >
+            {expanded ? "Close" : "Details"}
+          </button>
+        </div>
       </div>
       {task.blockers.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-danger/30 pt-2">
@@ -97,12 +111,32 @@ function TaskCardView({
             {task.blockers.length === 1 ? "blocker" : "blockers"}
           </div>
           {task.blockers.map((b) => (
-            <div key={b.id} className="text-[11px] leading-tight text-danger">
-              <span className="font-medium">{b.category}</span>
-              {" — "}
-              {b.text}
-              {b.days != null && b.days >= 2 && (
-                <span className="text-muted"> · {b.days}d</span>
+            <div
+              key={b.id}
+              className="flex items-start gap-2 text-[11px] leading-tight text-danger"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="font-medium">{b.category}</span>
+                {" — "}
+                {b.text}
+                {b.days != null && b.days >= 2 && (
+                  <span className="text-muted"> · {b.days}d</span>
+                )}
+              </span>
+              {/* Clearing happens on the list you are already reading, rather
+                  than on a second copy of it inside the panel. */}
+              {expanded && (
+                <button
+                  onClick={() =>
+                    tasksCrud.update(task.id, {
+                      blockers: task.blockers.filter((x) => x.id !== b.id),
+                    })
+                  }
+                  className="shrink-0 text-muted hover:text-ink"
+                  aria-label={`Clear blocker: ${b.text}`}
+                >
+                  Clear
+                </button>
               )}
             </div>
           ))}
@@ -130,56 +164,58 @@ function TaskCardView({
               </span>
             </label>
           ))}
-          <div className="label pt-1">Blockers</div>
-          {task.blockers.map((b) => (
-            <div key={b.id} className="flex items-start gap-2 text-xs">
-              <span className="min-w-0 flex-1 text-danger">
-                <span className="font-medium">{b.category}</span> — {b.text}
-              </span>
-              <button
-                onClick={() =>
-                  tasksCrud.update(task.id, {
-                    blockers: task.blockers.filter((x) => x.id !== b.id),
-                  })
-                }
-                className="shrink-0 text-[11px] text-muted hover:text-ink"
-                aria-label={`Clear blocker: ${b.text}`}
-              >
-                Clear
-              </button>
-            </div>
-          ))}
+          {/* The blockers themselves are listed above, where they are visible
+              without opening anything. Only the way to add one lives here. */}
+          <div className="label pt-1">Add a blocker</div>
           <AddBlocker task={task} />
 
-          <div className="label pt-1">Edit Task</div>
-          <input
-            value={task.title}
-            onChange={(e) => tasksCrud.update(task.id, { title: e.target.value })}
-            className="w-full border border-line px-2 py-1 text-xs text-ink focus:border-black focus:outline-none"
-          />
-          <div className="flex gap-1.5">
-            <select
-              value={task.assigneeId}
-              onChange={(e) =>
-                tasksCrud.update(task.id, { assigneeId: e.target.value })
-              }
-              className="flex-1 border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+          <div className="label pt-1">Edit task</div>
+          <label className="block">
+            <span className="sr-only">Task title</span>
             <input
-              type="number"
-              min={1}
-              value={task.estimate}
+              value={task.title}
               onChange={(e) =>
-                tasksCrud.update(task.id, { estimate: Number(e.target.value) })
+                tasksCrud.update(task.id, { title: e.target.value })
               }
-              className="w-14 border border-line px-1.5 py-1 text-xs tabular-nums text-ink focus:border-black focus:outline-none"
+              className="w-full border border-line px-2 py-1 text-xs text-ink focus:border-black focus:outline-none"
             />
+          </label>
+          <div className="flex gap-1.5">
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Assignee</span>
+              <select
+                value={task.assigneeId}
+                onChange={(e) =>
+                  tasksCrud.update(task.id, { assigneeId: e.target.value })
+                }
+                className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
+              >
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="shrink-0">
+              <span className="sr-only">Estimate in points</span>
+              <input
+                type="number"
+                min={1}
+                value={task.estimate}
+                onChange={(e) =>
+                  tasksCrud.update(task.id, {
+                    estimate: Number(e.target.value),
+                  })
+                }
+                className="w-14 border border-line px-1.5 py-1 text-xs tabular-nums text-ink focus:border-black focus:outline-none"
+              />
+            </label>
+          </div>
+
+          {/* Deleting is not an edit — it gets its own line rather than
+              sitting a few pixels from the estimate box. */}
+          <div className="flex justify-end border-t border-line pt-2">
             <ConfirmButton
               onConfirm={() => {
                 tasksCrud.remove(task.id);

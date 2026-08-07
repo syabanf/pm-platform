@@ -150,7 +150,7 @@ export default function DecisionLogPage({
               >
                 <StatusPill status={decision.status} />
               </button>
-              <div className="opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="opacity-60 transition-opacity group-hover:opacity-100">
                 <ConfirmButton
                   onConfirm={() => {
                     decisionsCrud.remove(decision.id);

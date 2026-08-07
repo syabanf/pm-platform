@@ -192,11 +192,11 @@ export default function GlobalReportsPage({
                   <div className="flex items-center justify-end gap-1.5">
                     <Link
                       href={`${productPathById(report.productId)}/reports`}
-                      className="text-xs text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink"
+                      className="text-xs text-muted opacity-60 transition-opacity group-hover:opacity-100 hover:text-ink"
                     >
                       Generate →
                     </Link>
-                    <div className="opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="opacity-60 transition-opacity group-hover:opacity-100">
                       <ConfirmButton
                         label="Remove"
                         onConfirm={() => {

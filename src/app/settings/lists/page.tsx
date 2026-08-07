@@ -83,7 +83,7 @@ function ListMasterCard({ listKey }: { listKey: MasterListKey }) {
             ) : (
               <>
                 <span className="flex-1 text-sm text-ink">{item}</span>
-                <div className="flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                   <Button
                     variant="secondary"
                     size="sm"
