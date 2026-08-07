@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22-alpine AS deps
+FROM node:25-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
@@ -14,7 +14,7 @@ ARG BACKEND_URL=http://backend:8080
 ENV BACKEND_URL=${BACKEND_URL}
 RUN npm run build
 
-FROM node:22-alpine AS runtime
+FROM node:25-alpine AS runtime
 RUN addgroup -S -g 10001 app \
     && adduser -S -D -H -u 10001 -G app app
 WORKDIR /app
