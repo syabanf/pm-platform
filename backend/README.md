@@ -40,6 +40,55 @@ backend/
 └─ Makefile
 ```
 
+## Auth
+
+Login mints an opaque session token; everything else checks it.
+
+```bash
+TOKEN=$(curl -s localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@wit.id","password":"wit-admin-changeme"}' | jq -r .token)
+
+curl -s localhost:8080/api/v1/clients -H "Authorization: Bearer $TOKEN"
+```
+
+Only the token's SHA-256 is stored — the sessions table can authenticate
+nobody on its own — and logout deletes the row, so revocation is instant.
+Expiry is fixed at login (`SESSION_TTL`, default 168h): using a session does
+not extend it.
+
+What a session may do comes from its role's seeded permissions:
+
+| Role | May |
+| ---- | --- |
+| any valid session | every GET, and its own logout |
+| `lead`, `admin` (`write`/`all`) | POST/PATCH/DELETE on domain resources |
+| `admin` only (`all`) | anything under `/users`, even reading it |
+
+The credential endpoints share a five-a-minute per-IP bucket
+(`LOGIN_RATE_PER_MIN`); the rest of the API sits behind `RATE_LIMIT_RPS`.
+An unknown email and a wrong password answer with the same words in the same
+time — the unknown-email path pays for a bcrypt compare it does not need,
+so accounts cannot be enumerated by stopwatch.
+
+Accounts created by an admin (`POST /users`) are born `active` — the admin is
+vouching for them, and with no mailer a pending account made that way could
+never sign in. Self-registration still starts `pending` until the address is
+proven.
+
+## E2E tests
+
+`backend/e2e` drives the real server over HTTP against a real Postgres.
+Each run creates a throwaway schema, applies the genuine migrations inside
+it, and drops it afterwards — the database it points at is left exactly as
+found:
+
+```bash
+TEST_DATABASE_URL=$DATABASE_URL go test ./e2e/
+```
+
+Unset, the suite skips and `go test ./...` stays green without Postgres.
+
 ## The hierarchy
 
 One vocabulary, all the way down — the tables, the API paths and the labels on

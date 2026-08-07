@@ -41,7 +41,8 @@ Data lives in memory for the session — creating, editing and deleting are all
 safe to try, and a reload puts everything back.
 
 ```bash
-npm run test        # vitest
+npm run test        # unit (vitest)
+npm run e2e         # browser e2e (Playwright)        # vitest
 npm run lint
 npm run build
 ```

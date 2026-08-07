@@ -119,12 +119,15 @@ seperti binary-nya sendiri.
 ### Perintah harian
 
 ```bash
-npm run test        # 37 test (vitest)
+npm run test        # 46 test (vitest)
+npm run e2e         # 15 test browser (Playwright)
 npm run lint
 npm run build
 npm run export:accounts    # regenerate daftar akun demo
 
 cd backend && make check   # fmt + vet + test
+# e2e API menyeluruh — butuh Postgres; schema sekali pakai, database tak tersentuh
+cd backend && TEST_DATABASE_URL=$DATABASE_URL go test ./e2e/
 ```
 
 ---
@@ -167,17 +170,21 @@ dengan `VERIFICATION_TOKEN_IN_LOG=true` ditulis ke log; tanpa keduanya
 pendaftaran **menolak dengan 503** ketimbang membuat akun yang tak pernah bisa
 diverifikasi.
 
-> **Belum ada authorization.** Login memverifikasi kredensial dan mengembalikan
-> akun — tidak menerbitkan session atau token, dan tidak ada endpoint yang
-> memeriksa apa pun. Seluruh 89 operasi masih anonim. Ini pekerjaan berikutnya
-> yang paling besar dan harus selesai sebelum layanan ini menghadap publik.
+**Authorization sudah jalan.** Login menerbitkan session token (opaque,
+hash-nya saja yang disimpan; berlaku `SESSION_TTL`, default 7 hari), logout
+mencabutnya seketika, dan seluruh operasi di luar alur auth memeriksa
+`Authorization: Bearer <token>`. Kebijakannya dari permissions role yang
+di-seed: semua session boleh membaca; menulis butuh `lead`/`admin`; segala
+sesuatu di `/users` — termasuk membacanya — butuh `admin`. Akun buatan admin
+lahir `active` (admin menjaminnya); akun self-register tetap `pending` sampai
+alamatnya terbukti.
 
 ---
 
 ## 5. API
 
 **Layanannya mendokumentasikan dirinya sendiri.** Jalankan, lalu buka
-**http://localhost:8080/docs** — referensi lengkap 89 operasi dengan parameter,
+**http://localhost:8080/docs** — referensi lengkap 90 operasi dengan parameter,
 skema request/response, dan `curl` siap tempel untuk tiap operasi. Halaman itu
 digambar dari spesifikasi yang dibawa binary-nya sendiri, jadi selalu
 menggambarkan versi yang benar-benar berjalan, dan tidak memuat apa pun dari CDN.
@@ -268,7 +275,6 @@ skrip remediasinya lengkap di
 
 | Prioritas | Hal |
 | --------- | --- |
-| Besar | **Authorization** — login belum menerbitkan kredensial; 89 operasi masih anonim |
 | Besar | **Mailer** — supaya link verifikasi benar-benar terkirim |
 | Sedang | Menyambungkan frontend ke backend (langkahnya sudah ditulis) |
 | Sedang | Endpoint rollup, agar dashboard tidak perlu ratusan request |
@@ -283,5 +289,5 @@ skrip remediasinya lengkap di
 | [README.md](../README.md) | pengantar produk dan cara menjalankan frontend |
 | [backend/README.md](../backend/README.md) | rujukan backend lengkap — stack, limit, migrasi, ops |
 | [docs/accounts.md](accounts.md) | daftar akun untuk sosialisasi (di-generate) |
-| `http://localhost:8080/docs` | referensi API 89 operasi, dari layanan yang berjalan |
+| `http://localhost:8080/docs` | referensi API 90 operasi, dari layanan yang berjalan |
 | [AGENTS.md](../AGENTS.md) | catatan untuk agen AI yang mengedit repo ini |
