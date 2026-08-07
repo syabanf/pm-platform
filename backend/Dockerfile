@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM migrate/migrate:v4.18.3 AS migrate
+FROM migrate/migrate:v4.19.1 AS migrate
 
 FROM golang:1.25-alpine AS build
 WORKDIR /src
