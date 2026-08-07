@@ -1,15 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { productPath } from "@/lib/data";
+import { modulePath } from "@/lib/data";
 import { blockedCountFor, usePrototype } from "@/lib/store";
 
 const riskY: Record<string, number> = { high: 0, medium: 1, low: 2 };
 const riskLabels = ["High risk", "Medium risk", "Low risk"];
 
-/** Products plotted by health (x) and risk band (y) — where to look first. */
+/** Modules plotted by health (x) and risk band (y) — where to look first. */
 export function RiskMatrix({ compact = false }: { compact?: boolean }) {
-  const { products, sprints, tasks } = usePrototype();
+  const { modules, sprints, tasks } = usePrototype();
   const router = useRouter();
 
   const width = 640;
@@ -21,16 +21,16 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
   const x = (health: number) => pad.left + (health / 100) * innerW;
   const bandH = innerH / 3;
 
-  // Give every product its own vertical lane within its risk band so dots in
-  // the same band (e.g. several low-risk products) never stack on one point.
+  // Give every mod its own vertical lane within its risk band so dots in
+  // the same band (e.g. several low-risk modules) never stack on one point.
   const bandsOrder = ["high", "medium", "low"] as const;
   const placed = bandsOrder.flatMap((band) => {
-    const items = products
+    const items = modules
       .filter((p) => p.risk === band)
       .sort((a, b) => a.health - b.health);
     const bandTop = pad.top + (riskY[band] ?? 2) * bandH;
     return items.map((p, i) => ({
-      product: p,
+      mod: p,
       cx: x(p.health),
       cy: bandTop + (bandH * (i + 1)) / (items.length + 1),
       // Label on the side with more room: right for low-health (left of chart),
@@ -118,23 +118,23 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
           Health →
         </text>
 
-        {/* product dots — one per lane, label beside the dot on its own line */}
-        {placed.map(({ product, cx, cy, labelSide }) => {
-          const blocked = blockedCountFor(sprints, tasks, product.id) > 1;
+        {/* mod dots — one per lane, label beside the dot on its own line */}
+        {placed.map(({ mod, cx, cy, labelSide }) => {
+          const blocked = blockedCountFor(sprints, tasks, mod.id) > 1;
           const r = compact ? 5 : 6;
           const label =
-            product.name.length > 20
-              ? product.name.slice(0, 18) + "…"
-              : product.name;
+            mod.name.length > 20
+              ? mod.name.slice(0, 18) + "…"
+              : mod.name;
           return (
             <g
-              key={product.id}
+              key={mod.id}
               className="cursor-pointer"
-              onClick={() => router.push(productPath(product))}
+              onClick={() => router.push(modulePath(mod))}
             >
               <circle cx={cx} cy={cy} r={r} fill={blocked ? "#D92D20" : "#000000"}>
                 <title>
-                  {product.name} — health {product.health}%, {product.risk} risk
+                  {mod.name} — health {mod.health}%, {mod.risk} risk
                   {blocked ? ", blocked" : ""}
                 </title>
               </circle>
@@ -154,7 +154,7 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
         })}
       </svg>
       <p className="mt-2 text-xs text-muted">
-        Each dot is a module{compact ? "" : " — click to open it"}. Red dots
+        Each dot is a component{compact ? "" : " — click to open it"}. Red dots
         have active blockers. The shaded zone (low health, elevated risk) is
         where attention pays off most.
       </p>

@@ -18,14 +18,14 @@ const readinessLabel: Record<Readiness, string> = {
 export default function BacklogPage({
   params,
 }: {
-  params: Promise<{ productId: string }>;
+  params: Promise<{ moduleId: string }>;
 }) {
-  const { productId } = use(params);
-  const { products, backlog, backlogCrud, masters, showToast } = usePrototype();
-  const product = products.find((p) => p.id === productId);
-  const items = backlog.filter((b) => b.productId === productId);
+  const { moduleId } = use(params);
+  const { modules, backlog, backlogCrud, masters, showToast } = usePrototype();
+  const mod = modules.find((p) => p.id === moduleId);
+  const items = backlog.filter((b) => b.moduleId === moduleId);
 
-  const [moduleFilter, setModuleFilter] = useState("all");
+  const [componentFilter, setComponentFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [readinessFilter, setReadinessFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(items[0]?.id ?? null);
@@ -34,7 +34,7 @@ export default function BacklogPage({
   const [draft, setDraft] = useState({
     title: "",
     story: "",
-    moduleId: "",
+    componentId: "",
     type: "story",
     priority: "medium" as Priority,
     estimate: 3,
@@ -43,20 +43,20 @@ export default function BacklogPage({
 
   const filtered = items.filter(
     (item) =>
-      (moduleFilter === "all" || item.moduleId === moduleFilter) &&
+      (componentFilter === "all" || item.componentId === componentFilter) &&
       (priorityFilter === "all" || item.priority === priorityFilter) &&
       (readinessFilter === "all" || item.readiness === readinessFilter)
   );
 
   const selected = filtered.find((i) => i.id === selectedId) ?? filtered[0] ?? null;
 
-  if (!product) return null;
+  if (!mod) return null;
 
   const startCreate = () => {
     setDraft({
       title: "",
       story: "",
-      moduleId: product.modules[0]?.id ?? "",
+      componentId: mod.components[0]?.id ?? "",
       type: masters.workItemTypes[0] ?? "story",
       priority: "medium",
       estimate: 3,
@@ -70,7 +70,7 @@ export default function BacklogPage({
     setDraft({
       title: item.title,
       story: item.story,
-      moduleId: item.moduleId,
+      componentId: item.componentId,
       type: item.type,
       priority: item.priority,
       estimate: item.estimate,
@@ -98,8 +98,8 @@ export default function BacklogPage({
       const id = newId("backlog");
       backlogCrud.add({
         id,
-        productId,
-        moduleId: draft.moduleId,
+        moduleId,
+        componentId: draft.componentId,
         title: draft.title.trim(),
         story: draft.story.trim(),
         acceptanceCriteria: ac,
@@ -118,7 +118,7 @@ export default function BacklogPage({
       backlogCrud.update(selected.id, {
         title: draft.title.trim(),
         story: draft.story.trim(),
-        moduleId: draft.moduleId,
+        componentId: draft.componentId,
         type: draft.type,
         priority: draft.priority,
         estimate: draft.estimate,
@@ -152,10 +152,10 @@ export default function BacklogPage({
             groups={[
               {
                 label: "Component",
-                value: moduleFilter,
-                onChange: setModuleFilter,
+                value: componentFilter,
+                onChange: setComponentFilter,
                 options: allOf(
-                  product.modules.map((m) => ({ value: m.id, label: m.name }))
+                  mod.components.map((m) => ({ value: m.id, label: m.name }))
                 ),
               },
               {
@@ -249,11 +249,11 @@ export default function BacklogPage({
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Component">
                     <select
-                      value={draft.moduleId}
-                      onChange={(e) => setDraft({ ...draft, moduleId: e.target.value })}
+                      value={draft.componentId}
+                      onChange={(e) => setDraft({ ...draft, componentId: e.target.value })}
                       className={inputClass}
                     >
-                      {product.modules.map((m) => (
+                      {mod.components.map((m) => (
                         <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
                     </select>
@@ -330,7 +330,7 @@ export default function BacklogPage({
                 </div>
               </div>
               <div className="mt-2 text-xs text-muted">
-                Component: {product.modules.find((m) => m.id === selected.moduleId)?.name ?? "—"} ·{" "}
+                Component: {mod.components.find((m) => m.id === selected.componentId)?.name ?? "—"} ·{" "}
                 {selected.type} ·{" "}
                 {selected.estimate > 0 ? `${selected.estimate} pts` : "not estimated"}
               </div>

@@ -14,7 +14,7 @@ import {
   emptySprintDraft,
   type SprintDraft,
 } from "@/components/SprintPanel";
-import { productPath } from "@/lib/data";
+import { modulePath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 import { Button, EmptyState, FilterBar, SectionHeader, allOf } from "@/components/ui";
 import type { Sprint } from "@/lib/types";
@@ -22,11 +22,11 @@ import type { Sprint } from "@/lib/types";
 export default function SprintsListPage({
   params,
 }: {
-  params: Promise<{ productId: string }>;
+  params: Promise<{ moduleId: string }>;
 }) {
-  const { productId } = use(params);
+  const { moduleId } = use(params);
   const {
-    products,
+    modules,
     sprints: allSprints,
     tasks,
     sprintsCrud,
@@ -34,14 +34,14 @@ export default function SprintsListPage({
     viewPrefs,
     setViewPref,
   } = usePrototype();
-  const product = products.find((p) => p.id === productId);
-  const base = product ? productPath(product) : "";
-  const components = product?.modules ?? [];
+  const mod = modules.find((p) => p.id === moduleId);
+  const base = mod ? modulePath(mod) : "";
+  const components = mod?.components ?? [];
   const sprints = allSprints
-    .filter((s) => s.productId === productId)
+    .filter((s) => s.moduleId === moduleId)
     .sort((a, b) => b.number - a.number);
-  const componentName = (moduleId: string) =>
-    components.find((m) => m.id === moduleId)?.name ?? "—";
+  const componentName = (componentId: string) =>
+    components.find((m) => m.id === componentId)?.name ?? "—";
   const view = viewPrefs.sprints;
 
   const [statusFilter, setStatusFilter] = useState("all");
@@ -53,7 +53,7 @@ export default function SprintsListPage({
   const filtered = sprints.filter(
     (s) =>
       (statusFilter === "all" || s.status === statusFilter) &&
-      (componentFilter === "all" || s.moduleId === componentFilter)
+      (componentFilter === "all" || s.componentId === componentFilter)
   );
 
   const openCreate = () => {
@@ -110,7 +110,7 @@ export default function SprintsListPage({
 
       {panelOpen && (
         <SprintPanel
-          productId={productId}
+          moduleId={moduleId}
           components={components}
           editingId={editingId}
           draft={draft}
@@ -161,7 +161,7 @@ export default function SprintsListPage({
             ) : (
               <p className="mt-2 text-sm text-muted">
                 Add a component first —{" "}
-                <Link href={`${base}/modules`} className="text-ink underline">
+                <Link href={`${base}/components`} className="text-ink underline">
                   Components
                 </Link>{" "}
                 — because a sprint needs one to belong to.
@@ -220,7 +220,7 @@ export default function SprintsListPage({
                   <div className="text-xs text-muted">{sprint.name}</div>
                 </td>
                 <td className="py-4 pr-6 text-muted">
-                  {componentName(sprint.moduleId)}
+                  {componentName(sprint.componentId)}
                 </td>
                 <td className="max-w-xs py-4 pr-6 text-muted">{sprint.goal}</td>
                 <td className="py-4 pr-6 text-xs tabular-nums text-muted">

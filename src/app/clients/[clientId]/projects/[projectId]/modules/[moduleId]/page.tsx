@@ -5,22 +5,22 @@ import Link from "next/link";
 import { StatusPill } from "@/components/StatusPill";
 import { AIInsightBlock, AICoachSlideOver } from "@/components/AICoachPanel";
 import { EmptyState, KpiStrip } from "@/components/ui";
-import { modulePath, productPath } from "@/lib/data";
+import { componentPath, modulePath } from "@/lib/data";
 import { blockedCountFor, usePrototype } from "@/lib/store";
 
-export default function ProductOverviewPage({
+export default function ModuleOverviewPage({
   params,
 }: {
-  params: Promise<{ productId: string }>;
+  params: Promise<{ moduleId: string }>;
 }) {
-  const { productId } = use(params);
-  const { products, sprints, tasks } = usePrototype();
-  const product = products.find((p) => p.id === productId);
-  // Counted from the board, not the seeded products.blockedCount, which nothing updates.
-  const blockedNow = blockedCountFor(sprints, tasks, productId);
-  if (!product) return null;
-  const sprint = product.currentSprintId
-    ? sprints.find((s) => s.id === product.currentSprintId)
+  const { moduleId } = use(params);
+  const { modules, sprints, tasks } = usePrototype();
+  const mod = modules.find((p) => p.id === moduleId);
+  // Counted from the board, not the seeded modules.blockedCount, which nothing updates.
+  const blockedNow = blockedCountFor(sprints, tasks, moduleId);
+  if (!mod) return null;
+  const sprint = mod.currentSprintId
+    ? sprints.find((s) => s.id === mod.currentSprintId)
     : undefined;
 
   return (
@@ -36,7 +36,7 @@ export default function ProductOverviewPage({
             <span>·</span>
             <span>{sprint.daysLeft} days left</span>
             <Link
-              href={`${productPath(product)}/sprints/${sprint.id}/board`}
+              href={`${modulePath(mod)}/sprints/${sprint.id}/board`}
               className="ml-auto font-medium text-ink hover:underline"
             >
               Open Sprint Board →
@@ -53,8 +53,8 @@ export default function ProductOverviewPage({
       <KpiStrip
         className="mt-8"
         items={[
-          { value: `${product.health}%`, label: "Module Health" },
-          { value: product.velocity, label: "Velocity" },
+          { value: `${mod.health}%`, label: "Module Health" },
+          { value: mod.velocity, label: "Velocity" },
           {
             value: blockedNow,
             label: "Blocked",
@@ -62,12 +62,12 @@ export default function ProductOverviewPage({
           },
           {
             value:
-              product.risk.charAt(0).toUpperCase() + product.risk.slice(1),
+              mod.risk.charAt(0).toUpperCase() + mod.risk.slice(1),
             label: "Risk",
             tone:
-              product.risk === "high"
+              mod.risk === "high"
                 ? "danger"
-                : product.risk === "medium"
+                : mod.risk === "medium"
                   ? "warning"
                   : "success",
           },
@@ -78,36 +78,36 @@ export default function ProductOverviewPage({
         <div>
           <h2 className="label">Components</h2>
           <ul className="mt-4 divide-y divide-line border-y border-line">
-            {product.modules.length === 0 && (
+            {mod.components.length === 0 && (
               <li className="py-4 text-sm text-muted">
                 No components yet — add them from the Components tab.
               </li>
             )}
-            {product.modules.map((module) => (
-              <li key={module.id} className="flex items-center justify-between py-4">
+            {mod.components.map((component) => (
+              <li key={component.id} className="flex items-center justify-between py-4">
                 <div>
                   <Link
-                    href={modulePath(product, module.id)}
+                    href={componentPath(mod, component.id)}
                     className="text-sm font-medium text-ink hover:underline"
                   >
-                    {module.name}
+                    {component.name}
                   </Link>
-                  <div className="text-xs text-muted">Owner: {module.owner}</div>
+                  <div className="text-xs text-muted">Owner: {component.owner}</div>
                 </div>
-                <StatusPill status={module.status} />
+                <StatusPill status={component.status} />
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <h2 className="label">AI Module Insight</h2>
+          <h2 className="label">AI Component Insight</h2>
           <div className="mt-4">
-            <AIInsightBlock insight={product.aiInsight} />
+            <AIInsightBlock insight={mod.aiInsight} />
           </div>
         </div>
       </section>
 
-      <AICoachSlideOver insights={[product.aiInsight]} />
+      <AICoachSlideOver insights={[mod.aiInsight]} />
     </div>
   );
 }

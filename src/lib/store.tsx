@@ -15,7 +15,7 @@ import type {
   Decision,
   GeneratedReport,
   Member,
-  Product,
+  Module,
   Project,
   QueuedReport,
   ReportConfig,
@@ -29,7 +29,7 @@ import {
   defaultDodTemplate,
   masterLists,
   members as seedMembers,
-  products as seedProducts,
+  modules as seedModules,
   projects as seedProjects,
   reportQueueSeed,
   reportTemplateMaster,
@@ -94,7 +94,7 @@ interface PrototypeState {
 
   clients: Client[];
   projects: Project[];
-  products: Product[];
+  modules: Module[];
   members: Member[];
   backlog: BacklogItem[];
   sprints: Sprint[];
@@ -102,7 +102,7 @@ interface PrototypeState {
   decisions: Decision[];
   clientsCrud: Crud<Client>;
   projectsCrud: Crud<Project>;
-  productsCrud: Crud<Product>;
+  modulesCrud: Crud<Module>;
   membersCrud: Crud<Member>;
   backlogCrud: Crud<BacklogItem>;
   sprintsCrud: Crud<Sprint>;
@@ -110,7 +110,7 @@ interface PrototypeState {
   decisionsCrud: Crud<Decision>;
   removeClientCascade: (clientId: string) => void;
   removeProjectCascade: (projectId: string) => void;
-  removeProductCascade: (productId: string) => void;
+  removeModuleCascade: (moduleId: string) => void;
   workspaceConf: WorkspaceConf;
   setWorkspaceConf: (conf: WorkspaceConf) => void;
   roles: RoleDef[];
@@ -157,7 +157,7 @@ const PrototypeContext = createContext<PrototypeState | null>(null);
 export function PrototypeProvider({ children }: { children: React.ReactNode }) {
   const [clients, clientsCrud, setClients] = useCollection<Client>(seedClients);
   const [projects, projectsCrud, setProjects] = useCollection<Project>(seedProjects);
-  const [products, productsCrud, setProducts] = useCollection<Product>(seedProducts);
+  const [modules, modulesCrud, setModules] = useCollection<Module>(seedModules);
   const [members, membersCrud, setMembers] = useCollection<Member>(seedMembers);
   const [backlog, backlogCrud, setBacklog] = useCollection<BacklogItem>(seedBacklog);
   const [sprints, sprintsCrud, setSprints] = useCollection<Sprint>(seedSprints);
@@ -335,10 +335,10 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         prev.map((r) => (r.id === reportId ? { ...r, status: "sent" } : r))
       );
       if (report) {
-        // Complete the matching queue item (same product + report type, not done yet).
+        // Complete the matching queue item (same mod + report type, not done yet).
         const match = reportQueue.find(
           (q) =>
-            q.productId === report.productId &&
+            q.moduleId === report.moduleId &&
             q.type === report.config.type &&
             q.status !== "done"
         );
@@ -365,66 +365,66 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const removeProductCascade = useCallback(
-    (productId: string) => {
+  const removeModuleCascade = useCallback(
+    (moduleId: string) => {
       const removedSprintIds = sprints
-        .filter((s) => s.productId === productId)
+        .filter((s) => s.moduleId === moduleId)
         .map((s) => s.id);
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
-      setBacklog((prev) => prev.filter((b) => b.productId !== productId));
-      setSprints((prev) => prev.filter((s) => s.productId !== productId));
+      setModules((prev) => prev.filter((p) => p.id !== moduleId));
+      setBacklog((prev) => prev.filter((b) => b.moduleId !== moduleId));
+      setSprints((prev) => prev.filter((s) => s.moduleId !== moduleId));
       setTasks((prev) =>
         prev.filter((t) => !removedSprintIds.includes(t.sprintId))
       );
     },
-    [sprints, setProducts, setBacklog, setSprints, setTasks]
+    [sprints, setModules, setBacklog, setSprints, setTasks]
   );
 
   const removeProjectCascade = useCallback(
     (projectId: string) => {
-      const removedProductIds = products
+      const removedModuleIds = modules
         .filter((p) => p.projectId === projectId)
         .map((p) => p.id);
       const removedSprintIds = sprints
-        .filter((s) => removedProductIds.includes(s.productId))
+        .filter((s) => removedModuleIds.includes(s.moduleId))
         .map((s) => s.id);
-      setProducts((prev) => prev.filter((p) => p.projectId !== projectId));
+      setModules((prev) => prev.filter((p) => p.projectId !== projectId));
       setBacklog((prev) =>
-        prev.filter((b) => !removedProductIds.includes(b.productId))
+        prev.filter((b) => !removedModuleIds.includes(b.moduleId))
       );
       setSprints((prev) =>
-        prev.filter((s) => !removedProductIds.includes(s.productId))
+        prev.filter((s) => !removedModuleIds.includes(s.moduleId))
       );
       setTasks((prev) =>
         prev.filter((t) => !removedSprintIds.includes(t.sprintId))
       );
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
     },
-    [products, sprints, setProducts, setProjects, setBacklog, setSprints, setTasks]
+    [modules, sprints, setModules, setProjects, setBacklog, setSprints, setTasks]
   );
 
   const removeClientCascade = useCallback(
     (clientId: string) => {
-      const removedProductIds = products
+      const removedModuleIds = modules
         .filter((p) => p.clientId === clientId)
         .map((p) => p.id);
       const removedSprintIds = sprints
-        .filter((s) => removedProductIds.includes(s.productId))
+        .filter((s) => removedModuleIds.includes(s.moduleId))
         .map((s) => s.id);
       setProjects((prev) => prev.filter((p) => p.clientId !== clientId));
-      setProducts((prev) => prev.filter((p) => p.clientId !== clientId));
+      setModules((prev) => prev.filter((p) => p.clientId !== clientId));
       setBacklog((prev) =>
-        prev.filter((b) => !removedProductIds.includes(b.productId))
+        prev.filter((b) => !removedModuleIds.includes(b.moduleId))
       );
       setSprints((prev) =>
-        prev.filter((s) => !removedProductIds.includes(s.productId))
+        prev.filter((s) => !removedModuleIds.includes(s.moduleId))
       );
       setTasks((prev) =>
         prev.filter((t) => !removedSprintIds.includes(t.sprintId))
       );
       setClients((prev) => prev.filter((c) => c.id !== clientId));
     },
-    [products, sprints, setClients, setProjects, setProducts, setBacklog, setSprints, setTasks]
+    [modules, sprints, setClients, setProjects, setModules, setBacklog, setSprints, setTasks]
   );
 
   const moveTask = useCallback(
@@ -512,7 +512,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         logout,
         clients,
         projects,
-        products,
+        modules,
         members,
         backlog,
         sprints,
@@ -520,7 +520,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         decisions,
         clientsCrud,
         projectsCrud,
-        productsCrud,
+        modulesCrud,
         membersCrud,
         backlogCrud,
         sprintsCrud,
@@ -528,7 +528,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         decisionsCrud,
         removeClientCascade,
         removeProjectCascade,
-        removeProductCascade,
+        removeModuleCascade,
         workspaceConf,
         setWorkspaceConf,
         roles,
@@ -632,26 +632,26 @@ export function useSprintProgress(sprintId: string): {
 }
 
 /**
- * How many tasks are blocked right now across a module's sprints.
+ * How many tasks are blocked right now across a component's sprints.
  *
- * products.blockedCount is a seeded counter no user action updates, so clearing
- * every blocker on the board left the module, project and portfolio pages still
+ * modules.blockedCount is a seeded counter no user action updates, so clearing
+ * every blocker on the board left the component, project and portfolio pages still
  * reporting the original number.
  */
 export function blockedCountFor(
   sprints: Sprint[],
   tasks: Task[],
-  productId: string
+  moduleId: string
 ): number {
   const ids = new Set(
-    sprints.filter((s) => s.productId === productId).map((s) => s.id)
+    sprints.filter((s) => s.moduleId === moduleId).map((s) => s.id)
   );
   return tasks.filter((t) => ids.has(t.sprintId) && t.column === "blocked")
     .length;
 }
 
-/** Hook form of blockedCountFor, for a page that shows one module. */
-export function useProductBlocked(productId: string): number {
+/** Hook form of blockedCountFor, for a page that shows one component. */
+export function useModuleBlocked(moduleId: string): number {
   const { sprints, tasks } = usePrototype();
-  return blockedCountFor(sprints, tasks, productId);
+  return blockedCountFor(sprints, tasks, moduleId);
 }

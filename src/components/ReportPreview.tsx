@@ -4,7 +4,7 @@ import { AIBadge } from "@/components/AICoachPanel";
 import { StatusPill } from "@/components/StatusPill";
 import type {
   BacklogItem,
-  Product,
+  Module,
   ReportConfig,
   Sprint,
   Task,
@@ -72,7 +72,7 @@ function Sections({ items }: { items: [string, React.ReactNode][] }) {
 // Reads live store data so reports reflect this-session board moves and
 // runtime-created sprints (not the frozen seed). Safe as a hook: every body
 // is a component and calls it unconditionally at the top.
-function useReportData(product: Product, sprint: Sprint) {
+function useReportData(mod: Module, sprint: Sprint) {
   const { tasks: allTasks, backlog, decisions } = usePrototype();
   const tasks = allTasks.filter((t) => t.sprintId === sprint.id);
   const backlogItems = sprint.backlogItemIds
@@ -94,7 +94,7 @@ function useReportData(product: Product, sprint: Sprint) {
         ? Math.round((sprint.completed / sprint.committed) * 100)
         : 0,
     openDecisions: decisions.filter(
-      (d) => d.status === "open" && d.productId === product.id
+      (d) => d.status === "open" && d.moduleId === mod.id
     ),
   };
 }
@@ -111,8 +111,8 @@ function TaskList({ tasks }: { tasks: Task[] }) {
 }
 
 /* ---------- 1. Internal PM: sprint health, workload, risk, capacity ---------- */
-function InternalPmBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = useReportData(product, sprint);
+function InternalPmBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
+  const d = useReportData(mod, sprint);
   const capacity = sprint.members.reduce((s, m) => s + m.capacityDays, 0);
   return (
     <Sections
@@ -194,9 +194,9 @@ function InternalPmBody({ product, sprint }: { product: Product; sprint: Sprint 
 }
 
 /* ---------- 2. Client Facing: summary, scope, demo, decisions, client actions ---------- */
-function ClientFacingBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = useReportData(product, sprint);
-  const client = getClient(product.clientId);
+function ClientFacingBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
+  const d = useReportData(mod, sprint);
+  const client = getClient(mod.clientId);
   return (
     <Sections
       items={[
@@ -257,8 +257,8 @@ function ClientFacingBody({ product, sprint }: { product: Product; sprint: Sprin
 }
 
 /* ---------- 3. Technical Team: backlog detail, blockers, QA, deploy, debt ---------- */
-function TechnicalBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = useReportData(product, sprint);
+function TechnicalBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
+  const d = useReportData(mod, sprint);
   const items = d.backlogItems;
   const qa = reportExtras.qaSummary;
   return (
@@ -341,8 +341,8 @@ function TechnicalBody({ product, sprint }: { product: Product; sprint: Sprint }
 }
 
 /* ---------- 4. Management: health, timeline risk, utilization, confidence ---------- */
-function ManagementBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = useReportData(product, sprint);
+function ManagementBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
+  const d = useReportData(mod, sprint);
   const avgUtilization = Math.round(
     members.reduce((s, m) => s + m.workload, 0) / members.length
   );
@@ -353,8 +353,8 @@ function ManagementBody({ product, sprint }: { product: Product; sprint: Sprint 
           "Module Health",
           <table key="t" className="w-full max-w-md text-sm">
             <tbody className="divide-y divide-line">
-              <MetricRow label="Health Score" value={`${product.health}%`} />
-              <MetricRow label="Delivery Risk" value={product.risk} />
+              <MetricRow label="Health Score" value={`${mod.health}%`} />
+              <MetricRow label="Delivery Risk" value={mod.risk} />
               <MetricRow label="Sprint Completion" value={`${d.completionRate}%`} />
               <MetricRow
                 label="Velocity Trend"
@@ -393,7 +393,7 @@ function ManagementBody({ product, sprint }: { product: Product; sprint: Sprint 
             </li>
             <li>
               — Consider a shared data-readiness checklist across all UBS Gold
-              products.
+              modules.
             </li>
           </ul>,
         ],
@@ -404,8 +404,8 @@ function ManagementBody({ product, sprint }: { product: Product; sprint: Sprint 
 
 /* ---------- type-override bodies ---------- */
 
-function MemberPerformanceBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = useReportData(product, sprint);
+function MemberPerformanceBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
+  const d = useReportData(mod, sprint);
   return (
     <Sections
       items={[
@@ -466,9 +466,9 @@ function MemberPerformanceBody({ product, sprint }: { product: Product; sprint: 
   );
 }
 
-function RiskBody({ product, sprint }: { product: Product; sprint: Sprint }) {
-  const d = useReportData(product, sprint);
-  const client = getClient(product.clientId);
+function RiskBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
+  const d = useReportData(mod, sprint);
+  const client = getClient(mod.clientId);
   return (
     <Sections
       items={[
@@ -520,15 +520,15 @@ function RiskBody({ product, sprint }: { product: Product; sprint: Sprint }) {
 /* ---------- generic body driven by the Template Master's sections ---------- */
 
 function GenericTemplateBody({
-  product,
+  mod,
   sprint,
   sections,
 }: {
-  product: Product;
+  mod: Module;
   sprint: Sprint;
   sections: string[];
 }) {
-  const d = useReportData(product, sprint);
+  const d = useReportData(mod, sprint);
   const known: Record<string, React.ReactNode> = {
     "executive summary": (
       <p>
@@ -597,7 +597,7 @@ function GenericTemplateBody({
 
 const builtinBodies: Record<
   string,
-  (props: { product: Product; sprint: Sprint }) => React.ReactNode
+  (props: { mod: Module; sprint: Sprint }) => React.ReactNode
 > = {
   "Internal PM": InternalPmBody,
   "Client Facing": ClientFacingBody,
@@ -607,24 +607,24 @@ const builtinBodies: Record<
 
 const typeBodies: Record<
   string,
-  (props: { product: Product; sprint: Sprint }) => React.ReactNode
+  (props: { mod: Module; sprint: Sprint }) => React.ReactNode
 > = {
   "Member Performance Report": MemberPerformanceBody,
   "Risk Report": RiskBody,
 };
 
 export function ReportPreview({
-  product,
+  mod,
   sprint,
   config,
 }: {
-  product: Product;
+  mod: Module;
   sprint: Sprint;
   config: ReportConfig;
 }) {
   const { reportTemplates } = usePrototype();
-  const client = getClient(product.clientId);
-  const project = getProject(product.projectId);
+  const client = getClient(mod.clientId);
+  const project = getProject(mod.projectId);
   const templateDef = reportTemplates.find((t) => t.name === config.template);
 
   // Resolution order: report type override → built-in template body →
@@ -656,7 +656,7 @@ export function ReportPreview({
         <div className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-muted md:grid-cols-3">
           <div>Client: <span className="text-ink">{client?.name}</span></div>
           <div>Project: <span className="text-ink">{project?.name}</span></div>
-          <div>Module: <span className="text-ink">{product.name}</span></div>
+          <div>Component: <span className="text-ink">{mod.name}</span></div>
           <div>Sprint: <span className="text-ink">Sprint {String(sprint.number).padStart(2, "0")}</span></div>
           <div>Period: <span className="text-ink">{sprint.startDate} → {sprint.endDate}</span></div>
           <div>Prepared by: <span className="text-ink">Fahmi</span></div>
@@ -664,12 +664,12 @@ export function ReportPreview({
       </header>
 
       {TypeBody ? (
-        <TypeBody product={product} sprint={sprint} />
+        <TypeBody mod={mod} sprint={sprint} />
       ) : BuiltinBody ? (
-        <BuiltinBody product={product} sprint={sprint} />
+        <BuiltinBody mod={mod} sprint={sprint} />
       ) : (
         <GenericTemplateBody
-          product={product}
+          mod={mod}
           sprint={sprint}
           sections={templateDef?.sections ?? ["Executive Summary"]}
         />

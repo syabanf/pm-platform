@@ -18,13 +18,13 @@ import { newId, usePrototype } from "@/lib/store";
 export default function DecisionLogPage({
   params,
 }: {
-  params: Promise<{ productId: string }>;
+  params: Promise<{ moduleId: string }>;
 }) {
-  const { productId } = use(params);
+  const { moduleId } = use(params);
   const { decisions, decisionsCrud, showToast } = usePrototype();
-  const productDecisions = decisions.filter((d) => d.productId === productId);
+  const moduleDecisions = decisions.filter((d) => d.moduleId === moduleId);
   const [statusFilter, setStatusFilter] = useState("all");
-  const filteredDecisions = productDecisions.filter(
+  const filteredDecisions = moduleDecisions.filter(
     (d) => statusFilter === "all" || d.status === statusFilter
   );
   const [panelOpen, setPanelOpen] = useState(false);
@@ -37,7 +37,7 @@ export default function DecisionLogPage({
     }
     decisionsCrud.add({
       id: newId("decision"),
-      productId,
+      moduleId,
       date: "2026-07-08",
       title: draft.title.trim(),
       detail: draft.detail.trim(),
@@ -92,15 +92,15 @@ export default function DecisionLogPage({
         </Panel>
       )}
 
-      {productDecisions.length === 0 && (
+      {moduleDecisions.length === 0 && (
         <div className="mt-6">
           <EmptyState>
-            No decisions logged for this module yet. Capture the first one.
+            No decisions logged for this component yet. Capture the first one.
           </EmptyState>
         </div>
       )}
 
-      {productDecisions.length > 0 && (
+      {moduleDecisions.length > 0 && (
         <FilterBar
           className="mt-6"
           groups={[
@@ -114,11 +114,11 @@ export default function DecisionLogPage({
               ]),
             },
           ]}
-          summary={`${filteredDecisions.length} of ${productDecisions.length}`}
+          summary={`${filteredDecisions.length} of ${moduleDecisions.length}`}
         />
       )}
 
-      {productDecisions.length > 0 && filteredDecisions.length === 0 && (
+      {moduleDecisions.length > 0 && filteredDecisions.length === 0 && (
         <div className="mt-6">
           <EmptyState>No decisions match the filters.</EmptyState>
         </div>

@@ -43,7 +43,7 @@ export default function SprintReviewPage({
             Sprint Review
           </h3>
           <p className="mt-1 text-sm text-muted">
-            Demo the increment, collect feedback, adapt the Product Backlog.
+            Demo the increment, collect feedback, adapt the Module Backlog.
           </p>
         </div>
         <div className="text-right">

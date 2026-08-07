@@ -51,7 +51,7 @@ export function TaskCalendar({
   contextFor,
 }: {
   tasks: Task[];
-  /** Where a task's board lives — differs per module at project level. */
+  /** Where a task's board lives — differs per component at project level. */
   hrefFor: (task: Task) => string;
   /** Extra line under the title, e.g. which Module the task belongs to. */
   contextFor?: (task: Task) => string;
@@ -282,7 +282,7 @@ function DayDetail({
               </div>
               <div className="mt-1 pl-3.5 text-xs text-muted">
                 {contextFor && <>{contextFor(task)} · </>}
-                {task.moduleName}
+                {task.componentName}
               </div>
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 pl-3.5 text-[11px] text-muted">
                 <span>{memberName(task.assigneeId)}</span>

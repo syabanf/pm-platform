@@ -14,7 +14,7 @@ import {
   inputClass,
 } from "@/components/Document";
 import { ToggleButton } from "@/components/ui";
-import { getClient, products } from "@/lib/data";
+import { getClient, modules } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
 type Result = "pass" | "fail" | "pending";
@@ -41,13 +41,13 @@ const resultStyle: Record<Result, string> = {
 
 export default function UatSignoffPage() {
   const { showToast } = usePrototype();
-  const [productId, setProductId] = useState(products[0].id);
+  const [moduleId, setModuleId] = useState(modules[0].id);
   const [period, setPeriod] = useState("Sprint 03 — 29 June to 10 July 2026");
   const [items, setItems] = useState<UatItem[]>(initialItems);
   const [generated, setGenerated] = useState(false);
 
-  const product = products.find((p) => p.id === productId);
-  const client = product ? getClient(product.clientId) : undefined;
+  const mod = modules.find((p) => p.id === moduleId);
+  const client = mod ? getClient(mod.clientId) : undefined;
 
   const passed = items.filter((i) => i.result === "pass").length;
   const failed = items.filter((i) => i.result === "fail").length;
@@ -73,12 +73,12 @@ export default function UatSignoffPage() {
         <>
           <Field label="Module">
             <div className="flex flex-wrap gap-1.5">
-              {products.map((p) => (
+              {modules.map((p) => (
                 <ToggleButton
                   key={p.id}
-                  active={productId === p.id}
+                  active={moduleId === p.id}
                   size="md"
-                  onClick={() => setProductId(p.id)}
+                  onClick={() => setModuleId(p.id)}
                 >
                   {p.name}
                 </ToggleButton>
@@ -130,12 +130,12 @@ export default function UatSignoffPage() {
         </>
       }
       document={
-        generated && product ? (
+        generated && mod ? (
           <DocumentArticle>
             <DocHeader
               docType="UAT Sign-off"
               date="2026-07-08"
-              title={`${product.name} — User Acceptance Test`}
+              title={`${mod.name} — User Acceptance Test`}
               meta={[
                 { label: "Client", value: client?.name ?? "—" },
                 { label: "Period", value: period },

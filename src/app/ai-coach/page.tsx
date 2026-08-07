@@ -5,15 +5,15 @@ import {
   burndownInsight,
   dailyInsight,
   homeInsight,
-  products,
+  modules,
   velocityInsight,
 } from "@/lib/data";
 
 export default function AICoachPage() {
   const portfolioInsights = [homeInsight, dailyInsight, burndownInsight, velocityInsight];
-  const productInsights = products
+  const moduleInsights = modules
     .filter((p) => p.risk !== "low")
-    .map((p) => ({ product: p.name, insight: p.aiInsight }));
+    .map((p) => ({ mod: p.name, insight: p.aiInsight }));
 
   return (
     <PageContainer>
@@ -40,11 +40,11 @@ export default function AICoachPage() {
       </section>
 
       <section id="modules" className="mt-12 scroll-mt-8">
-        <h2 className="label">Module Insights</h2>
+        <h2 className="label">Component Insights</h2>
         <div className="mt-4 grid gap-6 md:grid-cols-2">
-          {productInsights.map(({ product, insight }) => (
-            <div key={product}>
-              <div className="mb-2 text-sm font-semibold text-ink">{product}</div>
+          {moduleInsights.map(({ mod, insight }) => (
+            <div key={mod}>
+              <div className="mb-2 text-sm font-semibold text-ink">{mod}</div>
               <AIInsightBlock insight={insight} />
             </div>
           ))}

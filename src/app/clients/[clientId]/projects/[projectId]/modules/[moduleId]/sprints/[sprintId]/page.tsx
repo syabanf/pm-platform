@@ -6,12 +6,12 @@ export default async function SprintIndexPage({
   params: Promise<{
     clientId: string;
     projectId: string;
-    productId: string;
+    moduleId: string;
     sprintId: string;
   }>;
 }) {
-  const { clientId, projectId, productId, sprintId } = await params;
+  const { clientId, projectId, moduleId, sprintId } = await params;
   redirect(
-    `/clients/${clientId}/projects/${projectId}/products/${productId}/sprints/${sprintId}/board`
+    `/clients/${clientId}/projects/${projectId}/modules/${moduleId}/sprints/${sprintId}/board`
   );
 }

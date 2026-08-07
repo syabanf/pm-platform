@@ -7,33 +7,33 @@ import { PageTabs, type Tab } from "@/components/PageTabs";
 import { SwipeTabs } from "@/components/SwipeTabs";
 import { StatusPill } from "@/components/StatusPill";
 import { PageHeader } from "@/components/ui";
-import { clientPath, productPath, projectPath } from "@/lib/data";
+import { clientPath, modulePath, projectPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
-export default function ProductLayout({
+export default function ModuleLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ clientId: string; projectId: string; productId: string }>;
+  params: Promise<{ clientId: string; projectId: string; moduleId: string }>;
 }) {
-  const { clientId, projectId, productId } = use(params);
-  const { clients, projects, products } = usePrototype();
+  const { clientId, projectId, moduleId } = use(params);
+  const { clients, projects, modules } = usePrototype();
 
-  const product = products.find((p) => p.id === productId);
+  const mod = modules.find((p) => p.id === moduleId);
   const client = clients.find((c) => c.id === clientId);
   const project = projects.find((p) => p.id === projectId);
 
   if (
-    !product ||
+    !mod ||
     !client ||
     !project ||
-    product.projectId !== projectId ||
-    product.clientId !== clientId
+    mod.projectId !== projectId ||
+    mod.clientId !== clientId
   ) {
     return (
       <div className="mx-auto max-w-[88rem] px-5 py-8 md:px-10 md:py-12 text-sm text-muted">
-        Module not found — it may have been removed in this session.{" "}
+        Component not found — it may have been removed in this session.{" "}
         <Link href="/clients" className="text-ink underline">
           Back to clients
         </Link>
@@ -41,7 +41,7 @@ export default function ProductLayout({
     );
   }
 
-  const base = productPath(product);
+  const base = modulePath(mod);
 
   // Jira project order: work first (Summary → Backlog → Board → Reports), then
   // taxonomy/config (Components → pages → people). Shared so the tab bar and
@@ -51,7 +51,7 @@ export default function ProductLayout({
     { label: "Backlog", href: `${base}/backlog` },
     { label: "Sprints", href: `${base}/sprints` },
     { label: "Reports", href: `${base}/reports` },
-    { label: "Components", href: `${base}/modules` },
+    { label: "Components", href: `${base}/components` },
     { label: "Decision Log", href: `${base}/decisions` },
     { label: "Members", href: `${base}/members` },
   ];
@@ -63,15 +63,15 @@ export default function ProductLayout({
           { label: "Clients", href: "/clients" },
           { label: client.name, href: clientPath(client.id) },
           { label: project.name, href: projectPath(project) },
-          { label: product.name },
+          { label: mod.name },
         ]}
       />
       <div className="mt-6">
         <PageHeader
           eyebrow="Module"
-          title={product.name}
-          description={product.goal}
-          actions={<StatusPill status={product.status} />}
+          title={mod.name}
+          description={mod.goal}
+          actions={<StatusPill status={mod.status} />}
         />
       </div>
 

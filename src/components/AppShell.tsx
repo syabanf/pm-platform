@@ -208,7 +208,7 @@ function SidebarNav() {
 const TAB_ROOTS = ["/", "/clients", "/reports", "/documents", "/ai-coach", "/settings"];
 
 const SEGMENT_LABELS: Record<string, string> = {
-  modules: "Components",
+  components: "Components",
   mom: "MoM",
   "status-update": "Status Update",
   "change-request": "Change Request",
@@ -227,19 +227,19 @@ const pretty = (segment: string) =>
 
 /** Native-app page title for the phone top bar, derived from store + pathname. */
 function usePageTitle(pathname: string): string {
-  const { clients, projects, products } = usePrototype();
+  const { clients, projects, modules } = usePrototype();
   const segs = pathname.split("/").filter(Boolean);
 
-  const prodIdx = segs.indexOf("products");
-  if (prodIdx >= 0 && segs[prodIdx + 1]) {
-    const product = products.find((p) => p.id === segs[prodIdx + 1]);
-    if (product) {
-      const rest = segs.slice(prodIdx + 2);
+  const modIdx = segs.indexOf("modules");
+  if (modIdx >= 0 && segs[modIdx + 1]) {
+    const mod = modules.find((p) => p.id === segs[modIdx + 1]);
+    if (mod) {
+      const rest = segs.slice(modIdx + 2);
       let tab = "";
       if (rest[0] === "sprints" && rest[1] && rest[2]) tab = pretty(rest[2]);
       else if (rest[0] === "sprints" && rest[1]) tab = "Sprint";
       else if (rest[0]) tab = pretty(rest[0]);
-      return tab ? `${product.name} · ${tab}` : product.name;
+      return tab ? `${mod.name} · ${tab}` : mod.name;
     }
   }
   const projIdx = segs.indexOf("projects");
@@ -254,16 +254,16 @@ function usePageTitle(pathname: string): string {
   return pretty(segs[segs.length - 1] ?? "");
 }
 
-/** Records visited product/sprint pages for the Home "Jump back in" strip. */
+/** Records visited mod/sprint pages for the Home "Jump back in" strip. */
 function RouteTracker() {
   const pathname = usePathname();
-  const { products, recordRecentPath } = usePrototype();
+  const { modules, recordRecentPath } = usePrototype();
 
   useEffect(() => {
-    const match = pathname.match(/\/products\/([^/]+)(?:\/(.+))?/);
+    const match = pathname.match(/\/modules\/([^/]+)(?:\/(.+))?/);
     if (!match) return;
-    const product = products.find((p) => p.id === match[1]);
-    if (!product) return;
+    const mod = modules.find((p) => p.id === match[1]);
+    if (!mod) return;
     const rest = match[2];
     let suffix = "";
     if (rest?.includes("sprints/")) {
@@ -272,8 +272,8 @@ function RouteTracker() {
     } else if (rest) {
       suffix = ` · ${rest.split("/")[0]}`;
     }
-    recordRecentPath(pathname, `${product.name}${suffix}`);
-  }, [pathname, products, recordRecentPath]);
+    recordRecentPath(pathname, `${mod.name}${suffix}`);
+  }, [pathname, modules, recordRecentPath]);
 
   return null;
 }

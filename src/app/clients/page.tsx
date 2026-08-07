@@ -29,7 +29,7 @@ export default function ClientsPage() {
   const {
     clients,
     projects,
-    products,
+    modules,
     clientsCrud,
     removeClientCascade,
     masters,
@@ -227,7 +227,7 @@ export default function ClientsPage() {
                 {projects.filter((p) => p.clientId === client.id).length}
               </td>
               <td className="py-4 pr-6 tabular-nums">
-                {products.filter((p) => p.clientId === client.id).length}
+                {modules.filter((p) => p.clientId === client.id).length}
               </td>
               <td className="py-4 pr-6 text-muted">{client.contractType}</td>
               <td className="py-4 pr-6">

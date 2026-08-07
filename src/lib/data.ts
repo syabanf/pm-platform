@@ -5,7 +5,7 @@ import type {
   DailyUpdate,
   Decision,
   Member,
-  Product,
+  Module,
   Project,
   Sprint,
   Task,
@@ -374,7 +374,7 @@ const oeeInsight: AIInsight = {
   confidence: "high",
 };
 
-export const products: Product[] = [
+export const modules: Module[] = [
   {
     id: "oee-intelligence",
     projectId: "ubs-mdt",
@@ -389,7 +389,7 @@ export const products: Product[] = [
     velocity: 33,
     blockedCount: 3,
     currentSprintId: "sprint-03",
-    modules: [
+    components: [
       { id: "mda", name: "Machine Data Acquisition", owner: "Aditiya", status: "in-progress" },
       { id: "oee-dash", name: "OEE Dashboard", owner: "Reyza", status: "in-progress" },
       { id: "downtime", name: "Downtime Analysis", owner: "Risya", status: "planned" },
@@ -412,7 +412,7 @@ export const products: Product[] = [
     velocity: 30,
     blockedCount: 0,
     currentSprintId: undefined,
-    modules: [
+    components: [
       { id: "scada-conn", name: "PLC Connectivity", owner: "Aditiya", status: "in-progress" },
       { id: "scada-viz", name: "Realtime Visualization", owner: "Reyza", status: "in-progress" },
     ],
@@ -437,7 +437,7 @@ export const products: Product[] = [
     velocity: 18,
     blockedCount: 2,
     currentSprintId: undefined,
-    modules: [
+    components: [
       { id: "qc-capture", name: "Image Capture", owner: "Aditiya", status: "in-progress" },
       { id: "qc-model", name: "Defect Model", owner: "Reyza", status: "planned" },
     ],
@@ -462,7 +462,7 @@ export const products: Product[] = [
     velocity: 0,
     blockedCount: 1,
     currentSprintId: undefined,
-    modules: [{ id: "cmms-scope", name: "Integration Scoping", owner: "Risya", status: "in-progress" }],
+    components: [{ id: "cmms-scope", name: "Integration Scoping", owner: "Risya", status: "in-progress" }],
     aiInsight: {
       insight: "Discovery is stalled on unclear CMMS vendor API access.",
       reason: "Vendor has not responded to the API documentation request.",
@@ -484,7 +484,7 @@ export const products: Product[] = [
     velocity: 22,
     blockedCount: 0,
     currentSprintId: undefined,
-    modules: [
+    components: [
       { id: "kb-ingest", name: "Document Ingestion", owner: "Aditiya", status: "in-progress" },
       { id: "kb-search", name: "AI Search", owner: "Reyza", status: "planned" },
     ],
@@ -509,7 +509,7 @@ export const products: Product[] = [
     velocity: 28,
     blockedCount: 0,
     currentSprintId: undefined,
-    modules: [
+    components: [
       { id: "inventory", name: "Inventory", owner: "Reyza", status: "done" },
       { id: "peminjaman", name: "Rental", owner: "Reyza", status: "in-progress" },
       { id: "service", name: "Service", owner: "Aditiya", status: "planned" },
@@ -538,7 +538,7 @@ export const products: Product[] = [
     velocity: 25,
     blockedCount: 0,
     currentSprintId: undefined,
-    modules: [
+    components: [
       { id: "bni-portal", name: "Portal", owner: "Reyza", status: "in-progress" },
       { id: "bni-search", name: "Search", owner: "Aditiya", status: "planned" },
     ],
@@ -552,14 +552,14 @@ export const products: Product[] = [
 ];
 
 export const sprints: Sprint[] = [
-  // Sprints on the project's other modules. The project timeline exists to show
+  // Sprints on the project's other components. The project timeline exists to show
   // work running side by side, so these deliberately overlap the OEE ones —
-  // with only one module's sprints seeded, a project Gantt is just a module
+  // with only one component's sprints seeded, a project Gantt is just a component
   // Gantt with extra words.
   {
     id: "scada-s1",
-    productId: "scada-monitoring",
-    moduleId: "scada-conn",
+    moduleId: "scada-monitoring",
+    componentId: "scada-conn",
     number: 1,
     name: "PLC Connectivity Spike",
     goal: "Prove we can read tags from the two oldest PLC models.",
@@ -580,8 +580,8 @@ export const sprints: Sprint[] = [
   },
   {
     id: "scada-s2",
-    productId: "scada-monitoring",
-    moduleId: "scada-viz",
+    moduleId: "scada-monitoring",
+    componentId: "scada-viz",
     number: 2,
     name: "Realtime Plant View",
     goal: "One screen showing every connected line, refreshing live.",
@@ -602,8 +602,8 @@ export const sprints: Sprint[] = [
   },
   {
     id: "qc-s1",
-    productId: "ai-qc-camera",
-    moduleId: "qc-capture",
+    moduleId: "ai-qc-camera",
+    componentId: "qc-capture",
     number: 1,
     name: "Line 2 Image Capture",
     goal: "Capture and store frames from the line 2 camera rig.",
@@ -624,8 +624,8 @@ export const sprints: Sprint[] = [
   },
   {
     id: "kb-s1",
-    productId: "ai-knowledge-bank",
-    moduleId: "kb-ingest",
+    moduleId: "ai-knowledge-bank",
+    componentId: "kb-ingest",
     number: 1,
     name: "SOP Ingestion",
     goal: "Import the plant SOP archive and make it searchable.",
@@ -646,8 +646,8 @@ export const sprints: Sprint[] = [
   },
   {
     id: "kb-s2",
-    productId: "ai-knowledge-bank",
-    moduleId: "kb-search",
+    moduleId: "ai-knowledge-bank",
+    componentId: "kb-search",
     number: 2,
     name: "AI Search Tuning",
     goal: "Answer a plant question with the right SOP paragraph.",
@@ -665,8 +665,8 @@ export const sprints: Sprint[] = [
   },
   {
     id: "sprint-03",
-    productId: "oee-intelligence",
-    moduleId: "mda",
+    moduleId: "oee-intelligence",
+    componentId: "mda",
     number: 3,
     name: "Machine Data Validation",
     goal: "Validate OEE data source from selected pilot machines.",
@@ -689,8 +689,8 @@ export const sprints: Sprint[] = [
   },
   {
     id: "sprint-02",
-    productId: "oee-intelligence",
-    moduleId: "oee-dash",
+    moduleId: "oee-intelligence",
+    componentId: "oee-dash",
     number: 2,
     name: "OEE Dashboard Foundation",
     goal: "Ship the first OEE dashboard with static data.",
@@ -712,8 +712,8 @@ export const sprints: Sprint[] = [
   },
   {
     id: "sprint-01",
-    productId: "oee-intelligence",
-    moduleId: "mda",
+    moduleId: "oee-intelligence",
+    componentId: "mda",
     number: 1,
     name: "Data Acquisition Setup",
     goal: "Connect the first pilot machine to the platform.",
@@ -741,7 +741,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-08",
     backlogItemId: "sc-b1",
     title: "Poll every connected line",
-    moduleName: "Realtime Visualization",
+    componentName: "Realtime Visualization",
     assigneeId: "reyza",
     estimate: 5,
     column: "in-progress",
@@ -758,7 +758,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-09",
     backlogItemId: "sc-b1",
     title: "Mark a dropped connection on screen",
-    moduleName: "Realtime Visualization",
+    componentName: "Realtime Visualization",
     assigneeId: "christian",
     estimate: 3,
     column: "ready",
@@ -772,7 +772,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-14",
     backlogItemId: "sc-b1",
     title: "Refresh without a page reload",
-    moduleName: "Realtime Visualization",
+    componentName: "Realtime Visualization",
     assigneeId: "reyza",
     estimate: 5,
     column: "selected",
@@ -786,7 +786,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-08",
     backlogItemId: "qc-b1",
     title: "Capture frames at line speed",
-    moduleName: "Image Capture",
+    componentName: "Image Capture",
     assigneeId: "aditiya",
     estimate: 8,
     column: "in-progress",
@@ -808,7 +808,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-08",
     backlogItemId: "qc-b1",
     title: "Stamp each frame with its batch",
-    moduleName: "Image Capture",
+    componentName: "Image Capture",
     assigneeId: "vinza",
     estimate: 3,
     column: "blocked",
@@ -821,7 +821,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-13",
     backlogItemId: "qc-b1",
     title: "Store a shift of frames without filling the disk",
-    moduleName: "Image Capture",
+    componentName: "Image Capture",
     assigneeId: "aditiya",
     estimate: 5,
     column: "selected",
@@ -835,7 +835,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-16",
     backlogItemId: "kb-b1",
     title: "Cite the SOP an answer came from",
-    moduleName: "AI Search",
+    componentName: "AI Search",
     assigneeId: "vinza",
     estimate: 5,
     column: "selected",
@@ -849,7 +849,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-20",
     backlogItemId: "kb-b1",
     title: "Say nothing rather than invent an answer",
-    moduleName: "AI Search",
+    componentName: "AI Search",
     assigneeId: "risya",
     estimate: 3,
     column: "selected",
@@ -883,7 +883,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-06",
     backlogItemId: "b1",
     title: "Create API mapping for machine telemetry",
-    moduleName: "Machine Data Acquisition",
+    componentName: "Machine Data Acquisition",
     assigneeId: "aditiya",
     estimate: 3,
     column: "blocked",
@@ -900,7 +900,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-08",
     backlogItemId: "b2",
     title: "Build OEE dashboard UI",
-    moduleName: "OEE Dashboard",
+    componentName: "OEE Dashboard",
     assigneeId: "reyza",
     estimate: 5,
     column: "in-progress",
@@ -920,7 +920,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-09",
     backlogItemId: "b1",
     title: "Create test scenario for data validation",
-    moduleName: "Machine Data Acquisition",
+    componentName: "Machine Data Acquisition",
     assigneeId: "christian",
     estimate: 2,
     column: "in-review",
@@ -951,7 +951,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-06",
     backlogItemId: "b3",
     title: "Confirm downtime category requirement",
-    moduleName: "Downtime Analysis",
+    componentName: "Downtime Analysis",
     assigneeId: "risya",
     estimate: 1,
     column: "blocked",
@@ -967,7 +967,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-07",
     backlogItemId: "b1",
     title: "Validate telemetry API response",
-    moduleName: "Machine Data Acquisition",
+    componentName: "Machine Data Acquisition",
     assigneeId: "aditiya",
     estimate: 3,
     column: "ready",
@@ -984,7 +984,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-02",
     backlogItemId: "b2",
     title: "Machine data preview table",
-    moduleName: "OEE Dashboard",
+    componentName: "OEE Dashboard",
     assigneeId: "reyza",
     estimate: 3,
     column: "done",
@@ -1002,7 +1002,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-09",
     backlogItemId: "b1",
     title: "QA validation of data acquisition flow",
-    moduleName: "Machine Data Acquisition",
+    componentName: "Machine Data Acquisition",
     assigneeId: "christian",
     estimate: 2,
     column: "qa",
@@ -1019,7 +1019,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-06",
     backlogItemId: "b6",
     title: "Draft alert threshold config screen",
-    moduleName: "Alert & Notification",
+    componentName: "Alert & Notification",
     assigneeId: "reyza",
     estimate: 2,
     column: "selected",
@@ -1037,7 +1037,7 @@ export const tasks: Task[] = [
     dueDate: "2026-07-03",
     backlogItemId: "b2",
     title: "Document OEE formula assumptions",
-    moduleName: "OEE Dashboard",
+    componentName: "OEE Dashboard",
     assigneeId: "risya",
     estimate: 1,
     column: "done",
@@ -1053,8 +1053,8 @@ export const tasks: Task[] = [
 export const backlog: BacklogItem[] = [
   {
     id: "sc-b1",
-    productId: "scada-monitoring",
-    moduleId: "scada-viz",
+    moduleId: "scada-monitoring",
+    componentId: "scada-viz",
     title: "Live plant overview screen",
     story:
       "As a shift supervisor, I want one screen showing every connected line, so that I can see a stoppage without walking the floor.",
@@ -1071,8 +1071,8 @@ export const backlog: BacklogItem[] = [
   },
   {
     id: "qc-b1",
-    productId: "ai-qc-camera",
-    moduleId: "qc-capture",
+    moduleId: "ai-qc-camera",
+    componentId: "qc-capture",
     title: "Line 2 frame capture",
     story:
       "As a QC lead, I want frames captured from the line 2 rig, so that defects can be reviewed after the shift.",
@@ -1088,8 +1088,8 @@ export const backlog: BacklogItem[] = [
   },
   {
     id: "kb-b1",
-    productId: "ai-knowledge-bank",
-    moduleId: "kb-search",
+    moduleId: "ai-knowledge-bank",
+    componentId: "kb-search",
     title: "Answer a question from an SOP",
     story:
       "As an operator, I want a plain question answered from the SOP archive, so that I do not read a whole document mid-shift.",
@@ -1105,8 +1105,8 @@ export const backlog: BacklogItem[] = [
   },
   {
     id: "b1",
-    productId: "oee-intelligence",
-    moduleId: "mda",
+    moduleId: "oee-intelligence",
+    componentId: "mda",
     title: "Machine telemetry ingestion",
     story:
       "As a plant engineer, I want machine telemetry ingested every minute, so that OEE is calculated from live data.",
@@ -1123,8 +1123,8 @@ export const backlog: BacklogItem[] = [
   },
   {
     id: "b2",
-    productId: "oee-intelligence",
-    moduleId: "oee-dash",
+    moduleId: "oee-intelligence",
+    componentId: "oee-dash",
     title: "Real-time OEE dashboard",
     story:
       "As a plant manager, I want a real-time OEE dashboard, so that I can monitor availability, performance, and quality at a glance.",
@@ -1143,8 +1143,8 @@ export const backlog: BacklogItem[] = [
   },
   {
     id: "b3",
-    productId: "oee-intelligence",
-    moduleId: "downtime",
+    moduleId: "oee-intelligence",
+    componentId: "downtime",
     title: "Downtime categorization",
     story:
       "As a supervisor, I want downtime events categorized, so that I can analyze the biggest loss contributors.",
@@ -1161,8 +1161,8 @@ export const backlog: BacklogItem[] = [
   },
   {
     id: "b4",
-    productId: "oee-intelligence",
-    moduleId: "report-export",
+    moduleId: "oee-intelligence",
+    componentId: "report-export",
     title: "Export OEE report",
     story:
       "As a plant manager, I want to export OEE reports, so that I can share performance with management.",
@@ -1175,8 +1175,8 @@ export const backlog: BacklogItem[] = [
   },
   {
     id: "b5",
-    productId: "oee-intelligence",
-    moduleId: "alerts",
+    moduleId: "oee-intelligence",
+    componentId: "alerts",
     title: "Add approval feature",
     story: "Tambah fitur approval.",
     acceptanceCriteria: [],
@@ -1192,8 +1192,8 @@ export const backlog: BacklogItem[] = [
   },
   {
     id: "b6",
-    productId: "oee-intelligence",
-    moduleId: "alerts",
+    moduleId: "oee-intelligence",
+    componentId: "alerts",
     title: "Downtime alert notification",
     story:
       "As a supervisor, I want an alert when a machine is down for more than 10 minutes, so that I can respond quickly.",
@@ -1261,7 +1261,7 @@ export const velocity: VelocityEntry[] = [
 export const decisions: Decision[] = [
   {
     id: "d1",
-    productId: "oee-intelligence",
+    moduleId: "oee-intelligence",
     date: "2026-07-01",
     title: "Pilot machines limited to Line 1",
     detail:
@@ -1271,7 +1271,7 @@ export const decisions: Decision[] = [
   },
   {
     id: "d2",
-    productId: "oee-intelligence",
+    moduleId: "oee-intelligence",
     date: "2026-07-03",
     title: "OEE formula validation",
     detail: "Client to validate the OEE formula against their manual calculation.",
@@ -1280,7 +1280,7 @@ export const decisions: Decision[] = [
   },
   {
     id: "d3",
-    productId: "oee-intelligence",
+    moduleId: "oee-intelligence",
     date: "2026-07-05",
     title: "Downtime category ownership",
     detail: "Client must assign an owner for downtime category definitions.",
@@ -1450,7 +1450,7 @@ export const reportQueueSeed = [
   {
     id: "rq1",
     title: "OEE Intelligence — Sprint 03 Report",
-    productId: "oee-intelligence",
+    moduleId: "oee-intelligence",
     client: "UBS Gold",
     type: "Sprint Report",
     template: "Client Facing",
@@ -1460,7 +1460,7 @@ export const reportQueueSeed = [
   {
     id: "rq2",
     title: "BSM Rental — Module Report",
-    productId: "bsm-rental-platform",
+    moduleId: "bsm-rental-platform",
     client: "BSM",
     type: "Module Report",
     template: "Client Facing",
@@ -1470,7 +1470,7 @@ export const reportQueueSeed = [
   {
     id: "rq3",
     title: "UBS Gold — Monthly Client Report",
-    productId: "oee-intelligence",
+    moduleId: "oee-intelligence",
     client: "UBS Gold",
     type: "Client Report",
     template: "Management",
@@ -1480,7 +1480,7 @@ export const reportQueueSeed = [
   {
     id: "rq4",
     title: "OEE Intelligence — Sprint 02 Report",
-    productId: "oee-intelligence",
+    moduleId: "oee-intelligence",
     client: "UBS Gold",
     type: "Sprint Report",
     template: "Internal PM",
@@ -1493,7 +1493,7 @@ export const reportQueueSeed = [
 
 export const getClient = (id: string) => clients.find((c) => c.id === id);
 export const getProject = (id: string) => projects.find((p) => p.id === id);
-export const getProduct = (id: string) => products.find((p) => p.id === id);
+export const getModule = (id: string) => modules.find((p) => p.id === id);
 export const getMember = (id: string) => members.find((m) => m.id === id);
 
 // ---------- hierarchy path builders ----------
@@ -1504,16 +1504,16 @@ export const clientPath = (clientId: string) => `/clients/${clientId}`;
 export const projectPath = (project: Project) =>
   `${clientPath(project.clientId)}/projects/${project.id}`;
 
-export const productPath = (product: Product) =>
-  `${clientPath(product.clientId)}/projects/${product.projectId}/products/${product.id}`;
+export const modulePath = (mod: Module) =>
+  `${clientPath(mod.clientId)}/projects/${mod.projectId}/modules/${mod.id}`;
 
-export const productPathById = (productId: string) => {
-  const product = getProduct(productId);
-  return product ? productPath(product) : "/clients";
+export const modulePathById = (moduleId: string) => {
+  const mod = getModule(moduleId);
+  return mod ? modulePath(mod) : "/clients";
 };
 
-export const modulePath = (product: Product, moduleId: string) =>
-  `${productPath(product)}/modules/${moduleId}`;
+export const componentPath = (mod: Module, componentId: string) =>
+  `${modulePath(mod)}/components/${componentId}`;
 
 export const sprintPath = (sprint: Sprint) =>
-  `${productPathById(sprint.productId)}/sprints/${sprint.id}`;
+  `${modulePathById(sprint.moduleId)}/sprints/${sprint.id}`;

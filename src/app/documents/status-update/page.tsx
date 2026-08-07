@@ -14,7 +14,7 @@ import {
   inputClass,
 } from "@/components/Document";
 import { ToggleButton } from "@/components/ui";
-import { getClient, products } from "@/lib/data";
+import { getClient, modules } from "@/lib/data";
 import { parseStatusUpdate, type ParsedUpdate } from "@/lib/parsers";
 import { usePrototype } from "@/lib/store";
 
@@ -29,13 +29,13 @@ const SAMPLE_BULLETS = `- Finished machine data preview table, QA passed
 
 export default function StatusUpdatePage() {
   const { showToast } = usePrototype();
-  const [productId, setProductId] = useState(products[0].id);
+  const [moduleId, setModuleId] = useState(modules[0].id);
   const [period, setPeriod] = useState("Week of 6–10 July 2026");
   const [bullets, setBullets] = useState(SAMPLE_BULLETS);
   const [parsed, setParsed] = useState<ParsedUpdate | null>(null);
 
-  const product = products.find((p) => p.id === productId);
-  const client = product ? getClient(product.clientId) : undefined;
+  const mod = modules.find((p) => p.id === moduleId);
+  const client = mod ? getClient(mod.clientId) : undefined;
 
   const generate = () => {
     if (!bullets.trim()) {
@@ -55,12 +55,12 @@ export default function StatusUpdatePage() {
         <>
           <Field label="Module">
             <div className="flex flex-wrap gap-1.5">
-              {products.map((p) => (
+              {modules.map((p) => (
                 <ToggleButton
                   key={p.id}
-                  active={productId === p.id}
+                  active={moduleId === p.id}
                   size="md"
-                  onClick={() => setProductId(p.id)}
+                  onClick={() => setModuleId(p.id)}
                 >
                   {p.name}
                 </ToggleButton>
@@ -97,7 +97,7 @@ export default function StatusUpdatePage() {
             <DocHeader
               docType="Status Update"
               date="2026-07-08"
-              title={`${product?.name} — Status Update`}
+              title={`${mod?.name} — Status Update`}
               meta={[
                 { label: "Client", value: client?.name ?? "—" },
                 { label: "Period", value: period },

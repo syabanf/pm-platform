@@ -20,19 +20,19 @@ import {
   FilterBar,
   allOf,
 } from "@/components/ui";
-import { clientPath, productPath } from "@/lib/data";
+import { clientPath, modulePath } from "@/lib/data";
 import { blockedCountFor, newId, usePrototype } from "@/lib/store";
-import type { Product } from "@/lib/types";
+import type { Module } from "@/lib/types";
 
-type ProductDraft = {
+type ModuleDraft = {
   name: string;
   goal: string;
   owner: string;
   deliveryLead: string;
-  status: Product["status"];
+  status: Module["status"];
 };
 
-const emptyDraft: ProductDraft = {
+const emptyDraft: ModuleDraft = {
   name: "",
   goal: "",
   owner: "",
@@ -40,7 +40,7 @@ const emptyDraft: ProductDraft = {
   status: "discovery",
 };
 
-const statusOptions: { value: Product["status"]; label: string }[] = [
+const statusOptions: { value: Module["status"]; label: string }[] = [
   { value: "discovery", label: "Discovery" },
   { value: "development", label: "Development" },
   { value: "release", label: "Release" },
@@ -56,13 +56,13 @@ export default function ProjectDetailPage({
   const {
     clients,
     projects,
-    products,
+    modules,
     sprints,
     tasks,
     viewPrefs,
     setViewPref,
-    productsCrud,
-    removeProductCascade,
+    modulesCrud,
+    removeModuleCascade,
     showToast,
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -84,30 +84,30 @@ export default function ProjectDetailPage({
     );
   }
 
-  const projectProducts = products.filter((p) => p.projectId === project.id);
-  const atRisk = projectProducts.filter((p) => p.risk !== "low").length;
-  const activeSprints = projectProducts.filter((p) => p.currentSprintId).length;
+  const projectModules = modules.filter((p) => p.projectId === project.id);
+  const atRisk = projectModules.filter((p) => p.risk !== "low").length;
+  const activeSprints = projectModules.filter((p) => p.currentSprintId).length;
   const view = viewPrefs.projectModules;
 
-  // Summed from live task status; products.blockedCount is a seed nothing maintains.
-  const blocked = projectProducts.reduce(
+  // Summed from live task status; modules.blockedCount is a seed nothing maintains.
+  const blocked = projectModules.reduce(
     (sum, p) => sum + blockedCountFor(sprints, tasks, p.id),
     0
   );
 
-  const filteredProducts = projectProducts.filter(
+  const filteredModules = projectModules.filter(
     (p) =>
       (statusFilter === "all" || p.status === statusFilter) &&
       (riskFilter === "all" || p.risk === riskFilter)
   );
-  // The timeline draws the sprints of whichever modules survive the filters, so
+  // The timeline draws the sprints of whichever components survive the filters, so
   // narrowing to "at risk" narrows the chart with it. Every row has to say
-  // which module it belongs to: sprint numbers only count within one module,
+  // which component it belongs to: sprint numbers only count within one component,
   // so a project timeline can hold several "Sprint 01".
-  const filteredProductIds = new Set(filteredProducts.map((p) => p.id));
-  const timelineSprints = sprints.filter((s) => filteredProductIds.has(s.productId));
-  const productOf = (s: { productId: string }) =>
-    projectProducts.find((p) => p.id === s.productId)!;
+  const filteredModuleIds = new Set(filteredModules.map((p) => p.id));
+  const timelineSprints = sprints.filter((s) => filteredModuleIds.has(s.moduleId));
+  const moduleOf = (s: { moduleId: string }) =>
+    projectModules.find((p) => p.id === s.moduleId)!;
   // The calendar plots tasks, not sprint boundaries: a sprint has two dates and
   // says nothing about the days between them.
   const timelineSprintIds = new Set(timelineSprints.map((s) => s.id));
@@ -121,14 +121,14 @@ export default function ProjectDetailPage({
     setPanelOpen(true);
   };
 
-  const openEdit = (product: Product) => {
-    setEditingId(product.id);
+  const openEdit = (mod: Module) => {
+    setEditingId(mod.id);
     setDraft({
-      name: product.name,
-      goal: product.goal,
-      owner: product.owner,
-      deliveryLead: product.deliveryLead,
-      status: product.status,
+      name: mod.name,
+      goal: mod.goal,
+      owner: mod.owner,
+      deliveryLead: mod.deliveryLead,
+      status: mod.status,
     });
     setPanelOpen(true);
   };
@@ -139,7 +139,7 @@ export default function ProjectDetailPage({
       return;
     }
     if (editingId) {
-      productsCrud.update(editingId, {
+      modulesCrud.update(editingId, {
         name: draft.name.trim(),
         goal: draft.goal.trim() || "Module goal to be defined.",
         owner: draft.owner.trim(),
@@ -152,8 +152,8 @@ export default function ProjectDetailPage({
       showToast("Module updated.", "success");
       return;
     }
-    productsCrud.add({
-      id: newId("product"),
+    modulesCrud.add({
+      id: newId("module"),
       projectId: project.id,
       clientId: client.id,
       name: draft.name.trim(),
@@ -165,7 +165,7 @@ export default function ProjectDetailPage({
       risk: "low",
       velocity: 0,
       blockedCount: 0,
-      modules: [],
+      components: [],
       currentSprintId: undefined,
       aiInsight: {
         insight: "New module — start by defining components and initial backlog.",
@@ -203,7 +203,7 @@ export default function ProjectDetailPage({
       <KpiStrip
         className="mt-10"
         items={[
-          { value: projectProducts.length, label: "Modules" },
+          { value: projectModules.length, label: "Modules" },
           {
             value: atRisk,
             label: "At Risk",
@@ -237,7 +237,7 @@ export default function ProjectDetailPage({
               size="sm"
               onClick={() => (panelOpen ? setPanelOpen(false) : openCreate())}
             >
-              Add Module
+              Add Component
             </Button>
           </div>
         </div>
@@ -286,7 +286,7 @@ export default function ProjectDetailPage({
                       onChange={(e) =>
                         setDraft({
                           ...draft,
-                          status: e.target.value as Product["status"],
+                          status: e.target.value as Module["status"],
                         })
                       }
                       className={inputClass}
@@ -313,9 +313,9 @@ export default function ProjectDetailPage({
         )}
 
         <div className="mt-4">
-          {projectProducts.length === 0 ? (
+          {projectModules.length === 0 ? (
             <EmptyState>
-              No modules yet. Add the first module for this project.
+              No components yet. Add the first component for this project.
             </EmptyState>
           ) : (
             <>
@@ -344,24 +344,24 @@ export default function ProjectDetailPage({
                     ]),
                   },
                 ]}
-                summary={`${filteredProducts.length} of ${projectProducts.length}`}
+                summary={`${filteredModules.length} of ${projectModules.length}`}
               />
-              {filteredProducts.length === 0 ? (
-                <EmptyState>No modules match the current filters.</EmptyState>
+              {filteredModules.length === 0 ? (
+                <EmptyState>No components match the current filters.</EmptyState>
               ) : view !== "list" ? (
                 timelineSprints.length === 0 ? (
                   <EmptyState>
-                    These modules have no sprints yet. Open a module and add one
+                    These components have no sprints yet. Open a component and add one
                     from its Components tab.
                   </EmptyState>
                 ) : view === "gantt" ? (
                   <SprintGantt
                     sprints={timelineSprints}
                     hrefFor={(s) =>
-                      `${productPath(productOf(s))}/sprints/${s.id}/board`
+                      `${modulePath(moduleOf(s))}/sprints/${s.id}/board`
                     }
                     labelFor={(s) => ({
-                      title: productOf(s).name,
+                      title: moduleOf(s).name,
                       subtitle: `Sprint ${String(s.number).padStart(2, "0")} · ${s.name}`,
                     })}
                   />
@@ -369,36 +369,36 @@ export default function ProjectDetailPage({
                   <TaskCalendar
                     tasks={timelineTasks}
                     hrefFor={(t) =>
-                      `${productPath(productOf(sprintOf(t)))}/sprints/${t.sprintId}/board`
+                      `${modulePath(moduleOf(sprintOf(t)))}/sprints/${t.sprintId}/board`
                     }
-                    contextFor={(t) => productOf(sprintOf(t)).name}
+                    contextFor={(t) => moduleOf(sprintOf(t)).name}
                   />
                 )
               ) : (
                 <DataTable
                   headers={["Module", "Status", "Health", "Velocity", "Current Sprint", "Risk", ""]}
                 >
-                  {filteredProducts.map((product) => {
-                    const sprint = product.currentSprintId
-                      ? sprints.find((s) => s.id === product.currentSprintId)
+                  {filteredModules.map((mod) => {
+                    const sprint = mod.currentSprintId
+                      ? sprints.find((s) => s.id === mod.currentSprintId)
                       : undefined;
                     return (
-                      <tr key={product.id} className="group">
+                      <tr key={mod.id} className="group">
                         <td className="py-4 pr-6">
                           <Link
-                            href={productPath(product)}
+                            href={modulePath(mod)}
                             className="font-medium text-ink hover:underline"
                           >
-                            {product.name}
+                            {mod.name}
                           </Link>
-                          <div className="text-xs text-muted">{product.goal}</div>
+                          <div className="text-xs text-muted">{mod.goal}</div>
                         </td>
                         <td className="py-4 pr-6">
-                          <StatusPill status={product.status} />
+                          <StatusPill status={mod.status} />
                         </td>
-                        <td className="py-4 pr-6 tabular-nums">{product.health}%</td>
+                        <td className="py-4 pr-6 tabular-nums">{mod.health}%</td>
                         <td className="py-4 pr-6 tabular-nums">
-                          {product.velocity || "—"}
+                          {mod.velocity || "—"}
                         </td>
                         <td className="py-4 pr-6 text-muted">
                           {sprint
@@ -406,21 +406,21 @@ export default function ProjectDetailPage({
                             : "—"}
                         </td>
                         <td className="py-4 pr-6">
-                          <StatusPill status={product.risk} />
+                          <StatusPill status={mod.risk} />
                         </td>
                         <td className="py-4 text-right">
                           <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                             <button
-                              onClick={() => openEdit(product)}
+                              onClick={() => openEdit(mod)}
                               className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
                             >
                               Edit
                             </button>
                             <ConfirmButton
                               onConfirm={() => {
-                                removeProductCascade(product.id);
+                                removeModuleCascade(mod.id);
                                 showToast(
-                                  `${product.name} and its backlog were removed.`,
+                                  `${mod.name} and its backlog were removed.`,
                                   "info"
                                 );
                               }}

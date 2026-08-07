@@ -15,24 +15,24 @@ import {
   Panel,
   SectionHeader,
 } from "@/components/ui";
-import { modulePath } from "@/lib/data";
+import { componentPath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
-import type { Module } from "@/lib/types";
+import type { Component } from "@/lib/types";
 
 const emptyDraft = { name: "", owner: "" };
 
-export default function ModulesPage({
+export default function ComponentsPage({
   params,
 }: {
-  params: Promise<{ productId: string }>;
+  params: Promise<{ moduleId: string }>;
 }) {
-  const { productId } = use(params);
+  const { moduleId } = use(params);
   const {
-    products,
+    modules,
     backlog,
     sprints,
     tasks,
-    productsCrud,
+    modulesCrud,
     sprintsCrud,
     tasksCrud,
     showToast,
@@ -42,10 +42,10 @@ export default function ModulesPage({
   const [draft, setDraft] = useState(emptyDraft);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const product = products.find((p) => p.id === productId);
-  if (!product) return null;
-  const productBacklog = backlog.filter((b) => b.productId === productId);
-  const filteredModules = product.modules.filter(
+  const mod = modules.find((p) => p.id === moduleId);
+  if (!mod) return null;
+  const moduleBacklog = backlog.filter((b) => b.moduleId === moduleId);
+  const filteredComponents = mod.components.filter(
     (m) => statusFilter === "all" || m.status === statusFilter
   );
 
@@ -55,9 +55,9 @@ export default function ModulesPage({
     setPanelOpen(true);
   };
 
-  const openEdit = (module: Module) => {
-    setEditingId(module.id);
-    setDraft({ name: module.name, owner: module.owner });
+  const openEdit = (component: Component) => {
+    setEditingId(component.id);
+    setDraft({ name: component.name, owner: component.owner });
     setPanelOpen(true);
   };
 
@@ -67,8 +67,8 @@ export default function ModulesPage({
       return;
     }
     if (editingId) {
-      productsCrud.update(product.id, {
-        modules: product.modules.map((m) =>
+      modulesCrud.update(mod.id, {
+        components: mod.components.map((m) =>
           m.id === editingId
             ? {
                 ...m,
@@ -80,11 +80,11 @@ export default function ModulesPage({
       });
       showToast("Component updated.", "success");
     } else {
-      productsCrud.update(product.id, {
-        modules: [
-          ...product.modules,
+      modulesCrud.update(mod.id, {
+        components: [
+          ...mod.components,
           {
-            id: newId("module"),
+            id: newId("component"),
             name: draft.name.trim(),
             owner: draft.owner.trim() || "Unassigned",
             status: "planned",
@@ -98,12 +98,12 @@ export default function ModulesPage({
     setPanelOpen(false);
   };
 
-  const removeModule = (moduleId: string) => {
-    productsCrud.update(product.id, {
-      modules: product.modules.filter((m) => m.id !== moduleId),
+  const removeComponent = (componentId: string) => {
+    modulesCrud.update(mod.id, {
+      components: mod.components.filter((m) => m.id !== componentId),
     });
     const removedSprintIds = sprints
-      .filter((s) => s.productId === product.id && s.moduleId === moduleId)
+      .filter((s) => s.moduleId === mod.id && s.componentId === componentId)
       .map((s) => s.id);
     removedSprintIds.forEach((id) => sprintsCrud.remove(id));
     tasks
@@ -112,11 +112,11 @@ export default function ModulesPage({
     showToast("Component removed.", "info");
   };
 
-  const cycleStatus = (moduleId: string) => {
+  const cycleStatus = (componentId: string) => {
     const order = ["planned", "in-progress", "done"] as const;
-    productsCrud.update(product.id, {
-      modules: product.modules.map((m) =>
-        m.id === moduleId
+    modulesCrud.update(mod.id, {
+      components: mod.components.map((m) =>
+        m.id === componentId
           ? { ...m, status: order[(order.indexOf(m.status) + 1) % order.length] }
           : m
       ),
@@ -171,7 +171,7 @@ export default function ModulesPage({
         </Panel>
       )}
 
-      {product.modules.length > 0 && (
+      {mod.components.length > 0 && (
         <FilterBar
           className="mt-6"
           groups={[
@@ -186,40 +186,40 @@ export default function ModulesPage({
               ]),
             },
           ]}
-          summary={`${filteredModules.length} of ${product.modules.length}`}
+          summary={`${filteredComponents.length} of ${mod.components.length}`}
         />
       )}
 
       <div className="mt-6">
-        {product.modules.length === 0 ? (
+        {mod.components.length === 0 ? (
           <EmptyState>
             No components yet. Backlog items attach to components, so add these first.
           </EmptyState>
-        ) : filteredModules.length === 0 ? (
+        ) : filteredComponents.length === 0 ? (
           <EmptyState>No components match the filters.</EmptyState>
         ) : (
           <DataTable
             headers={["Component", "Owner", "Sprints", "Backlog Items", "Status", ""]}
           >
-            {filteredModules.map((module) => {
-              const items = productBacklog.filter(
-                (b) => b.moduleId === module.id
+            {filteredComponents.map((component) => {
+              const items = moduleBacklog.filter(
+                (b) => b.componentId === component.id
               );
-              const moduleSprints = sprints.filter(
-                (s) => s.productId === product.id && s.moduleId === module.id
+              const componentSprints = sprints.filter(
+                (s) => s.moduleId === mod.id && s.componentId === component.id
               );
               return (
-                <tr key={module.id} className="group">
+                <tr key={component.id} className="group">
                   <td className="py-4 pr-6">
                     <Link
-                      href={modulePath(product, module.id)}
+                      href={componentPath(mod, component.id)}
                       className="font-medium text-ink hover:underline"
                     >
-                      {module.name}
+                      {component.name}
                     </Link>
                   </td>
-                  <td className="py-4 pr-6 text-muted">{module.owner}</td>
-                  <td className="py-4 pr-6 tabular-nums">{moduleSprints.length}</td>
+                  <td className="py-4 pr-6 text-muted">{component.owner}</td>
+                  <td className="py-4 pr-6 tabular-nums">{componentSprints.length}</td>
                   <td className="py-4 pr-6 tabular-nums">
                     {items.length}
                     {items.length > 0 && (
@@ -230,23 +230,23 @@ export default function ModulesPage({
                   </td>
                   <td className="py-4 pr-6">
                     <button
-                      onClick={() => cycleStatus(module.id)}
-                      aria-label={`Change status — currently ${module.status}`}
+                      onClick={() => cycleStatus(component.id)}
+                      aria-label={`Change status — currently ${component.status}`}
                       title="Click to change status"
                       className="hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
                     >
-                      <StatusPill status={module.status} />
+                      <StatusPill status={component.status} />
                     </button>
                   </td>
                   <td className="py-4 text-right">
                     <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                       <button
-                        onClick={() => openEdit(module)}
+                        onClick={() => openEdit(component)}
                         className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
                       >
                         Edit
                       </button>
-                      <ConfirmButton onConfirm={() => removeModule(module.id)} />
+                      <ConfirmButton onConfirm={() => removeComponent(component.id)} />
                     </div>
                   </td>
                 </tr>

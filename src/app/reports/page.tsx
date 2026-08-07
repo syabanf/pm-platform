@@ -16,7 +16,7 @@ import {
   PageHeader,
   Panel,
 } from "@/components/ui";
-import { productPathById } from "@/lib/data";
+import { modulePathById } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
 
 export default function GlobalReportsPage({
@@ -26,7 +26,7 @@ export default function GlobalReportsPage({
 }) {
   const { type } = use(searchParams);
   const {
-    products,
+    modules,
     clients,
     reportQueue,
     reportQueueCrud,
@@ -37,7 +37,7 @@ export default function GlobalReportsPage({
   const [panelOpen, setPanelOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [draft, setDraft] = useState({
-    productId: products[0]?.id ?? "",
+    moduleId: modules[0]?.id ?? "",
     type: "Sprint Report",
     template: reportTemplates[0]?.name ?? "Internal PM",
     due: "2026-07-15",
@@ -51,13 +51,13 @@ export default function GlobalReportsPage({
   );
 
   const addToQueue = () => {
-    const product = products.find((p) => p.id === draft.productId);
-    if (!product) return;
-    const client = clients.find((c) => c.id === product.clientId);
+    const mod = modules.find((p) => p.id === draft.moduleId);
+    if (!mod) return;
+    const client = clients.find((c) => c.id === mod.clientId);
     reportQueueCrud.add({
       id: newId("rq"),
-      title: `${product.name} — ${draft.type}`,
-      productId: product.id,
+      title: `${mod.name} — ${draft.type}`,
+      moduleId: mod.id,
       client: client?.name ?? "—",
       type: draft.type,
       template: draft.template,
@@ -104,11 +104,11 @@ export default function GlobalReportsPage({
           <div className="grid gap-4 md:grid-cols-4">
             <Field label="Module">
               <select
-                value={draft.productId}
-                onChange={(e) => setDraft({ ...draft, productId: e.target.value })}
+                value={draft.moduleId}
+                onChange={(e) => setDraft({ ...draft, moduleId: e.target.value })}
                 className={inputClass}
               >
-                {products.map((p) => (
+                {modules.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
@@ -191,7 +191,7 @@ export default function GlobalReportsPage({
                 <td className="py-4 text-right">
                   <div className="flex items-center justify-end gap-1.5">
                     <Link
-                      href={`${productPathById(report.productId)}/reports`}
+                      href={`${modulePathById(report.moduleId)}/reports`}
                       className="text-xs text-muted opacity-60 transition-opacity group-hover:opacity-100 hover:text-ink"
                     >
                       Generate →
@@ -213,23 +213,23 @@ export default function GlobalReportsPage({
         </DataTable>
       </div>
 
-      {/* History across all products */}
+      {/* History across all modules */}
       <section className="mt-12">
         <h2 className="label">Generated This Session</h2>
         {generatedReports.length === 0 ? (
           <EmptyState className="mt-3">
             Nothing generated yet. Reports you generate appear here and can be
-            reopened from the module&apos;s Reports tab.
+            reopened from the component&apos;s Reports tab.
           </EmptyState>
         ) : (
           <ul className="mt-3 divide-y divide-line border-y border-line">
             {generatedReports.map((report) => {
-              const product = products.find((p) => p.id === report.productId);
+              const mod = modules.find((p) => p.id === report.moduleId);
               return (
                 <li key={report.id} className="flex items-center gap-4 py-3">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-ink">
-                      {product?.name} — {report.config.type}
+                      {mod?.name} — {report.config.type}
                     </span>
                     <span className="block text-xs text-muted">
                       {report.config.template} · {report.config.period} ·{" "}
@@ -241,7 +241,7 @@ export default function GlobalReportsPage({
                     label={report.status}
                   />
                   <Link
-                    href={`${productPathById(report.productId)}/reports`}
+                    href={`${modulePathById(report.moduleId)}/reports`}
                     className="text-xs text-muted hover:text-ink"
                   >
                     Open →

@@ -14,13 +14,13 @@ import {
   inputClass,
 } from "@/components/Document";
 import { ToggleButton } from "@/components/ui";
-import { getClient, products } from "@/lib/data";
+import { getClient, modules } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
 export default function ChangeRequestPage() {
   const { masters, showToast } = usePrototype();
   const impactAreas = masters.impactAreas;
-  const [productId, setProductId] = useState(products[0].id);
+  const [moduleId, setModuleId] = useState(modules[0].id);
   const [title, setTitle] = useState("Add shift filter to OEE dashboard");
   const [requestedBy, setRequestedBy] = useState("Pak Hendra (Client PIC)");
   const [description, setDescription] = useState(
@@ -36,8 +36,8 @@ export default function ChangeRequestPage() {
   );
   const [generated, setGenerated] = useState(false);
 
-  const product = products.find((p) => p.id === productId);
-  const client = product ? getClient(product.clientId) : undefined;
+  const mod = modules.find((p) => p.id === moduleId);
+  const client = mod ? getClient(mod.clientId) : undefined;
 
   const toggleImpact = (area: string) =>
     setImpacts((prev) =>
@@ -62,12 +62,12 @@ export default function ChangeRequestPage() {
         <>
           <Field label="Module">
             <div className="flex flex-wrap gap-1.5">
-              {products.map((p) => (
+              {modules.map((p) => (
                 <ToggleButton
                   key={p.id}
-                  active={productId === p.id}
+                  active={moduleId === p.id}
                   size="md"
-                  onClick={() => setProductId(p.id)}
+                  onClick={() => setModuleId(p.id)}
                 >
                   {p.name}
                 </ToggleButton>
@@ -112,7 +112,7 @@ export default function ChangeRequestPage() {
         </>
       }
       document={
-        generated && product ? (
+        generated && mod ? (
           <DocumentArticle>
             <DocHeader
               docType="Change Request — CR-2026-007"
@@ -120,7 +120,7 @@ export default function ChangeRequestPage() {
               title={title}
               meta={[
                 { label: "Client", value: client?.name ?? "—" },
-                { label: "Module", value: product.name },
+                { label: "Module", value: mod.name },
                 { label: "Requested by", value: requestedBy },
                 { label: "Prepared by", value: "Fahmi" },
                 { label: "Status", value: "Awaiting approval" },

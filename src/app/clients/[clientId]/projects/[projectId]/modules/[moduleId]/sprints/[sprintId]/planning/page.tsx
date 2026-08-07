@@ -18,13 +18,13 @@ const steps = [
 export default function SprintPlanningPage({
   params,
 }: {
-  params: Promise<{ productId: string; sprintId: string }>;
+  params: Promise<{ moduleId: string; sprintId: string }>;
 }) {
-  const { productId, sprintId } = use(params);
+  const { moduleId, sprintId } = use(params);
   const sprint = useSprint(sprintId);
   const { backlog, members, showToast, commitSprint, committedSprint } =
     usePrototype();
-  const backlogItems = backlog.filter((b) => b.productId === productId);
+  const backlogItems = backlog.filter((b) => b.moduleId === moduleId);
 
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState(sprint?.goal ?? "");

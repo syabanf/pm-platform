@@ -39,27 +39,27 @@ export default function ComponentDetailPage({
   params: Promise<{
     clientId: string;
     projectId: string;
-    productId: string;
     moduleId: string;
+    componentId: string;
   }>;
 }) {
-  const { clientId, projectId, productId, moduleId } = use(params);
-  const { products, sprints, backlog, sprintsCrud, showToast } = usePrototype();
-  const base = `/clients/${clientId}/projects/${projectId}/products/${productId}`;
+  const { clientId, projectId, moduleId, componentId } = use(params);
+  const { modules, sprints, backlog, sprintsCrud, showToast } = usePrototype();
+  const base = `/clients/${clientId}/projects/${projectId}/modules/${moduleId}`;
 
-  const product = products.find((p) => p.id === productId);
-  const component = product?.modules.find((m) => m.id === moduleId);
+  const mod = modules.find((p) => p.id === moduleId);
+  const component = mod?.components.find((m) => m.id === componentId);
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SprintDraft>(() => emptySprintDraft());
   const [sprintStatusFilter, setSprintStatusFilter] = useState("all");
 
-  if (!product || !component) {
+  if (!mod || !component) {
     return (
       <EmptyState>
         Component not found — it may have been removed in this session.{" "}
-        <Link href={`${base}/modules`} className="text-ink underline">
+        <Link href={`${base}/components`} className="text-ink underline">
           Back to Components
         </Link>
       </EmptyState>
@@ -67,18 +67,18 @@ export default function ComponentDetailPage({
   }
 
   const componentSprints = sprints
-    .filter((s) => s.productId === productId && s.moduleId === moduleId)
+    .filter((s) => s.moduleId === moduleId && s.componentId === componentId)
     .sort((a, b) => b.number - a.number);
   const filteredSprints = componentSprints.filter(
     (s) => sprintStatusFilter === "all" || s.status === sprintStatusFilter
   );
   const componentBacklog = backlog.filter(
-    (b) => b.productId === productId && b.moduleId === moduleId
+    (b) => b.moduleId === moduleId && b.componentId === componentId
   );
 
   const openCreate = () => {
     setEditingId(null);
-    setDraft(emptySprintDraft(moduleId));
+    setDraft(emptySprintDraft(componentId));
     setPanelOpen(true);
   };
 
@@ -90,11 +90,11 @@ export default function ComponentDetailPage({
 
   return (
     <div>
-      {/* Component sub-header — the drill-down level below Module */}
+      {/* Component sub-header — the drill-down level below Component */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="text-xs text-muted">
-            <Link href={`${base}/modules`} className="hover:text-ink">
+            <Link href={`${base}/components`} className="hover:text-ink">
               Components
             </Link>
             <span className="mx-1.5 text-line" aria-hidden>
@@ -138,9 +138,9 @@ export default function ComponentDetailPage({
 
         {panelOpen && (
           <SprintPanel
-            productId={productId}
-            components={product.modules}
-            lockedModuleId={moduleId}
+            moduleId={moduleId}
+            components={mod.components}
+            lockedComponentId={componentId}
             editingId={editingId}
             draft={draft}
             setDraft={setDraft}

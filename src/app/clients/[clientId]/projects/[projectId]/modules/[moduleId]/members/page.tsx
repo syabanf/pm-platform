@@ -2,6 +2,6 @@
 
 import { MembersMaster } from "@/components/MembersMaster";
 
-export default function ProductMembersPage() {
+export default function ModuleMembersPage() {
   return <MembersMaster />;
 }

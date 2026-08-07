@@ -9,8 +9,8 @@ import { PageContainer, PageHeader, KpiStrip } from "@/components/ui";
 import {
   clientPath,
   homeInsight,
-  productPath,
-  productPathById,
+  modulePath,
+  modulePathById,
   projectPath,
   retroData,
   sprintPath,
@@ -37,7 +37,7 @@ export default function HomePage() {
     currentUser,
     clients,
     projects,
-    products,
+    modules,
     sprints,
     tasks,
     members,
@@ -45,7 +45,7 @@ export default function HomePage() {
     recentPaths,
     reportQueue,
   } = usePrototype();
-  const atRiskProducts = products.filter((p) => p.risk !== "low").length;
+  const atRiskModules = modules.filter((p) => p.risk !== "low").length;
   const firstName = currentUser?.name.split(" ")[0] ?? "there";
 
   // Portfolio tree: collapsed by default except the first client, so the page
@@ -89,7 +89,7 @@ export default function HomePage() {
         kind: "Overdue action",
         title: action.action,
         detail: `${action.owner} · due ${action.due}`,
-        href: `${productPathById("oee-intelligence")}/sprints/sprint-03/retro`,
+        href: `${modulePathById("oee-intelligence")}/sprints/sprint-03/retro`,
       });
     });
   members
@@ -100,7 +100,7 @@ export default function HomePage() {
         kind: "Overloaded",
         title: `${member.name} is at ${member.workload}% workload`,
         detail: member.roleLabel,
-        href: `${productPathById("oee-intelligence")}/members`,
+        href: `${modulePathById("oee-intelligence")}/members`,
       });
     });
   decisions
@@ -111,7 +111,7 @@ export default function HomePage() {
         kind: "Decision",
         title: decision.title,
         detail: `Owner: ${decision.owner}`,
-        href: `${productPathById(decision.productId)}/decisions`,
+        href: `${modulePathById(decision.moduleId)}/decisions`,
       });
     });
   triage.sort((a, b) => b.severity - a.severity);
@@ -174,8 +174,8 @@ export default function HomePage() {
         className="mt-10"
         items={[
           { value: clients.length, label: "Active Clients" },
-          { value: products.length, label: "Active Modules" },
-          { value: atRiskProducts, label: "At Risk Modules", tone: "warning" },
+          { value: modules.length, label: "Active Modules" },
+          { value: atRiskModules, label: "At Risk Modules", tone: "warning" },
           {
             value: reportQueue.filter((r) => r.status !== "done").length,
             label: "Reports Due",
@@ -212,7 +212,7 @@ export default function HomePage() {
             const clientProjects = projects.filter(
               (p) => p.clientId === client.id
             );
-            const clientProducts = products.filter(
+            const clientModules = modules.filter(
               (p) => p.clientId === client.id
             );
             const isOpen = expandedClients.has(client.id);
@@ -248,7 +248,7 @@ export default function HomePage() {
                   </span>
                   <span className="ml-auto flex items-center gap-3">
                     <span className="hidden text-xs tabular-nums text-muted sm:inline">
-                      {clientProducts.length} modules
+                      {clientModules.length} components
                     </span>
                     <span className="hidden sm:inline-flex">
                       <StatusPill status={client.health} />
@@ -260,7 +260,7 @@ export default function HomePage() {
                 <div>
                 <div className="border-t border-line">
                 {clientProjects.map((project) => {
-                  const projProducts = products.filter(
+                  const projModules = modules.filter(
                     (p) => p.projectId === project.id
                   );
                   return (
@@ -275,24 +275,24 @@ export default function HomePage() {
                         </span>
                         <span className="ml-auto flex items-center gap-3">
                           <span className="hidden text-xs tabular-nums text-muted sm:inline">
-                            {projProducts.length} modules
+                            {projModules.length} components
                           </span>
                           <StatusPill status={project.status} />
                         </span>
                       </Link>
-                      {projProducts.map((product) => {
-                        const sprint = product.currentSprintId
-                          ? sprints.find((s) => s.id === product.currentSprintId)
+                      {projModules.map((mod) => {
+                        const sprint = mod.currentSprintId
+                          ? sprints.find((s) => s.id === mod.currentSprintId)
                           : undefined;
                         return (
                           <Link
-                            key={product.id}
-                            href={productPath(product)}
+                            key={mod.id}
+                            href={modulePath(mod)}
                             className="group flex items-center gap-3 border-b border-line px-4 py-2 pl-16 last:border-b-0 hover:bg-soft"
                           >
                             <span className="text-line">└</span>
                             <span className="text-sm text-ink group-hover:underline">
-                              {product.name}
+                              {mod.name}
                             </span>
                             {sprint && (
                               <span className="hidden text-xs text-muted sm:inline">
@@ -301,18 +301,18 @@ export default function HomePage() {
                             )}
                             <span className="ml-auto flex items-center gap-3">
                               <span className="hidden text-xs tabular-nums text-muted sm:inline">
-                                {product.health}%
+                                {mod.health}%
                               </span>
                               <StatusPill
                                 status={
-                                  blockedCountFor(sprints, tasks, product.id) > 1
+                                  blockedCountFor(sprints, tasks, mod.id) > 1
                                     ? "blocked"
-                                    : product.risk
+                                    : mod.risk
                                 }
                                 label={
-                                  blockedCountFor(sprints, tasks, product.id) > 1
+                                  blockedCountFor(sprints, tasks, mod.id) > 1
                                     ? "blocked"
-                                    : `${product.risk} risk`
+                                    : `${mod.risk} risk`
                                 }
                               />
                             </span>

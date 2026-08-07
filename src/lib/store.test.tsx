@@ -37,7 +37,7 @@ describe("prototype store", () => {
     expect(result.current.tasks.find((t) => t.id === "t2")?.column).toBe("done");
   });
 
-  it("cascades client deletion to projects and products", () => {
+  it("cascades client deletion to projects and modules", () => {
     const { result } = renderHook(() => usePrototype(), { wrapper });
     act(() => {
       result.current.removeClientCascade("ubs-gold");
@@ -47,7 +47,7 @@ describe("prototype store", () => {
       result.current.projects.some((p) => p.clientId === "ubs-gold")
     ).toBe(false);
     expect(
-      result.current.products.some((p) => p.clientId === "ubs-gold")
+      result.current.modules.some((p) => p.clientId === "ubs-gold")
     ).toBe(false);
   });
 
@@ -80,7 +80,7 @@ describe("prototype store", () => {
     act(() => {
       result.current.saveGeneratedReport({
         id: "r-test",
-        productId: "oee-intelligence",
+        moduleId: "oee-intelligence",
         config: { type: "Sprint Report", template: "Client Facing", period: "Current Sprint" },
         date: "2026-07-08",
         status: "draft",
@@ -93,7 +93,7 @@ describe("prototype store", () => {
       result.current.generatedReports.find((r) => r.id === "r-test")?.status
     ).toBe("sent");
     const queueItem = result.current.reportQueue.find(
-      (q) => q.productId === "oee-intelligence" && q.type === "Sprint Report" && q.id === "rq1"
+      (q) => q.moduleId === "oee-intelligence" && q.type === "Sprint Report" && q.id === "rq1"
     );
     expect(queueItem?.status).toBe("done");
   });

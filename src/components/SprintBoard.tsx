@@ -340,7 +340,7 @@ function AddTaskForm({
         sprints.find((s) => s.id === sprintId)?.endDate ??
         new Date().toISOString().slice(0, 10),
       title: title.trim(),
-      moduleName: parent.title,
+      componentName: parent.title,
       assigneeId,
       estimate: 1,
       column: "selected",

@@ -15,15 +15,15 @@ export default function SprintLayout({
   params: Promise<{
     clientId: string;
     projectId: string;
-    productId: string;
+    moduleId: string;
     sprintId: string;
   }>;
 }) {
-  const { clientId, projectId, productId, sprintId } = use(params);
+  const { clientId, projectId, moduleId, sprintId } = use(params);
   const sprint = useSprint(sprintId);
-  const { products } = usePrototype();
+  const { modules } = usePrototype();
 
-  if (!sprint || sprint.productId !== productId) {
+  if (!sprint || sprint.moduleId !== moduleId) {
     return (
       <div className="text-sm text-muted">
         Sprint not found — it may have been removed in this session.{" "}
@@ -34,9 +34,9 @@ export default function SprintLayout({
     );
   }
 
-  const base = `/clients/${clientId}/projects/${projectId}/products/${productId}/sprints/${sprintId}`;
-  const product = products.find((p) => p.id === productId);
-  const component = product?.modules.find((m) => m.id === sprint.moduleId);
+  const base = `/clients/${clientId}/projects/${projectId}/modules/${moduleId}/sprints/${sprintId}`;
+  const mod = modules.find((p) => p.id === moduleId);
+  const component = mod?.components.find((m) => m.id === sprint.componentId);
 
   // Shared between the tab bar and the swipe-between-tabs gesture.
   const tabs: Tab[] = [

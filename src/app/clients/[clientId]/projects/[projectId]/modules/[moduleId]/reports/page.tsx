@@ -26,11 +26,11 @@ const periods = ["Current Sprint", "Last Sprint", "Monthly", "Custom Date"];
 export default function ReportsPage({
   params,
 }: {
-  params: Promise<{ productId: string }>;
+  params: Promise<{ moduleId: string }>;
 }) {
-  const { productId } = use(params);
+  const { moduleId } = use(params);
   const {
-    products,
+    modules,
     sprints: allSprints,
     reportTemplates,
     generatedReports,
@@ -38,8 +38,8 @@ export default function ReportsPage({
     markReportSent,
     showToast,
   } = usePrototype();
-  const product = products.find((p) => p.id === productId);
-  const sprints = allSprints.filter((s) => s.productId === productId);
+  const mod = modules.find((p) => p.id === moduleId);
+  const sprints = allSprints.filter((s) => s.moduleId === moduleId);
 
   const [type, setType] = useState<ReportType>("Module Report");
   const [template, setTemplate] = useState("Client Facing");
@@ -47,7 +47,7 @@ export default function ReportsPage({
   const [generated, setGenerated] = useState<ReportConfig | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
 
-  if (!product) return null;
+  if (!mod) return null;
 
   // Period resolution: "Last Sprint" uses the previous sprint's data.
   const activeSprint = sprints.find((s) => s.status === "active") ?? sprints[0];
@@ -58,7 +58,7 @@ export default function ReportsPage({
   const sprint =
     generated?.period === "Last Sprint" ? previousSprint : activeSprint;
 
-  const history = generatedReports.filter((r) => r.productId === productId);
+  const history = generatedReports.filter((r) => r.moduleId === moduleId);
   const currentReport = history.find((r) => r.id === reportId);
 
   const generate = () => {
@@ -77,7 +77,7 @@ export default function ReportsPage({
     setReportId(id);
     saveGeneratedReport({
       id,
-      productId,
+      moduleId,
       config,
       date: "2026-07-08",
       status: "draft",
@@ -156,7 +156,7 @@ export default function ReportsPage({
                     const article = document.querySelector("article");
                     if (!article) return;
                     downloadFile(
-                      `${slugify(`${product.name} ${generated.type}`)}.md`,
+                      `${slugify(`${mod.name} ${generated.type}`)}.md`,
                       articleToMarkdown(article),
                       "text/markdown;charset=utf-8"
                     );
@@ -228,7 +228,7 @@ export default function ReportsPage({
         {/* Preview */}
         <div>
           {generated && sprint ? (
-            <ReportPreview product={product} sprint={sprint} config={generated} />
+            <ReportPreview mod={mod} sprint={sprint} config={generated} />
           ) : (
             <EmptyState centered>
               Choose a report type, template, and period — then generate a

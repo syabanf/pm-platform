@@ -24,7 +24,7 @@ export interface Project {
   status: "discovery" | "active" | "done" | "on-hold";
 }
 
-export interface Product {
+export interface Module {
   id: string;
   projectId: string;
   clientId: string;
@@ -37,12 +37,12 @@ export interface Product {
   risk: Risk;
   velocity: number;
   blockedCount: number;
-  modules: Module[];
+  components: Component[];
   currentSprintId?: string;
   aiInsight: AIInsight;
 }
 
-export interface Module {
+export interface Component {
   id: string;
   name: string;
   owner: string;
@@ -59,7 +59,7 @@ export interface Member {
   role: MemberRole;
   roleLabel: string;
   skillTags: string[];
-  allocation: number; // % involvement in product
+  allocation: number; // % involvement in mod
   capacityDays: number; // per sprint
   workload: number; // % of capacity currently assigned
   status: "active" | "inactive" | "temporary";
@@ -71,8 +71,8 @@ export type Readiness = "ready" | "needs-clarification" | "draft";
 
 export interface BacklogItem {
   id: string;
-  productId: string;
   moduleId: string;
+  componentId: string;
   title: string;
   story: string;
   acceptanceCriteria: string[];
@@ -118,7 +118,7 @@ export interface Task {
   dueDate: string;
   backlogItemId: string;
   title: string;
-  moduleName: string;
+  componentName: string;
   assigneeId: string;
   estimate: number;
   column: BoardColumn;
@@ -141,8 +141,8 @@ export interface SprintMember {
 
 export interface Sprint {
   id: string;
-  productId: string;
-  moduleId: string; // the Component (product.modules[]) that owns this sprint
+  moduleId: string;
+  componentId: string; // the Component (mod.components[]) that owns this sprint
   number: number;
   name: string;
   goal: string;
@@ -181,7 +181,7 @@ export interface VelocityEntry {
 
 export interface Decision {
   id: string;
-  productId: string; // the Module this decision belongs to
+  moduleId: string; // the Component this decision belongs to
   date: string;
   title: string;
   detail: string;
@@ -214,7 +214,7 @@ export interface ReportConfig {
 
 export interface GeneratedReport {
   id: string;
-  productId: string;
+  moduleId: string;
   config: ReportConfig;
   date: string;
   status: "draft" | "sent";
@@ -223,7 +223,7 @@ export interface GeneratedReport {
 export interface QueuedReport {
   id: string;
   title: string;
-  productId: string;
+  moduleId: string;
   client: string;
   type: string;
   template: string;

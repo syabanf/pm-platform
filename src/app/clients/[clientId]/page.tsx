@@ -45,7 +45,7 @@ export default function ClientDetailPage({
   const {
     clients,
     projects,
-    products,
+    modules,
     decisions,
     projectsCrud,
     removeProjectCascade,
@@ -72,12 +72,12 @@ export default function ClientDetailPage({
   const filteredProjects = clientProjects.filter(
     (p) => statusFilter === "all" || p.status === statusFilter
   );
-  const clientProducts = products.filter((p) => p.clientId === client.id);
-  const atRisk = clientProducts.filter((p) => p.risk !== "low").length;
-  const activeSprints = clientProducts.filter((p) => p.currentSprintId).length;
-  const clientProductIds = new Set(clientProducts.map((p) => p.id));
+  const clientModules = modules.filter((p) => p.clientId === client.id);
+  const atRisk = clientModules.filter((p) => p.risk !== "low").length;
+  const activeSprints = clientModules.filter((p) => p.currentSprintId).length;
+  const clientModuleIds = new Set(clientModules.map((p) => p.id));
   const openDecisions = decisions.filter(
-    (d) => d.status === "open" && clientProductIds.has(d.productId)
+    (d) => d.status === "open" && clientModuleIds.has(d.moduleId)
   ).length;
 
   const openCreate = () => {
@@ -245,10 +245,10 @@ export default function ClientDetailPage({
                     headers={["Project", "Status", "Modules", "At Risk", ""]}
                   >
                     {filteredProjects.map((project) => {
-                      const projProducts = products.filter(
+                      const projModules = modules.filter(
                         (p) => p.projectId === project.id
                       );
-                      const projAtRisk = projProducts.filter(
+                      const projAtRisk = projModules.filter(
                         (p) => p.risk !== "low"
                       );
                       return (
@@ -268,7 +268,7 @@ export default function ClientDetailPage({
                             <StatusPill status={project.status} />
                           </td>
                           <td className="py-4 pr-6 tabular-nums">
-                            {projProducts.length}
+                            {projModules.length}
                           </td>
                           <td
                             className={`py-4 pr-6 tabular-nums ${projAtRisk.length > 0 ? "text-warning" : "text-muted"}`}

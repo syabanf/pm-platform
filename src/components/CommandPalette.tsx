@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   clientPath,
-  productPath,
+  modulePath,
   projectPath,
 } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
@@ -39,7 +39,7 @@ export function CommandPalette({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { clients, projects, products, sprints } = usePrototype();
+  const { clients, projects, modules, sprints } = usePrototype();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,22 +63,22 @@ export function CommandPalette({
         path: projectPath(p),
       });
     });
-    products.forEach((p) =>
+    modules.forEach((p) =>
       list.push({
         label: p.name,
         hint: "Module",
         group: "Modules",
-        path: productPath(p),
+        path: modulePath(p),
       })
     );
     sprints.forEach((s) => {
-      const product = products.find((p) => p.id === s.productId);
+      const mod = modules.find((p) => p.id === s.moduleId);
       list.push({
         label: `Sprint ${String(s.number).padStart(2, "0")} — ${s.name}`,
-        hint: `${product?.name ?? ""} · Board`,
+        hint: `${mod?.name ?? ""} · Board`,
         group: "Sprints",
-        path: product
-          ? `${productPath(product)}/sprints/${s.id}/board`
+        path: mod
+          ? `${modulePath(mod)}/sprints/${s.id}/board`
           : "/clients",
       });
     });
@@ -100,7 +100,7 @@ export function CommandPalette({
       { label: "Report Templates", path: "/settings/report-templates" },
     ].forEach((a) => list.push({ ...a, hint: "Go to", group: "Actions" }));
     return list;
-  }, [clients, projects, products, sprints]);
+  }, [clients, projects, modules, sprints]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();

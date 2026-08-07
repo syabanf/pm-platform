@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { clientPath, modulePath, productPath, projectPath } from "@/lib/data";
+import { clientPath, componentPath, modulePath, projectPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 import { Button } from "@/components/ui";
 
@@ -19,17 +19,17 @@ interface DemoStep {
  * at a page that really exists — no hard-coded ids to rot.
  */
 function useDemoSteps(): DemoStep[] {
-  const { clients, projects, products, sprints } = usePrototype();
+  const { clients, projects, modules, sprints } = usePrototype();
 
   return useMemo(() => {
     const client = clients[0];
     const project = projects.find((p) => p.clientId === client?.id);
-    const product = products.find((p) => p.projectId === project?.id);
-    const component = product?.modules[0];
+    const mod = modules.find((p) => p.projectId === project?.id);
+    const component = mod?.components[0];
     const sprint =
       sprints.find(
-        (s) => s.productId === product?.id && s.moduleId === component?.id
-      ) ?? sprints.find((s) => s.productId === product?.id);
+        (s) => s.moduleId === mod?.id && s.componentId === component?.id
+      ) ?? sprints.find((s) => s.moduleId === mod?.id);
 
     const steps: DemoStep[] = [
       {
@@ -54,14 +54,14 @@ function useDemoSteps(): DemoStep[] {
     if (project) {
       steps.push({
         title: project.name,
-        body: "A project holds the modules — the products you actually build.",
+        body: "A project holds the modules — the systems you actually build for the client.",
         href: projectPath(project),
       });
     }
-    if (product) {
-      const base = productPath(product);
+    if (mod) {
+      const base = modulePath(mod);
       steps.push({
-        title: product.name,
+        title: mod.name,
         body: "This is the delivery workspace for one module: its health, velocity and current sprint.",
         href: base,
       });
@@ -73,13 +73,13 @@ function useDemoSteps(): DemoStep[] {
       steps.push({
         title: "Components",
         body: "A big product is split into smaller pieces. Each one owns its own sprints.",
-        href: `${base}/modules`,
+        href: `${base}/components`,
       });
       if (component) {
         steps.push({
           title: component.name,
           body: "Open a component to see its sprints and add a new one.",
-          href: modulePath(product, component.id),
+          href: componentPath(mod, component.id),
         });
       }
       if (sprint) {
@@ -108,7 +108,7 @@ function useDemoSteps(): DemoStep[] {
     });
 
     return steps;
-  }, [clients, projects, products, sprints]);
+  }, [clients, projects, modules, sprints]);
 }
 
 export function DemoTour({

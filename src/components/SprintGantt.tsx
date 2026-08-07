@@ -16,19 +16,19 @@ export function SprintGantt({
   sprints: Sprint[];
   /**
    * Where a bar links to. A resolver rather than a base path because a project
-   * timeline draws sprints from several modules at once, and each one lives
-   * under its own module's URL.
+   * timeline draws sprints from several components at once, and each one lives
+   * under its own component's URL.
    */
   hrefFor: (sprint: Sprint) => string;
   /**
    * The row label. Defaults to the sprint number, which is enough inside one
-   * module — but numbers only count within a module, so a project timeline
-   * holding two "Sprint 01"s has to say which module each belongs to.
+   * component — but numbers only count within a component, so a project timeline
+   * holding two "Sprint 01"s has to say which component each belongs to.
    */
   labelFor?: (sprint: Sprint) => { title: string; subtitle?: string };
 }) {
   if (sprints.length === 0) return null;
-  // By date, not by number: across modules the numbers repeat, and ordering by
+  // By date, not by number: across components the numbers repeat, and ordering by
   // them interleaves unrelated work into a meaningless sequence.
   const ordered = [...sprints].sort(
     (a, b) =>

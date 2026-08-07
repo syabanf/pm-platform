@@ -4,7 +4,7 @@ import {
   clients,
   masterLists,
   members,
-  products,
+  modules,
   projects,
   reportQueueSeed,
   reportTemplateMaster,
@@ -17,7 +17,7 @@ import {
 describe("seed data integrity", () => {
   const clientIds = new Set(clients.map((c) => c.id));
   const projectIds = new Set(projects.map((p) => p.id));
-  const productIds = new Set(products.map((p) => p.id));
+  const moduleIds = new Set(modules.map((p) => p.id));
   const memberIds = new Set(members.map((m) => m.id));
   const sprintIds = new Set(sprints.map((s) => s.id));
   const backlogIds = new Set(backlog.map((b) => b.id));
@@ -26,37 +26,37 @@ describe("seed data integrity", () => {
     projects.forEach((p) => expect(clientIds).toContain(p.clientId));
   });
 
-  it("products reference existing projects and clients", () => {
-    products.forEach((p) => {
+  it("modules reference existing projects and clients", () => {
+    modules.forEach((p) => {
       expect(projectIds).toContain(p.projectId);
       expect(clientIds).toContain(p.clientId);
     });
   });
 
-  it("products' currentSprintId points at a real sprint of that product", () => {
-    products
+  it("modules' currentSprintId points at a real sprint of that module", () => {
+    modules
       .filter((p) => p.currentSprintId)
       .forEach((p) => {
         const sprint = sprints.find((s) => s.id === p.currentSprintId);
         expect(sprint, `${p.name} currentSprintId`).toBeTruthy();
-        expect(sprint?.productId).toBe(p.id);
+        expect(sprint?.moduleId).toBe(p.id);
       });
   });
 
-  it("sprints reference existing products and members", () => {
+  it("sprints reference existing modules and members", () => {
     sprints.forEach((s) => {
-      expect(productIds).toContain(s.productId);
+      expect(moduleIds).toContain(s.moduleId);
       s.members.forEach((m) => expect(memberIds).toContain(m.memberId));
     });
   });
 
   it("sprints reference an existing component (moduleId) of their product", () => {
     sprints.forEach((s) => {
-      const product = products.find((p) => p.id === s.productId);
-      expect(product, `sprint ${s.id} product`).toBeTruthy();
+      const mod = modules.find((p) => p.id === s.moduleId);
+      expect(mod, `sprint ${s.id} product`).toBeTruthy();
       expect(
-        product?.modules.some((m) => m.id === s.moduleId),
-        `sprint ${s.id} component ${s.moduleId}`
+        mod?.components.some((m) => m.id === s.componentId),
+        `sprint ${s.id} component ${s.componentId}`
       ).toBe(true);
     });
   });
@@ -75,19 +75,19 @@ describe("seed data integrity", () => {
     });
   });
 
-  it("backlog items reference existing products and their modules", () => {
+  it("backlog items reference existing modules and their components", () => {
     backlog.forEach((b) => {
-      const product = products.find((p) => p.id === b.productId);
-      expect(product, `${b.title} product`).toBeTruthy();
+      const mod = modules.find((p) => p.id === b.moduleId);
+      expect(mod, `${b.title} product`).toBeTruthy();
       expect(
-        product?.modules.some((m) => m.id === b.moduleId),
-        `${b.title} module ${b.moduleId}`
+        mod?.components.some((m) => m.id === b.componentId),
+        `${b.title} module ${b.componentId}`
       ).toBe(true);
     });
   });
 
-  it("report queue seeds reference existing products", () => {
-    reportQueueSeed.forEach((q) => expect(productIds).toContain(q.productId));
+  it("report queue seeds reference existing modules", () => {
+    reportQueueSeed.forEach((q) => expect(moduleIds).toContain(q.moduleId));
   });
 
   it("seed values exist in their master lists", () => {

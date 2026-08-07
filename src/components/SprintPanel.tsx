@@ -40,15 +40,15 @@ export type SprintDraft = {
   status: Sprint["status"];
   startDate: string;
   endDate: string;
-  moduleId: string;
+  componentId: string;
 };
 
-export const emptySprintDraft = (moduleId = ""): SprintDraft => ({
+export const emptySprintDraft = (componentId = ""): SprintDraft => ({
   name: "",
   goal: "",
   status: "planning",
   ...defaultSprintDates(),
-  moduleId,
+  componentId,
 });
 
 export const draftFromSprint = (sprint: Sprint): SprintDraft => ({
@@ -57,7 +57,7 @@ export const draftFromSprint = (sprint: Sprint): SprintDraft => ({
   status: sprint.status,
   startDate: sprint.startDate,
   endDate: sprint.endDate,
-  moduleId: sprint.moduleId,
+  componentId: sprint.componentId,
 });
 
 /**
@@ -65,7 +65,7 @@ export const draftFromSprint = (sprint: Sprint): SprintDraft => ({
  *
  * Both the Module's Sprints tab and a Component's page open this, so a sprint
  * is created the same way from either, and a fix here reaches both. The
- * Component page passes `lockedModuleId` because the owner is already decided
+ * Component page passes `lockedComponentId` because the owner is already decided
  * by where you are standing; the Module page shows the picker instead.
  *
  * Only the name has to be typed. Dates arrive filled in with the usual
@@ -73,17 +73,17 @@ export const draftFromSprint = (sprint: Sprint): SprintDraft => ({
  * that out and a person should not have to.
  */
 export function SprintPanel({
-  productId,
+  moduleId,
   components,
-  lockedModuleId,
+  lockedComponentId,
   editingId,
   draft,
   setDraft,
   onClose,
 }: {
-  productId: string;
+  moduleId: string;
   components: { id: string; name: string }[];
-  lockedModuleId?: string;
+  lockedComponentId?: string;
   editingId: string | null;
   draft: SprintDraft;
   setDraft: (draft: SprintDraft) => void;
@@ -97,7 +97,7 @@ export function SprintPanel({
     if (error) setError(null);
   };
 
-  const moduleId = lockedModuleId ?? draft.moduleId;
+  const componentId = lockedComponentId ?? draft.componentId;
   const days = workingDaysBetween(draft.startDate, draft.endDate);
   const componentName = (id: string) =>
     components.find((c) => c.id === id)?.name ?? "this component";
@@ -107,7 +107,7 @@ export function SprintPanel({
       setError("Give the sprint a name — something the team will recognise.");
       return;
     }
-    if (!moduleId) {
+    if (!componentId) {
       setError("Choose which component this sprint belongs to.");
       return;
     }
@@ -122,7 +122,7 @@ export function SprintPanel({
       status: draft.status,
       startDate: draft.startDate,
       endDate: draft.endDate,
-      moduleId,
+      componentId,
       workingDays: days,
     };
 
@@ -135,12 +135,12 @@ export function SprintPanel({
 
     const nextNumber =
       sprints
-        .filter((s) => s.productId === productId)
+        .filter((s) => s.moduleId === moduleId)
         .reduce((max, s) => Math.max(max, s.number), 0) + 1;
 
     sprintsCrud.add({
       id: newId("sprint"),
-      productId,
+      moduleId,
       number: nextNumber,
       ...fields,
       daysLeft: days,
@@ -153,7 +153,7 @@ export function SprintPanel({
     });
     showToast(
       `Sprint ${String(nextNumber).padStart(2, "0")} added to ${componentName(
-        moduleId
+        componentId
       )}. Plan it next.`,
       "success"
     );
@@ -176,12 +176,12 @@ export function SprintPanel({
           />
         </Field>
 
-        {!lockedModuleId && (
+        {!lockedComponentId && (
           <Field label="Component">
             <select
               className={inputClass}
-              value={draft.moduleId}
-              onChange={(e) => set("moduleId", e.target.value)}
+              value={draft.componentId}
+              onChange={(e) => set("componentId", e.target.value)}
             >
               <option value="">Choose a component…</option>
               {components.map((c) => (
