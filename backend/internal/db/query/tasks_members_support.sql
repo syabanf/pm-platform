@@ -1,15 +1,15 @@
 -- ------------------------------------------------------------------ tasks ---
 
 -- name: CreateTask :one
--- The JOIN keeps a task inside its own product: the backlog item it implements
--- must belong to the product that owns the sprint. A mismatch matches no row,
+-- The JOIN keeps a task inside its own module: the backlog item it implements
+-- must belong to the module that owns the sprint. A mismatch matches no row,
 -- which the handler reports as a 400.
 INSERT INTO tasks (
     id,
     sprint_id,
     backlog_item_id,
     title,
-    module_name,
+    component_name,
     assignee_id,
     estimate,
     board_column,
@@ -23,7 +23,7 @@ SELECT
     s.id,
     bi.id,
     sqlc.arg('title'),
-    sqlc.arg('module_name'),
+    sqlc.arg('component_name'),
     sqlc.narg('assignee_id'),
     sqlc.arg('estimate'),
     sqlc.arg('board_column'),
@@ -34,7 +34,7 @@ SELECT
 FROM sprints s
 JOIN backlog_items bi
   ON bi.id = sqlc.arg('backlog_item_id')
- AND bi.product_id = s.product_id
+ AND bi.module_id = s.module_id
 WHERE s.id = sqlc.arg('sprint_id')
 RETURNING *;
 
@@ -58,7 +58,7 @@ ORDER BY created_at, id;
 -- moment no longer cancel each other out.
 UPDATE tasks
 SET title           = COALESCE(sqlc.narg('title'), title),
-    module_name     = COALESCE(sqlc.narg('module_name'), module_name),
+    component_name     = COALESCE(sqlc.narg('component_name'), component_name),
     assignee_id     = COALESCE(sqlc.narg('assignee_id'), assignee_id),
     estimate        = COALESCE(sqlc.narg('estimate'), estimate),
     board_column    = COALESCE(sqlc.narg('board_column'), board_column),
@@ -160,7 +160,7 @@ WHERE id = $1;
 -- name: CreateDecision :one
 INSERT INTO decisions (
     id,
-    product_id,
+    module_id,
     decided_on,
     title,
     detail,
@@ -177,7 +177,7 @@ WHERE id = $1;
 
 -- name: ListDecisionsByProduct :many
 SELECT * FROM decisions
-WHERE product_id = sqlc.arg('product_id')
+WHERE module_id = sqlc.arg('module_id')
 ORDER BY decided_on DESC, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
@@ -230,7 +230,7 @@ LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 INSERT INTO report_queue (
     id,
     title,
-    product_id,
+    module_id,
     client,
     type,
     template,
@@ -255,12 +255,12 @@ WHERE id = $1;
 -- ------------------------------------------------------ generated_reports ---
 
 -- name: CreateGeneratedReport :one
--- A report may only cite a sprint of the product it reports on; without the
--- guard a report on one client's module could link to another client's sprint,
+-- A report may only cite a sprint of the module it reports on; without the
+-- guard a report on one client's component could link to another client's sprint,
 -- and following that link returned the other client's data.
 INSERT INTO generated_reports (
     id,
-    product_id,
+    module_id,
     sprint_id,
     type,
     template,
@@ -277,18 +277,18 @@ SELECT
     sqlc.arg('period'),
     sqlc.arg('generated_on'),
     sqlc.arg('status')
-FROM products p
-WHERE p.id = sqlc.arg('product_id')
+FROM modules p
+WHERE p.id = sqlc.arg('module_id')
   AND (
       sqlc.narg('sprint_id')::text IS NULL
       OR EXISTS (SELECT 1 FROM sprints s
-                  WHERE s.id = sqlc.narg('sprint_id') AND s.product_id = p.id)
+                  WHERE s.id = sqlc.narg('sprint_id') AND s.module_id = p.id)
   )
 RETURNING *;
 
 -- name: ListGeneratedReportsByProduct :many
 SELECT * FROM generated_reports
-WHERE product_id = sqlc.arg('product_id')
+WHERE module_id = sqlc.arg('module_id')
 ORDER BY generated_on DESC, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 

@@ -1,10 +1,10 @@
--- Sprints, sprint membership, sprint backlog and the product backlog.
--- Naming note: products = UI "Module", modules = UI "Component".
+-- Sprints, sprint membership, sprint backlog and the module backlog.
+-- Naming note: modules = UI "Component", components = UI "Component".
 
 -- ---------------------------------------------------------------- sprints ---
 
--- name: LockProductForUpdate :one
--- Serialises per-product sequencing (sprint numbers, component positions).
+-- name: LockModuleForUpdate :one
+-- Serialises per-module sequencing (sprint numbers, component positions).
 -- A single statement cannot do this for itself: under READ COMMITTED its
 -- snapshot is fixed before any lock it takes, so concurrent statements all
 -- read the same MAX() no matter how they queue. Taking the row lock in its own
@@ -14,7 +14,7 @@
 -- FOR KEY SHARE that every child insert's foreign-key check takes, which would
 -- freeze unrelated endpoints (backlog, decisions, explicitly-numbered sprints)
 -- for as long as one sequencing transaction runs.
-SELECT id FROM products
+SELECT id FROM modules
 WHERE id = $1
 FOR NO KEY UPDATE;
 
@@ -25,7 +25,7 @@ FOR NO KEY UPDATE;
 
 -- name: LockBacklogItemForShare :one
 -- Taken before the sprint lock so the ordering matches the cascade's:
--- DELETE FROM products reaches backlog_items before sprints, so locking the
+-- DELETE FROM modules reaches backlog_items before sprints, so locking the
 -- sprint first and the item second is an AB-BA cycle that deadlocks every
 -- concurrent parent delete.
 SELECT id FROM backlog_items
@@ -35,8 +35,8 @@ FOR KEY SHARE;
 -- name: CreateSprint :one
 INSERT INTO sprints (
     id,
-    product_id,
     module_id,
+    component_id,
     number,
     name,
     goal,
@@ -59,25 +59,25 @@ SELECT * FROM sprints
 WHERE id = $1;
 
 -- name: ListSprintsByProduct :many
--- No id tiebreaker: UNIQUE (product_id, number) already makes this a total
+-- No id tiebreaker: UNIQUE (module_id, number) already makes this a total
 -- order, and adding one costs the index-scan-backward plan.
 SELECT * FROM sprints
-WHERE product_id = sqlc.arg('product_id')
+WHERE module_id = sqlc.arg('module_id')
 ORDER BY number DESC
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: ListSprintsByModule :many
--- number is only unique per product, so it cannot order a cross-product list
+-- number is only unique per module, so it cannot order a cross-module list
 -- on its own.
 SELECT * FROM sprints
-WHERE module_id = sqlc.narg('module_id')
+WHERE component_id = sqlc.narg('component_id')
 ORDER BY number DESC, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpdateSprint :one
 -- Partial update (see UpdateClient).
 UPDATE sprints
-SET module_id    = COALESCE(sqlc.narg('module_id'), module_id),
+SET component_id    = COALESCE(sqlc.narg('component_id'), component_id),
     number       = COALESCE(sqlc.narg('number'), number),
     name         = COALESCE(sqlc.narg('name'), name),
     goal         = COALESCE(sqlc.narg('goal'), goal),
@@ -101,7 +101,7 @@ WHERE id = $1;
 -- name: NextSprintNumber :one
 SELECT COALESCE(MAX(number), 0) + 1 AS next_number
 FROM sprints
-WHERE product_id = $1;
+WHERE module_id = $1;
 
 -- name: NextSprintBacklogPosition :one
 SELECT COALESCE(MAX(position), -1) + 1 AS next_position
@@ -147,8 +147,8 @@ WHERE sprint_id = $1 AND member_id = $2;
 
 -- name: AddSprintBacklogItem :one
 -- The JOIN is the guard: an item may only be pulled into a sprint of its own
--- product. A cross-product id matches no row, which the handler reports as a
--- 400 — before, it linked happily and leaked the other product's story text.
+-- module. A cross-module id matches no row, which the handler reports as a
+-- 400 — before, it linked happily and leaked the other module's story text.
 -- The position is chosen by the caller or computed under a row lock; see
 -- LockSprintForUpdate for why it cannot be computed inline.
 INSERT INTO sprint_backlog_items (
@@ -163,7 +163,7 @@ SELECT
 FROM sprints s
 JOIN backlog_items bi
   ON bi.id = sqlc.arg('backlog_item_id')
- AND bi.product_id = s.product_id
+ AND bi.module_id = s.module_id
 WHERE s.id = sqlc.arg('sprint_id')
 ON CONFLICT (sprint_id, backlog_item_id) DO UPDATE
 SET position = EXCLUDED.position
@@ -173,8 +173,8 @@ RETURNING *;
 SELECT sbi.sprint_id,
        sbi.backlog_item_id,
        sbi.position,
-       bi.product_id,
        bi.module_id,
+       bi.component_id,
        bi.title,
        bi.story,
        bi.acceptance_criteria,
@@ -198,8 +198,8 @@ WHERE sprint_id = $1 AND backlog_item_id = $2;
 -- name: CreateBacklogItem :one
 INSERT INTO backlog_items (
     id,
-    product_id,
     module_id,
+    component_id,
     title,
     story,
     acceptance_criteria,
@@ -219,20 +219,20 @@ WHERE id = $1;
 
 -- name: ListBacklogItemsByProduct :many
 SELECT * FROM backlog_items
-WHERE product_id = sqlc.arg('product_id')
+WHERE module_id = sqlc.arg('module_id')
 ORDER BY created_at DESC, id ASC
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: ListBacklogItemsByModule :many
 SELECT * FROM backlog_items
-WHERE module_id = sqlc.narg('module_id')
+WHERE component_id = sqlc.narg('component_id')
 ORDER BY created_at DESC, id ASC
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpdateBacklogItem :one
 -- Partial update (see UpdateClient).
 UPDATE backlog_items
-SET module_id           = COALESCE(sqlc.narg('module_id'), module_id),
+SET component_id           = COALESCE(sqlc.narg('component_id'), component_id),
     title               = COALESCE(sqlc.narg('title'), title),
     story               = COALESCE(sqlc.narg('story'), story),
     acceptance_criteria = COALESCE(sqlc.narg('acceptance_criteria')::text[], acceptance_criteria),

@@ -6,7 +6,7 @@ import "github.com/labstack/echo/v4"
 //
 // The URL shape mirrors the delivery hierarchy
 //
-//	client -> project -> product("Module") -> module("Component") -> sprint
+//	client -> project -> module("Component") -> component("Component") -> sprint
 //
 // while keeping each resource individually addressable by id.
 func (s *Server) routes(g *echo.Group) {

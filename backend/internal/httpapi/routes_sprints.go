@@ -30,7 +30,7 @@ func newSprintScopedID(prefix string) string {
 
 type createSprintRequest struct {
 	ID          *string `json:"id"`
-	ModuleID    *string `json:"moduleId"`
+	ComponentID *string `json:"componentId"`
 	Number      *int32  `json:"number"`
 	Name        string  `json:"name"`
 	Goal        string  `json:"goal"`
@@ -46,7 +46,7 @@ type createSprintRequest struct {
 }
 
 type updateSprintRequest struct {
-	ModuleID    *string `json:"moduleId"`
+	ComponentID *string `json:"componentId"`
 	Number      *int32  `json:"number"`
 	Name        *string `json:"name"`
 	Goal        *string `json:"goal"`
@@ -72,7 +72,7 @@ type addSprintBacklogItemRequest struct {
 
 type createBacklogItemRequest struct {
 	ID                 *string  `json:"id"`
-	ModuleID           *string  `json:"moduleId"`
+	ComponentID        *string  `json:"componentId"`
 	Title              string   `json:"title"`
 	Story              string   `json:"story"`
 	AcceptanceCriteria []string `json:"acceptanceCriteria"`
@@ -84,7 +84,7 @@ type createBacklogItemRequest struct {
 }
 
 type updateBacklogItemRequest struct {
-	ModuleID           *string   `json:"moduleId"`
+	ComponentID        *string   `json:"componentId"`
 	Title              *string   `json:"title"`
 	Story              *string   `json:"story"`
 	AcceptanceCriteria *[]string `json:"acceptanceCriteria"`
@@ -98,11 +98,11 @@ type updateBacklogItemRequest struct {
 // --------------------------------------------------------------- routes ---
 
 // registerSprintRoutes mounts sprints, sprint membership, the sprint backlog
-// and the product backlog.
+// and the module backlog.
 func (s *Server) registerSprintRoutes(g *echo.Group) {
-	g.GET("/products/:productId/sprints", s.listSprintsByProduct)
-	g.POST("/products/:productId/sprints", s.createSprint)
-	g.GET("/modules/:moduleId/sprints", s.listSprintsByModule)
+	g.GET("/modules/:moduleId/sprints", s.listSprintsByProduct)
+	g.POST("/modules/:moduleId/sprints", s.createSprint)
+	g.GET("/components/:componentId/sprints", s.listSprintsByModule)
 
 	g.GET("/sprints/:sprintId", s.getSprint)
 	g.PATCH("/sprints/:sprintId", s.updateSprint)
@@ -116,9 +116,9 @@ func (s *Server) registerSprintRoutes(g *echo.Group) {
 	g.PUT("/sprints/:sprintId/backlog/:itemId", s.addSprintBacklogItem)
 	g.DELETE("/sprints/:sprintId/backlog/:itemId", s.removeSprintBacklogItem)
 
-	g.GET("/products/:productId/backlog", s.listBacklogItemsByProduct)
-	g.POST("/products/:productId/backlog", s.createBacklogItem)
-	g.GET("/modules/:moduleId/backlog", s.listBacklogItemsByModule)
+	g.GET("/modules/:moduleId/backlog", s.listBacklogItemsByProduct)
+	g.POST("/modules/:moduleId/backlog", s.createBacklogItem)
+	g.GET("/components/:componentId/backlog", s.listBacklogItemsByModule)
 
 	g.GET("/backlog/:itemId", s.getBacklogItem)
 	g.PATCH("/backlog/:itemId", s.updateBacklogItem)
@@ -128,26 +128,6 @@ func (s *Server) registerSprintRoutes(g *echo.Group) {
 // -------------------------------------------------------------- sprints ---
 
 func (s *Server) listSprintsByProduct(c echo.Context) error {
-	productID, err := param(c, "productId")
-	if err != nil {
-		return err
-	}
-	limit, offset, err := page(c)
-	if err != nil {
-		return err
-	}
-	rows, err := s.q.ListSprintsByProduct(c.Request().Context(), db.ListSprintsByProductParams{
-		ProductID: productID,
-		Lim:       limit + 1,
-		Off:       offset,
-	})
-	if err != nil {
-		return dbErr(err)
-	}
-	return paged(c, rows, limit)
-}
-
-func (s *Server) listSprintsByModule(c echo.Context) error {
 	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -156,10 +136,30 @@ func (s *Server) listSprintsByModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListSprintsByModule(c.Request().Context(), db.ListSprintsByModuleParams{
-		ModuleID: ptr(moduleID),
+	rows, err := s.q.ListSprintsByProduct(c.Request().Context(), db.ListSprintsByProductParams{
+		ModuleID: moduleID,
 		Lim:      limit + 1,
 		Off:      offset,
+	})
+	if err != nil {
+		return dbErr(err)
+	}
+	return paged(c, rows, limit)
+}
+
+func (s *Server) listSprintsByModule(c echo.Context) error {
+	componentID, err := param(c, "componentId")
+	if err != nil {
+		return err
+	}
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	rows, err := s.q.ListSprintsByModule(c.Request().Context(), db.ListSprintsByModuleParams{
+		ComponentID: ptr(componentID),
+		Lim:         limit + 1,
+		Off:         offset,
 	})
 	if err != nil {
 		return dbErr(err)
@@ -170,7 +170,7 @@ func (s *Server) listSprintsByModule(c echo.Context) error {
 func (s *Server) createSprint(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	productID, err := param(c, "productId")
+	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -211,8 +211,8 @@ func (s *Server) createSprint(c echo.Context) error {
 	if req.Number != nil {
 		row, err := s.q.CreateSprint(ctx, db.CreateSprintParams{
 			ID:          id,
-			ProductID:   productID,
-			ModuleID:    req.ModuleID,
+			ModuleID:    moduleID,
+			ComponentID: req.ComponentID,
 			Number:      *req.Number,
 			Name:        req.Name,
 			Goal:        req.Goal,
@@ -232,24 +232,24 @@ func (s *Server) createSprint(c echo.Context) error {
 		return c.JSON(http.StatusCreated, row)
 	}
 
-	// Auto-numbered: lock the product, then read the next number and insert it.
+	// Auto-numbered: lock the module, then read the next number and insert it.
 	// The lock makes a burst queue up and each create take the next number,
 	// instead of every request reading the same MAX and fighting over
-	// UNIQUE (product_id, number).
+	// UNIQUE (module_id, number).
 	var row db.Sprint
 	err = s.withTx(ctx, func(q *db.Queries) error {
-		if _, lockErr := q.LockProductForUpdate(ctx, productID); lockErr != nil {
+		if _, lockErr := q.LockModuleForUpdate(ctx, moduleID); lockErr != nil {
 			return lockErr
 		}
-		number, numErr := q.NextSprintNumber(ctx, productID)
+		number, numErr := q.NextSprintNumber(ctx, moduleID)
 		if numErr != nil {
 			return numErr
 		}
 		var createErr error
 		row, createErr = q.CreateSprint(ctx, db.CreateSprintParams{
 			ID:          id,
-			ProductID:   productID,
-			ModuleID:    req.ModuleID,
+			ModuleID:    moduleID,
+			ComponentID: req.ComponentID,
 			Number:      number,
 			Name:        req.Name,
 			Goal:        req.Goal,
@@ -267,7 +267,7 @@ func (s *Server) createSprint(c echo.Context) error {
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusBadRequest, "productId does not exist")
+			return echo.NewHTTPError(http.StatusBadRequest, "moduleId does not exist")
 		}
 		return dbErr(err)
 	}
@@ -310,7 +310,7 @@ func (s *Server) updateSprint(c echo.Context) error {
 	// Partial update: only the named fields are written.
 	arg := db.UpdateSprintParams{
 		ID:          id,
-		ModuleID:    req.ModuleID,
+		ComponentID: req.ComponentID,
 		Number:      req.Number,
 		Name:        req.Name,
 		Goal:        req.Goal,
@@ -487,12 +487,12 @@ func (s *Server) addSprintBacklogItem(c echo.Context) error {
 		})
 	}
 	if err != nil {
-		// The insert joins the item to the sprint's product, so no row means
+		// The insert joins the item to the sprint's module, so no row means
 		// either the sprint is unknown or the item belongs elsewhere.
 		if errors.Is(err, pgx.ErrNoRows) {
 			if _, getErr := s.q.GetSprint(ctx, sprintID); getErr == nil {
 				return echo.NewHTTPError(http.StatusBadRequest,
-					"that backlog item does not exist or belongs to a different module")
+					"that backlog item does not exist or belongs to a different component")
 			}
 		}
 		return dbErr(err)
@@ -522,26 +522,6 @@ func (s *Server) removeSprintBacklogItem(c echo.Context) error {
 // -------------------------------------------------------- backlog items ---
 
 func (s *Server) listBacklogItemsByProduct(c echo.Context) error {
-	productID, err := param(c, "productId")
-	if err != nil {
-		return err
-	}
-	limit, offset, err := page(c)
-	if err != nil {
-		return err
-	}
-	rows, err := s.q.ListBacklogItemsByProduct(c.Request().Context(), db.ListBacklogItemsByProductParams{
-		ProductID: productID,
-		Lim:       limit + 1,
-		Off:       offset,
-	})
-	if err != nil {
-		return dbErr(err)
-	}
-	return paged(c, rows, limit)
-}
-
-func (s *Server) listBacklogItemsByModule(c echo.Context) error {
 	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -550,8 +530,8 @@ func (s *Server) listBacklogItemsByModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListBacklogItemsByModule(c.Request().Context(), db.ListBacklogItemsByModuleParams{
-		ModuleID: ptr(moduleID),
+	rows, err := s.q.ListBacklogItemsByProduct(c.Request().Context(), db.ListBacklogItemsByProductParams{
+		ModuleID: moduleID,
 		Lim:      limit + 1,
 		Off:      offset,
 	})
@@ -561,8 +541,28 @@ func (s *Server) listBacklogItemsByModule(c echo.Context) error {
 	return paged(c, rows, limit)
 }
 
+func (s *Server) listBacklogItemsByModule(c echo.Context) error {
+	componentID, err := param(c, "componentId")
+	if err != nil {
+		return err
+	}
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	rows, err := s.q.ListBacklogItemsByModule(c.Request().Context(), db.ListBacklogItemsByModuleParams{
+		ComponentID: ptr(componentID),
+		Lim:         limit + 1,
+		Off:         offset,
+	})
+	if err != nil {
+		return dbErr(err)
+	}
+	return paged(c, rows, limit)
+}
+
 func (s *Server) createBacklogItem(c echo.Context) error {
-	productID, err := param(c, "productId")
+	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -590,8 +590,8 @@ func (s *Server) createBacklogItem(c echo.Context) error {
 
 	row, err := s.q.CreateBacklogItem(c.Request().Context(), db.CreateBacklogItemParams{
 		ID:                 id,
-		ProductID:          productID,
-		ModuleID:           req.ModuleID,
+		ModuleID:           moduleID,
+		ComponentID:        req.ComponentID,
 		Title:              req.Title,
 		Story:              req.Story,
 		AcceptanceCriteria: acceptance,
@@ -635,7 +635,7 @@ func (s *Server) updateBacklogItem(c echo.Context) error {
 	// array still clears the column — nil is the "not supplied" signal.
 	arg := db.UpdateBacklogItemParams{
 		ID:                 id,
-		ModuleID:           req.ModuleID,
+		ComponentID:        req.ComponentID,
 		Title:              req.Title,
 		Story:              req.Story,
 		AcceptanceCriteria: derefSlice(req.AcceptanceCriteria),

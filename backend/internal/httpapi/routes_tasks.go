@@ -57,8 +57,8 @@ func (s *Server) registerTaskRoutes(g *echo.Group) {
 	g.PATCH("/members/:memberId", s.updateMember)
 	g.DELETE("/members/:memberId", s.deleteMember)
 
-	g.GET("/products/:productId/decisions", s.listDecisionsByProduct)
-	g.POST("/products/:productId/decisions", s.createDecision)
+	g.GET("/modules/:moduleId/decisions", s.listDecisionsByProduct)
+	g.POST("/modules/:moduleId/decisions", s.createDecision)
 	g.PATCH("/decisions/:decisionId", s.updateDecision)
 	g.DELETE("/decisions/:decisionId", s.deleteDecision)
 }
@@ -69,7 +69,7 @@ type createTaskRequest struct {
 	ID            *string `json:"id"`
 	BacklogItemID string  `json:"backlogItemId"`
 	Title         string  `json:"title"`
-	ModuleName    string  `json:"moduleName"`
+	ComponentName string  `json:"componentName"`
 	AssigneeID    *string `json:"assigneeId"`
 	Estimate      *int32  `json:"estimate"`
 	BoardColumn   *string `json:"boardColumn"`
@@ -81,7 +81,7 @@ type createTaskRequest struct {
 
 type updateTaskRequest struct {
 	Title         *string `json:"title"`
-	ModuleName    *string `json:"moduleName"`
+	ComponentName *string `json:"componentName"`
 	AssigneeID    *string `json:"assigneeId"`
 	Estimate      *int32  `json:"estimate"`
 	BoardColumn   *string `json:"boardColumn"`
@@ -144,7 +144,7 @@ func (s *Server) createTask(c echo.Context) error {
 		SprintID:      sprintID,
 		BacklogItemID: req.BacklogItemID,
 		Title:         req.Title,
-		ModuleName:    req.ModuleName,
+		ComponentName: req.ComponentName,
 		AssigneeID:    req.AssigneeID,
 		Estimate:      deref(req.Estimate),
 		BoardColumn:   boardColumn,
@@ -154,12 +154,12 @@ func (s *Server) createTask(c echo.Context) error {
 		OffGoal:       deref(req.OffGoal),
 	})
 	if err != nil {
-		// The insert joins the backlog item to the sprint's product, so no row
+		// The insert joins the backlog item to the sprint's module, so no row
 		// means either the sprint is unknown or the item belongs elsewhere.
 		if errors.Is(err, pgx.ErrNoRows) {
 			if _, getErr := s.q.GetSprint(ctx, sprintID); getErr == nil {
 				return echo.NewHTTPError(http.StatusBadRequest,
-					"that backlog item does not exist or belongs to a different module")
+					"that backlog item does not exist or belongs to a different component")
 			}
 		}
 		return dbErr(err)
@@ -194,7 +194,7 @@ func (s *Server) updateTask(c echo.Context) error {
 	arg := db.UpdateTaskParams{
 		ID:            taskID,
 		Title:         req.Title,
-		ModuleName:    req.ModuleName,
+		ComponentName: req.ComponentName,
 		AssigneeID:    req.AssigneeID,
 		Estimate:      req.Estimate,
 		BoardColumn:   req.BoardColumn,
@@ -479,7 +479,7 @@ type updateDecisionRequest struct {
 }
 
 func (s *Server) listDecisionsByProduct(c echo.Context) error {
-	productID, err := param(c, "productId")
+	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -488,9 +488,9 @@ func (s *Server) listDecisionsByProduct(c echo.Context) error {
 		return err
 	}
 	rows, err := s.q.ListDecisionsByProduct(c.Request().Context(), db.ListDecisionsByProductParams{
-		ProductID: productID,
-		Lim:       limit + 1,
-		Off:       offset,
+		ModuleID: moduleID,
+		Lim:      limit + 1,
+		Off:      offset,
 	})
 	if err != nil {
 		return dbErr(err)
@@ -499,7 +499,7 @@ func (s *Server) listDecisionsByProduct(c echo.Context) error {
 }
 
 func (s *Server) createDecision(c echo.Context) error {
-	productID, err := param(c, "productId")
+	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -527,7 +527,7 @@ func (s *Server) createDecision(c echo.Context) error {
 
 	row, err := s.q.CreateDecision(c.Request().Context(), db.CreateDecisionParams{
 		ID:        id,
-		ProductID: productID,
+		ModuleID:  moduleID,
 		DecidedOn: decidedOn,
 		Title:     req.Title,
 		Detail:    req.Detail,

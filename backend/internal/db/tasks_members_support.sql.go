@@ -36,7 +36,7 @@ const createDecision = `-- name: CreateDecision :one
 
 INSERT INTO decisions (
     id,
-    product_id,
+    module_id,
     decided_on,
     title,
     detail,
@@ -45,12 +45,12 @@ INSERT INTO decisions (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING id, product_id, decided_on, title, detail, owner, status, created_at, updated_at
+RETURNING id, module_id, decided_on, title, detail, owner, status, created_at, updated_at
 `
 
 type CreateDecisionParams struct {
 	ID        string    `json:"id"`
-	ProductID string    `json:"productId"`
+	ModuleID  string    `json:"moduleId"`
 	DecidedOn time.Time `json:"decidedOn"`
 	Title     string    `json:"title"`
 	Detail    string    `json:"detail"`
@@ -62,7 +62,7 @@ type CreateDecisionParams struct {
 func (q *Queries) CreateDecision(ctx context.Context, arg CreateDecisionParams) (Decision, error) {
 	row := q.db.QueryRow(ctx, createDecision,
 		arg.ID,
-		arg.ProductID,
+		arg.ModuleID,
 		arg.DecidedOn,
 		arg.Title,
 		arg.Detail,
@@ -72,7 +72,7 @@ func (q *Queries) CreateDecision(ctx context.Context, arg CreateDecisionParams) 
 	var i Decision
 	err := row.Scan(
 		&i.ID,
-		&i.ProductID,
+		&i.ModuleID,
 		&i.DecidedOn,
 		&i.Title,
 		&i.Detail,
@@ -88,7 +88,7 @@ const createGeneratedReport = `-- name: CreateGeneratedReport :one
 
 INSERT INTO generated_reports (
     id,
-    product_id,
+    module_id,
     sprint_id,
     type,
     template,
@@ -105,14 +105,14 @@ SELECT
     $5,
     $6,
     $7
-FROM products p
+FROM modules p
 WHERE p.id = $8
   AND (
       $2::text IS NULL
       OR EXISTS (SELECT 1 FROM sprints s
-                  WHERE s.id = $2 AND s.product_id = p.id)
+                  WHERE s.id = $2 AND s.module_id = p.id)
   )
-RETURNING id, product_id, sprint_id, type, template, period, generated_on, status, created_at, updated_at
+RETURNING id, module_id, sprint_id, type, template, period, generated_on, status, created_at, updated_at
 `
 
 type CreateGeneratedReportParams struct {
@@ -123,12 +123,12 @@ type CreateGeneratedReportParams struct {
 	Period      string    `json:"period"`
 	GeneratedOn time.Time `json:"generatedOn"`
 	Status      string    `json:"status"`
-	ProductID   string    `json:"productId"`
+	ModuleID    string    `json:"moduleId"`
 }
 
 // ------------------------------------------------------ generated_reports ---
-// A report may only cite a sprint of the product it reports on; without the
-// guard a report on one client's module could link to another client's sprint,
+// A report may only cite a sprint of the module it reports on; without the
+// guard a report on one client's component could link to another client's sprint,
 // and following that link returned the other client's data.
 func (q *Queries) CreateGeneratedReport(ctx context.Context, arg CreateGeneratedReportParams) (GeneratedReport, error) {
 	row := q.db.QueryRow(ctx, createGeneratedReport,
@@ -139,12 +139,12 @@ func (q *Queries) CreateGeneratedReport(ctx context.Context, arg CreateGenerated
 		arg.Period,
 		arg.GeneratedOn,
 		arg.Status,
-		arg.ProductID,
+		arg.ModuleID,
 	)
 	var i GeneratedReport
 	err := row.Scan(
 		&i.ID,
-		&i.ProductID,
+		&i.ModuleID,
 		&i.SprintID,
 		&i.Type,
 		&i.Template,
@@ -225,7 +225,7 @@ const createReportQueueItem = `-- name: CreateReportQueueItem :one
 INSERT INTO report_queue (
     id,
     title,
-    product_id,
+    module_id,
     client,
     type,
     template,
@@ -234,25 +234,25 @@ INSERT INTO report_queue (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, title, product_id, client, type, template, due, status, created_at, updated_at
+RETURNING id, title, module_id, client, type, template, due, status, created_at, updated_at
 `
 
 type CreateReportQueueItemParams struct {
-	ID        string     `json:"id"`
-	Title     string     `json:"title"`
-	ProductID string     `json:"productId"`
-	Client    string     `json:"client"`
-	Type      string     `json:"type"`
-	Template  string     `json:"template"`
-	Due       *time.Time `json:"due"`
-	Status    string     `json:"status"`
+	ID       string     `json:"id"`
+	Title    string     `json:"title"`
+	ModuleID string     `json:"moduleId"`
+	Client   string     `json:"client"`
+	Type     string     `json:"type"`
+	Template string     `json:"template"`
+	Due      *time.Time `json:"due"`
+	Status   string     `json:"status"`
 }
 
 func (q *Queries) CreateReportQueueItem(ctx context.Context, arg CreateReportQueueItemParams) (ReportQueue, error) {
 	row := q.db.QueryRow(ctx, createReportQueueItem,
 		arg.ID,
 		arg.Title,
-		arg.ProductID,
+		arg.ModuleID,
 		arg.Client,
 		arg.Type,
 		arg.Template,
@@ -263,7 +263,7 @@ func (q *Queries) CreateReportQueueItem(ctx context.Context, arg CreateReportQue
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
-		&i.ProductID,
+		&i.ModuleID,
 		&i.Client,
 		&i.Type,
 		&i.Template,
@@ -282,7 +282,7 @@ INSERT INTO tasks (
     sprint_id,
     backlog_item_id,
     title,
-    module_name,
+    component_name,
     assignee_id,
     estimate,
     board_column,
@@ -307,15 +307,15 @@ SELECT
 FROM sprints s
 JOIN backlog_items bi
   ON bi.id = $11
- AND bi.product_id = s.product_id
+ AND bi.module_id = s.module_id
 WHERE s.id = $12
-RETURNING id, sprint_id, backlog_item_id, title, module_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
+RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
 `
 
 type CreateTaskParams struct {
 	ID            string  `json:"id"`
 	Title         string  `json:"title"`
-	ModuleName    string  `json:"moduleName"`
+	ComponentName string  `json:"componentName"`
 	AssigneeID    *string `json:"assigneeId"`
 	Estimate      int32   `json:"estimate"`
 	BoardColumn   string  `json:"boardColumn"`
@@ -328,14 +328,14 @@ type CreateTaskParams struct {
 }
 
 // ------------------------------------------------------------------ tasks ---
-// The JOIN keeps a task inside its own product: the backlog item it implements
-// must belong to the product that owns the sprint. A mismatch matches no row,
+// The JOIN keeps a task inside its own module: the backlog item it implements
+// must belong to the module that owns the sprint. A mismatch matches no row,
 // which the handler reports as a 400.
 func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error) {
 	row := q.db.QueryRow(ctx, createTask,
 		arg.ID,
 		arg.Title,
-		arg.ModuleName,
+		arg.ComponentName,
 		arg.AssigneeID,
 		arg.Estimate,
 		arg.BoardColumn,
@@ -352,7 +352,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.SprintID,
 		&i.BacklogItemID,
 		&i.Title,
-		&i.ModuleName,
+		&i.ComponentName,
 		&i.AssigneeID,
 		&i.Estimate,
 		&i.BoardColumn,
@@ -442,7 +442,7 @@ func (q *Queries) DeleteTaskDod(ctx context.Context, taskID string) error {
 }
 
 const getDecision = `-- name: GetDecision :one
-SELECT id, product_id, decided_on, title, detail, owner, status, created_at, updated_at FROM decisions
+SELECT id, module_id, decided_on, title, detail, owner, status, created_at, updated_at FROM decisions
 WHERE id = $1
 `
 
@@ -451,7 +451,7 @@ func (q *Queries) GetDecision(ctx context.Context, id string) (Decision, error) 
 	var i Decision
 	err := row.Scan(
 		&i.ID,
-		&i.ProductID,
+		&i.ModuleID,
 		&i.DecidedOn,
 		&i.Title,
 		&i.Detail,
@@ -489,7 +489,7 @@ func (q *Queries) GetMember(ctx context.Context, id string) (Member, error) {
 }
 
 const getTask = `-- name: GetTask :one
-SELECT id, sprint_id, backlog_item_id, title, module_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
+SELECT id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
 WHERE id = $1
 `
 
@@ -501,7 +501,7 @@ func (q *Queries) GetTask(ctx context.Context, id string) (Task, error) {
 		&i.SprintID,
 		&i.BacklogItemID,
 		&i.Title,
-		&i.ModuleName,
+		&i.ComponentName,
 		&i.AssigneeID,
 		&i.Estimate,
 		&i.BoardColumn,
@@ -536,20 +536,20 @@ func (q *Queries) GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, e
 }
 
 const listDecisionsByProduct = `-- name: ListDecisionsByProduct :many
-SELECT id, product_id, decided_on, title, detail, owner, status, created_at, updated_at FROM decisions
-WHERE product_id = $1
+SELECT id, module_id, decided_on, title, detail, owner, status, created_at, updated_at FROM decisions
+WHERE module_id = $1
 ORDER BY decided_on DESC, id
 LIMIT $3 OFFSET $2
 `
 
 type ListDecisionsByProductParams struct {
-	ProductID string `json:"productId"`
-	Off       int32  `json:"off"`
-	Lim       int32  `json:"lim"`
+	ModuleID string `json:"moduleId"`
+	Off      int32  `json:"off"`
+	Lim      int32  `json:"lim"`
 }
 
 func (q *Queries) ListDecisionsByProduct(ctx context.Context, arg ListDecisionsByProductParams) ([]Decision, error) {
-	rows, err := q.db.Query(ctx, listDecisionsByProduct, arg.ProductID, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, listDecisionsByProduct, arg.ModuleID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -559,7 +559,7 @@ func (q *Queries) ListDecisionsByProduct(ctx context.Context, arg ListDecisionsB
 		var i Decision
 		if err := rows.Scan(
 			&i.ID,
-			&i.ProductID,
+			&i.ModuleID,
 			&i.DecidedOn,
 			&i.Title,
 			&i.Detail,
@@ -579,20 +579,20 @@ func (q *Queries) ListDecisionsByProduct(ctx context.Context, arg ListDecisionsB
 }
 
 const listGeneratedReportsByProduct = `-- name: ListGeneratedReportsByProduct :many
-SELECT id, product_id, sprint_id, type, template, period, generated_on, status, created_at, updated_at FROM generated_reports
-WHERE product_id = $1
+SELECT id, module_id, sprint_id, type, template, period, generated_on, status, created_at, updated_at FROM generated_reports
+WHERE module_id = $1
 ORDER BY generated_on DESC, id
 LIMIT $3 OFFSET $2
 `
 
 type ListGeneratedReportsByProductParams struct {
-	ProductID string `json:"productId"`
-	Off       int32  `json:"off"`
-	Lim       int32  `json:"lim"`
+	ModuleID string `json:"moduleId"`
+	Off      int32  `json:"off"`
+	Lim      int32  `json:"lim"`
 }
 
 func (q *Queries) ListGeneratedReportsByProduct(ctx context.Context, arg ListGeneratedReportsByProductParams) ([]GeneratedReport, error) {
-	rows, err := q.db.Query(ctx, listGeneratedReportsByProduct, arg.ProductID, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, listGeneratedReportsByProduct, arg.ModuleID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +602,7 @@ func (q *Queries) ListGeneratedReportsByProduct(ctx context.Context, arg ListGen
 		var i GeneratedReport
 		if err := rows.Scan(
 			&i.ID,
-			&i.ProductID,
+			&i.ModuleID,
 			&i.SprintID,
 			&i.Type,
 			&i.Template,
@@ -703,7 +703,7 @@ func (q *Queries) ListMembers(ctx context.Context, arg ListMembersParams) ([]Mem
 
 const listReportQueue = `-- name: ListReportQueue :many
 
-SELECT id, title, product_id, client, type, template, due, status, created_at, updated_at FROM report_queue
+SELECT id, title, module_id, client, type, template, due, status, created_at, updated_at FROM report_queue
 ORDER BY due NULLS LAST, id
 LIMIT $2 OFFSET $1
 `
@@ -726,7 +726,7 @@ func (q *Queries) ListReportQueue(ctx context.Context, arg ListReportQueueParams
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
-			&i.ProductID,
+			&i.ModuleID,
 			&i.Client,
 			&i.Type,
 			&i.Template,
@@ -858,7 +858,7 @@ func (q *Queries) ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]Tas
 }
 
 const listTasksByBacklogItem = `-- name: ListTasksByBacklogItem :many
-SELECT id, sprint_id, backlog_item_id, title, module_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
+SELECT id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
 WHERE backlog_item_id = $1
 ORDER BY created_at, id
 `
@@ -877,7 +877,7 @@ func (q *Queries) ListTasksByBacklogItem(ctx context.Context, backlogItemID stri
 			&i.SprintID,
 			&i.BacklogItemID,
 			&i.Title,
-			&i.ModuleName,
+			&i.ComponentName,
 			&i.AssigneeID,
 			&i.Estimate,
 			&i.BoardColumn,
@@ -899,7 +899,7 @@ func (q *Queries) ListTasksByBacklogItem(ctx context.Context, backlogItemID stri
 }
 
 const listTasksBySprint = `-- name: ListTasksBySprint :many
-SELECT id, sprint_id, backlog_item_id, title, module_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
+SELECT id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
 WHERE sprint_id = $1
 ORDER BY created_at, id
 LIMIT $3 OFFSET $2
@@ -925,7 +925,7 @@ func (q *Queries) ListTasksBySprint(ctx context.Context, arg ListTasksBySprintPa
 			&i.SprintID,
 			&i.BacklogItemID,
 			&i.Title,
-			&i.ModuleName,
+			&i.ComponentName,
 			&i.AssigneeID,
 			&i.Estimate,
 			&i.BoardColumn,
@@ -951,7 +951,7 @@ UPDATE generated_reports
 SET status     = 'sent',
     updated_at = now()
 WHERE id = $1
-RETURNING id, product_id, sprint_id, type, template, period, generated_on, status, created_at, updated_at
+RETURNING id, module_id, sprint_id, type, template, period, generated_on, status, created_at, updated_at
 `
 
 func (q *Queries) MarkGeneratedReportSent(ctx context.Context, id string) (GeneratedReport, error) {
@@ -959,7 +959,7 @@ func (q *Queries) MarkGeneratedReportSent(ctx context.Context, id string) (Gener
 	var i GeneratedReport
 	err := row.Scan(
 		&i.ID,
-		&i.ProductID,
+		&i.ModuleID,
 		&i.SprintID,
 		&i.Type,
 		&i.Template,
@@ -977,7 +977,7 @@ UPDATE tasks
 SET board_column = $2,
     updated_at   = now()
 WHERE id = $1
-RETURNING id, sprint_id, backlog_item_id, title, module_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
+RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
 `
 
 type MoveTaskParams struct {
@@ -993,7 +993,7 @@ func (q *Queries) MoveTask(ctx context.Context, arg MoveTaskParams) (Task, error
 		&i.SprintID,
 		&i.BacklogItemID,
 		&i.Title,
-		&i.ModuleName,
+		&i.ComponentName,
 		&i.AssigneeID,
 		&i.Estimate,
 		&i.BoardColumn,
@@ -1075,7 +1075,7 @@ SET decided_on = COALESCE($1, decided_on),
     status     = COALESCE($5, status),
     updated_at = now()
 WHERE id = $6
-RETURNING id, product_id, decided_on, title, detail, owner, status, created_at, updated_at
+RETURNING id, module_id, decided_on, title, detail, owner, status, created_at, updated_at
 `
 
 type UpdateDecisionParams struct {
@@ -1100,7 +1100,7 @@ func (q *Queries) UpdateDecision(ctx context.Context, arg UpdateDecisionParams) 
 	var i Decision
 	err := row.Scan(
 		&i.ID,
-		&i.ProductID,
+		&i.ModuleID,
 		&i.DecidedOn,
 		&i.Title,
 		&i.Detail,
@@ -1178,7 +1178,7 @@ UPDATE report_queue
 SET status     = $2,
     updated_at = now()
 WHERE id = $1
-RETURNING id, title, product_id, client, type, template, due, status, created_at, updated_at
+RETURNING id, title, module_id, client, type, template, due, status, created_at, updated_at
 `
 
 type UpdateReportQueueStatusParams struct {
@@ -1192,7 +1192,7 @@ func (q *Queries) UpdateReportQueueStatus(ctx context.Context, arg UpdateReportQ
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
-		&i.ProductID,
+		&i.ModuleID,
 		&i.Client,
 		&i.Type,
 		&i.Template,
@@ -1207,7 +1207,7 @@ func (q *Queries) UpdateReportQueueStatus(ctx context.Context, arg UpdateReportQ
 const updateTask = `-- name: UpdateTask :one
 UPDATE tasks
 SET title           = COALESCE($1, title),
-    module_name     = COALESCE($2, module_name),
+    component_name     = COALESCE($2, component_name),
     assignee_id     = COALESCE($3, assignee_id),
     estimate        = COALESCE($4, estimate),
     board_column    = COALESCE($5, board_column),
@@ -1217,12 +1217,12 @@ SET title           = COALESCE($1, title),
     off_goal        = COALESCE($9, off_goal),
     updated_at      = now()
 WHERE id = $10
-RETURNING id, sprint_id, backlog_item_id, title, module_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
+RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
 `
 
 type UpdateTaskParams struct {
 	Title         *string `json:"title"`
-	ModuleName    *string `json:"moduleName"`
+	ComponentName *string `json:"componentName"`
 	AssigneeID    *string `json:"assigneeId"`
 	Estimate      *int32  `json:"estimate"`
 	BoardColumn   *string `json:"boardColumn"`
@@ -1238,7 +1238,7 @@ type UpdateTaskParams struct {
 func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error) {
 	row := q.db.QueryRow(ctx, updateTask,
 		arg.Title,
-		arg.ModuleName,
+		arg.ComponentName,
 		arg.AssigneeID,
 		arg.Estimate,
 		arg.BoardColumn,
@@ -1254,7 +1254,7 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, e
 		&i.SprintID,
 		&i.BacklogItemID,
 		&i.Title,
-		&i.ModuleName,
+		&i.ComponentName,
 		&i.AssigneeID,
 		&i.Estimate,
 		&i.BoardColumn,

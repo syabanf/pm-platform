@@ -138,10 +138,10 @@ func (s *Server) withTx(ctx context.Context, fn func(*db.Queries) error) error {
 // useful.
 //
 // It also gives callers a place to take locks in the same order the cascade
-// does. DELETE FROM products locks the product and then its sprints; a DELETE
-// of one sprint fires products.current_sprint_id ON DELETE SET NULL, which
+// does. DELETE FROM modules locks the module and then its sprints; a DELETE
+// of one sprint fires modules.current_sprint_id ON DELETE SET NULL, which
 // locks them the other way round. That is an AB-BA cycle, and it deadlocked
-// 15.5% of overlapping deletes — with 2,372 of 2,373 products carrying a
+// 15.5% of overlapping deletes — with 2,372 of 2,373 modules carrying a
 // current sprint, the precondition is the normal state, not an edge case.
 func (s *Server) deleteTx(ctx context.Context, fn func(*db.Queries) error) error {
 	tx, err := s.pool.Begin(ctx)
@@ -206,8 +206,8 @@ func errorHandler(err error, c echo.Context) {
 var tableNames = []string{
 	"sprint_backlog_items", "workspace_settings", "generated_reports",
 	"report_templates", "sprint_members", "backlog_items", "master_lists",
-	"report_queue", "decisions", "products", "projects", "task_dod",
-	"modules", "sprints", "clients", "members", "tasks", "roles",
+	"report_queue", "components", "decisions", "projects", "task_dod",
+	"clients", "members", "modules", "sprints", "roles", "tasks",
 }
 
 // multiColumnConstraints cover more than one column, so their name is not a
@@ -215,12 +215,12 @@ var tableNames = []string{
 var multiColumnConstraints = map[string]string{
 	"sprints_counts_check":              "the day and story-point counts must not be negative",
 	"sprints_dates_check":               "a sprint cannot end before it starts",
-	"sprints_product_id_number_key":     "a sprint with that number already exists for this module",
+	"sprints_module_id_number_key":      "a sprint with that number already exists for this module",
 	"projects_id_client_id_key":         "that project already exists",
-	"modules_id_product_id_key":         "that component already exists",
+	"components_id_module_id_key":       "that component already exists",
 	"roles_permissions_check":           "permissions must be a JSON object and under 64 KB",
 	"clients_ai_insight_size_check":     "aiInsight is too large (64 KB decoded maximum)",
-	"products_ai_insight_size_check":    "aiInsight is too large (64 KB decoded maximum)",
+	"modules_ai_insight_size_check":     "aiInsight is too large (64 KB decoded maximum)",
 	"workspace_settings_settings_check": "settings must be a JSON object and under 64 KB",
 }
 

@@ -1,6 +1,6 @@
 -- Reverse of 000001_init.up.sql. Dropped child-first so FKs never block.
 
-ALTER TABLE IF EXISTS products DROP CONSTRAINT IF EXISTS products_current_sprint_id_fkey;
+ALTER TABLE IF EXISTS modules DROP CONSTRAINT IF EXISTS modules_current_sprint_id_fkey;
 
 DROP TABLE IF EXISTS workspace_settings;
 DROP TABLE IF EXISTS master_lists;
@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS sprint_members;
 DROP TABLE IF EXISTS sprints;
 DROP TABLE IF EXISTS backlog_items;
 DROP TABLE IF EXISTS members;
+DROP TABLE IF EXISTS components;
 DROP TABLE IF EXISTS modules;
-DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS projects;
 DROP TABLE IF EXISTS clients;

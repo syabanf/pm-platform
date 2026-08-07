@@ -35,7 +35,7 @@ sqlc: ## Regenerate type-safe query code from migrations + queries
 # Volumes are overridable: make seed SEED_CLIENTS=1000 SEED_TASKS_PER=40
 SEED_CLIENTS    ?= 200
 SEED_PROJECTS   ?= 4
-SEED_PRODUCTS   ?= 3
+SEED_MODULES    ?= 3
 SEED_COMPONENTS ?= 4
 SEED_SPRINTS    ?= 10
 SEED_BACKLOG    ?= 30
@@ -46,7 +46,7 @@ seed: ## Fill the database with a realistic portfolio (~1.2M rows by default)
 	psql "$(DB_URL)" -q \
 		-v clients=$(SEED_CLIENTS) \
 		-v projects_per=$(SEED_PROJECTS) \
-		-v products_per=$(SEED_PRODUCTS) \
+		-v modules_per=$(SEED_MODULES) \
 		-v components_per=$(SEED_COMPONENTS) \
 		-v sprints_per=$(SEED_SPRINTS) \
 		-v backlog_per=$(SEED_BACKLOG) \

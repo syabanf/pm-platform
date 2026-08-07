@@ -15,23 +15,23 @@ info:
 
     | URL / payload | The UI calls it |
     | ------------- | --------------- |
-    | `product`     | **Module**      |
-    | `module`      | **Component**   |
+    | `module`     | **Component**      |
+    | `component`      | **Component**   |
 
-    The hierarchy is `client → project → product → module → sprint → task`,
-    which the UI presents as Client → Project → Module → Component → Sprint.
+    The hierarchy is `client → project → module → component → sprint → task`,
+    which the UI presents as Client → Project → Component → Component → Sprint.
 
     ## Conventions
 
     - **PATCH is partial.** Only the keys present in the body are written; an
       absent key leaves its column untouched. This is what makes two concurrent
-      edits to different fields both survive. `PATCH /products/{id}/current-sprint`
+      edits to different fields both survive. `PATCH /modules/{id}/current-sprint`
       is the single exception where an explicit `null` differs from an absent
       key — see that operation.
     - **Ids may be supplied or generated.** Send `id` on create to choose it;
       omit it and the server mints one. A duplicate answers `409`.
     - **Lineage is enforced.** A child may only reference a parent inside its own
-      product: a sprint's component, a task's backlog item, a report's sprint. A
+      module: a sprint's component, a task's backlog item, a report's sprint. A
       mismatch is a `400`, not a silent link.
     - **Timestamps** are RFC 3339 with an offset (`2026-07-23T02:35:08.59+07:00`).
       Date-only columns (`startDate`, `due`, `decidedOn`, `generatedOn`) are sent
@@ -59,20 +59,20 @@ tags:
     description: The companies you deliver for.
   - name: projects
     description: An outcome a client hired you for.
-  - name: products
-    description: 'Delivery workspaces. The UI calls these **Modules**.'
   - name: modules
-    description: 'Pieces of a product, each owning its own sprints. The UI calls these **Components**.'
+    description: 'Delivery workspaces. The UI calls these **Components**.'
+  - name: components
+    description: 'Pieces of a module, each owning its own sprints. The UI calls these **Components**.'
   - name: sprints
     description: Sprints, their members and their committed backlog.
   - name: backlog
-    description: The product backlog.
+    description: The module backlog.
   - name: tasks
     description: Board cards and their Definition of Done.
   - name: members
     description: People who can be assigned work.
   - name: decisions
-    description: The decision log for a product.
+    description: The decision log for a module.
   - name: reports
     description: Report templates, the queue, and generated reports.
   - name: settings
@@ -179,7 +179,7 @@ paths:
       tags: [clients]
       summary: Delete a client
       description: |
-        Cascades to the client's projects, products, components, sprints,
+        Cascades to the client's projects, modules, components, sprints,
         backlog, tasks, decisions and reports. There is no undo.
       operationId: deleteClient
       responses:
@@ -265,7 +265,7 @@ paths:
       tags: [projects]
       summary: Update a project
       description: |
-        Moving a project to another client (`clientId`) carries its products
+        Moving a project to another client (`clientId`) carries its modules
         with it — their denormalised `clientId` follows automatically.
       operationId: updateProject
       requestBody:
@@ -285,49 +285,49 @@ paths:
     delete:
       tags: [projects]
       summary: Delete a project
-      description: Cascades to its products and everything beneath them.
+      description: Cascades to its modules and everything beneath them.
       operationId: deleteProject
       responses:
         '204': { description: Deleted. }
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
-  # ---------------------------------------------- products (UI "Modules") ---
-  /products:
+  # ---------------------------------------------- modules (UI "Components") ---
+  /modules:
     get:
-      tags: [products]
-      summary: List products (UI "Modules")
-      description: Filter by `projectId` or `clientId`; without either, lists every product.
+      tags: [modules]
+      summary: List modules (UI "Components")
+      description: Filter by `projectId` or `clientId`; without either, lists every module.
       operationId: listProducts
       parameters:
         - name: projectId
           in: query
           schema: { type: string }
-          description: Only products of this project.
+          description: Only modules of this project.
         - name: clientId
           in: query
           schema: { type: string }
-          description: Only products of this client. Ignored when `projectId` is given.
+          description: Only modules of this client. Ignored when `projectId` is given.
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
       responses:
         '200':
-          description: A page of products.
+          description: A page of modules.
           headers:
             X-Has-More: { $ref: '#/components/headers/XHasMore' }
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Product' }
+                items: { $ref: '#/components/schemas/Module' }
         '503': { $ref: '#/components/responses/Unavailable' }
     post:
-      tags: [products]
-      summary: Create a product
+      tags: [modules]
+      summary: Create a module
       description: |
         `clientId` is **not accepted** — it is derived from the project, so a
-        product can never be attributed to a client that does not own it.
-        `currentSprintId` is not accepted either: a new product has no sprints.
+        module can never be attributed to a client that does not own it.
+        `currentSprintId` is not accepted either: a new module has no sprints.
       operationId: createProduct
       requestBody:
         required: true
@@ -336,10 +336,10 @@ paths:
             schema: { $ref: '#/components/schemas/ProductCreate' }
       responses:
         '201':
-          description: The created product.
+          description: The created module.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Product' }
+              schema: { $ref: '#/components/schemas/Module' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400':
           description: '`projectId` is missing or does not exist.'
@@ -348,27 +348,27 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
         '409': { $ref: '#/components/responses/Conflict' }
 
-  /products/{productId}:
+  /modules/{moduleId}:
     parameters:
       - $ref: '#/components/parameters/ProductId'
     get:
-      tags: [products]
-      summary: Get a product
+      tags: [modules]
+      summary: Get a module
       operationId: getProduct
       responses:
         '200':
-          description: The product.
+          description: The module.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Product' }
+              schema: { $ref: '#/components/schemas/Module' }
         '404': { $ref: '#/components/responses/NotFound' }
     patch:
-      tags: [products]
-      summary: Update a product
+      tags: [modules]
+      summary: Update a module
       description: |
-        Partial. `clientId` is not accepted; move the product by changing
+        Partial. `clientId` is not accepted; move the module by changing
         `projectId`, and its client follows.
-      operationId: updateProduct
+      operationId: updateModule
       requestBody:
         required: true
         content:
@@ -376,16 +376,16 @@ paths:
             schema: { $ref: '#/components/schemas/ProductUpdate' }
       responses:
         '200':
-          description: The updated product.
+          description: The updated module.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Product' }
+              schema: { $ref: '#/components/schemas/Module' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
-      tags: [products]
-      summary: Delete a product
+      tags: [modules]
+      summary: Delete a module
       description: Cascades to its components, sprints, backlog, tasks, decisions and reports.
       operationId: deleteProduct
       responses:
@@ -393,20 +393,20 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
-  /products/{productId}/current-sprint:
+  /modules/{moduleId}/current-sprint:
     parameters:
       - $ref: '#/components/parameters/ProductId'
     patch:
-      tags: [products, sprints]
-      summary: Point a product at its current sprint
+      tags: [modules, sprints]
+      summary: Point a module at its current sprint
       description: |
         The one endpoint where an explicit `null` and an absent key differ:
 
         | Body | Effect |
         | ---- | ------ |
-        | `{"currentSprintId": "spr-..."}` | Sets the pointer. The sprint must belong to this product. |
+        | `{"currentSprintId": "spr-..."}` | Sets the pointer. The sprint must belong to this module. |
         | `{"currentSprintId": null}` | Clears the pointer. |
-        | `{}` | Nothing. Returns the product unchanged. |
+        | `{}` | Nothing. Returns the module unchanged. |
       operationId: setProductCurrentSprint
       requestBody:
         required: true
@@ -417,27 +417,27 @@ paths:
               properties:
                 currentSprintId:
                   type: [string, 'null']
-                  description: A sprint of this product, or null to clear.
+                  description: A sprint of this module, or null to clear.
       responses:
         '200':
-          description: The product.
+          description: The module.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Product' }
+              schema: { $ref: '#/components/schemas/Module' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400':
-          description: The sprint is not a sprint of this product.
+          description: The sprint is not a sprint of this module.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /products/{productId}/modules:
+  /modules/{moduleId}/components:
     parameters:
       - $ref: '#/components/parameters/ProductId'
     get:
-      tags: [modules]
-      summary: List a product's components
+      tags: [components]
+      summary: List a module's components
       operationId: listModulesByProduct
       parameters:
         - $ref: '#/components/parameters/Limit'
@@ -451,10 +451,10 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Module' }
+                items: { $ref: '#/components/schemas/Component' }
         '503': { $ref: '#/components/responses/Unavailable' }
     post:
-      tags: [modules]
+      tags: [components]
       summary: Create a component
       description: |
         Omit `position` and the server appends it under a row lock, so a burst of
@@ -470,17 +470,17 @@ paths:
           description: The created component.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Module' }
+              schema: { $ref: '#/components/schemas/Component' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '409': { $ref: '#/components/responses/Conflict' }
 
-  # ---------------------------------------------- modules (UI "Components") ---
-  /modules/{moduleId}:
+  # ---------------------------------------------- components (UI "Components") ---
+  /components/{componentId}:
     parameters:
       - $ref: '#/components/parameters/ModuleId'
     get:
-      tags: [modules]
+      tags: [components]
       summary: Get a component
       operationId: getModule
       responses:
@@ -488,12 +488,12 @@ paths:
           description: The component.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Module' }
+              schema: { $ref: '#/components/schemas/Component' }
         '404': { $ref: '#/components/responses/NotFound' }
     patch:
-      tags: [modules]
+      tags: [components]
       summary: Update a component
-      operationId: updateModule
+      operationId: updateComponent
       requestBody:
         required: true
         content:
@@ -504,15 +504,15 @@ paths:
           description: The updated component.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Module' }
+              schema: { $ref: '#/components/schemas/Component' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
-      tags: [modules]
+      tags: [components]
       summary: Delete a component
       description: |
-        Sprints and backlog items of this component survive — their `moduleId`
+        Sprints and backlog items of this component survive — their `componentId`
         is set to null. Only the component itself goes.
       operationId: deleteModule
       responses:
@@ -520,13 +520,13 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
-  /modules/{moduleId}/status:
+  /components/{componentId}/status:
     parameters:
       - $ref: '#/components/parameters/ModuleId'
     patch:
-      tags: [modules]
+      tags: [components]
       summary: Set a component's status
-      operationId: updateModuleStatus
+      operationId: updateComponentStatus
       requestBody:
         required: true
         content:
@@ -541,18 +541,18 @@ paths:
           description: The updated component.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Module' }
+              schema: { $ref: '#/components/schemas/Component' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /modules/{moduleId}/sprints:
+  /components/{componentId}/sprints:
     parameters:
       - $ref: '#/components/parameters/ModuleId'
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Offset'
     get:
-      tags: [modules, sprints]
+      tags: [components, sprints]
       summary: List a component's sprints
       operationId: listSprintsByModule
       responses:
@@ -567,13 +567,13 @@ paths:
                 items: { $ref: '#/components/schemas/Sprint' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
-  /modules/{moduleId}/backlog:
+  /components/{componentId}/backlog:
     parameters:
       - $ref: '#/components/parameters/ModuleId'
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Offset'
     get:
-      tags: [modules, backlog]
+      tags: [components, backlog]
       summary: List a component's backlog items
       operationId: listBacklogItemsByModule
       responses:
@@ -589,12 +589,12 @@ paths:
         '503': { $ref: '#/components/responses/Unavailable' }
 
   # ------------------------------------------------------------- sprints ---
-  /products/{productId}/sprints:
+  /modules/{moduleId}/sprints:
     parameters:
       - $ref: '#/components/parameters/ProductId'
     get:
       tags: [sprints]
-      summary: List a product's sprints
+      summary: List a module's sprints
       operationId: listSprintsByProduct
       parameters:
         - $ref: '#/components/parameters/Limit'
@@ -615,11 +615,11 @@ paths:
       summary: Create a sprint
       description: |
         Omit `number` and the sprint is auto-numbered: the next number for this
-        product, assigned under a row lock so a burst produces a gapless
+        module, assigned under a row lock so a burst produces a gapless
         sequence rather than a pile of conflicts. Send `number` to choose it
         yourself, and a clash is a genuine `409`.
 
-        `moduleId` must name a component of this product.
+        `componentId` must name a component of this module.
       operationId: createSprint
       requestBody:
         required: true
@@ -776,7 +776,7 @@ paths:
       tags: [sprints, backlog]
       summary: Commit a backlog item to a sprint
       description: |
-        The item must belong to the same product as the sprint. Omit `position`
+        The item must belong to the same module as the sprint. Omit `position`
         and it is appended under a row lock.
       operationId: addSprintBacklogItem
       requestBody:
@@ -798,7 +798,7 @@ paths:
               schema: { $ref: '#/components/schemas/SprintBacklogLink' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400':
-          description: The item does not exist or belongs to a different module.
+          description: The item does not exist or belongs to a different component.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -813,12 +813,12 @@ paths:
         '503': { $ref: '#/components/responses/Unavailable' }
 
   # ------------------------------------------------------------- backlog ---
-  /products/{productId}/backlog:
+  /modules/{moduleId}/backlog:
     parameters:
       - $ref: '#/components/parameters/ProductId'
     get:
       tags: [backlog]
-      summary: List a product's backlog
+      summary: List a module's backlog
       operationId: listBacklogItemsByProduct
       parameters:
         - $ref: '#/components/parameters/Limit'
@@ -920,7 +920,7 @@ paths:
     post:
       tags: [tasks]
       summary: Create a task
-      description: '`backlogItemId` must belong to the same product as the sprint.'
+      description: '`backlogItemId` must belong to the same module as the sprint.'
       operationId: createTask
       requestBody:
         required: true
@@ -935,7 +935,7 @@ paths:
               schema: { $ref: '#/components/schemas/Task' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400':
-          description: The backlog item does not exist or belongs to a different module.
+          description: The backlog item does not exist or belongs to a different component.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -1166,12 +1166,12 @@ paths:
         '503': { $ref: '#/components/responses/Unavailable' }
 
   # ----------------------------------------------------------- decisions ---
-  /products/{productId}/decisions:
+  /modules/{moduleId}/decisions:
     parameters:
       - $ref: '#/components/parameters/ProductId'
     get:
       tags: [decisions]
-      summary: List a product's decision log
+      summary: List a module's decision log
       operationId: listDecisionsByProduct
       parameters:
         - $ref: '#/components/parameters/Limit'
@@ -1378,14 +1378,14 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
-  /products/{productId}/generated-reports:
+  /modules/{moduleId}/generated-reports:
     parameters:
       - $ref: '#/components/parameters/ProductId'
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Offset'
     get:
       tags: [reports]
-      summary: List a product's generated reports
+      summary: List a module's generated reports
       operationId: listGeneratedReportsByProduct
       responses:
         '200':
@@ -1403,7 +1403,7 @@ paths:
     post:
       tags: [reports]
       summary: Record a generated report
-      description: '`sprintId`, when given, must be a sprint of that product.'
+      description: '`sprintId`, when given, must be a sprint of that module.'
       operationId: createGeneratedReport
       requestBody:
         required: true
@@ -1418,7 +1418,7 @@ paths:
               schema: { $ref: '#/components/schemas/GeneratedReport' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '400':
-          description: The product does not exist, or the sprint is not one of its sprints.
+          description: The module does not exist, or the sprint is not one of its sprints.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -1945,16 +1945,16 @@ components:
     ClientId:  { name: clientId,  in: path, required: true, schema: { type: string } }
     ProjectId: { name: projectId, in: path, required: true, schema: { type: string } }
     ProductId:
-      name: productId
-      in: path
-      required: true
-      description: 'A product id — the UI calls this a Module.'
-      schema: { type: string }
-    ModuleId:
       name: moduleId
       in: path
       required: true
       description: 'A module id — the UI calls this a Component.'
+      schema: { type: string }
+    ModuleId:
+      name: componentId
+      in: path
+      required: true
+      description: 'A component id — the UI calls this a Component.'
       schema: { type: string }
     SprintId: { name: sprintId, in: path, required: true, schema: { type: string } }
     TaskId:   { name: taskId,   in: path, required: true, schema: { type: string } }
@@ -2114,13 +2114,13 @@ components:
     ProjectUpdate:
       type: object
       properties:
-        clientId: { type: string, description: 'Moves the project, and its products follow.' }
+        clientId: { type: string, description: 'Moves the project, and its modules follow.' }
         name: { type: string }
         objective: { type: string }
         status: { $ref: '#/components/schemas/ProjectStatus' }
 
-    # ------------------------------------------- products (UI "Modules") ---
-    Product:
+    # ------------------------------------------- modules (UI "Components") ---
+    Module:
       type: object
       properties:
         id: { type: string }
@@ -2158,7 +2158,7 @@ components:
         aiInsight: { $ref: '#/components/schemas/Json' }
     ProductUpdate:
       type: object
-      description: '`clientId` is not accepted; change `projectId` to move the product.'
+      description: '`clientId` is not accepted; change `projectId` to move the module.'
       properties:
         projectId: { type: string }
         name: { type: string }
@@ -2172,12 +2172,12 @@ components:
         blockedCount: { type: integer, minimum: 0 }
         aiInsight: { $ref: '#/components/schemas/Json' }
 
-    # ---------------------------------------- modules (UI "Components") ---
-    Module:
+    # ---------------------------------------- components (UI "Components") ---
+    Component:
       type: object
       properties:
         id: { type: string }
-        productId: { type: string }
+        moduleId: { type: string }
         name: { type: string }
         owner: { type: string }
         status: { $ref: '#/components/schemas/ModuleStatus' }
@@ -2206,8 +2206,8 @@ components:
       type: object
       properties:
         id: { type: string }
-        productId: { type: string }
-        moduleId: { type: [string, 'null'], description: The component that owns this sprint. }
+        moduleId: { type: string }
+        componentId: { type: [string, 'null'], description: The component that owns this sprint. }
         number: { type: integer, minimum: 1, maximum: 100000 }
         name: { type: string }
         goal: { type: string }
@@ -2227,7 +2227,7 @@ components:
       required: [name]
       properties:
         id: { type: string }
-        moduleId: { type: string, description: A component of this product. }
+        componentId: { type: string, description: A component of this module. }
         number:
           type: integer
           minimum: 1
@@ -2247,7 +2247,7 @@ components:
     SprintUpdate:
       type: object
       properties:
-        moduleId: { type: string }
+        componentId: { type: string }
         number: { type: integer, minimum: 1, maximum: 100000 }
         name: { type: string }
         goal: { type: string }
@@ -2289,8 +2289,8 @@ components:
         - $ref: '#/components/schemas/SprintBacklogLink'
         - type: object
           properties:
-            productId: { type: string }
-            moduleId: { type: [string, 'null'] }
+            moduleId: { type: string }
+            componentId: { type: [string, 'null'] }
             title: { type: string }
             story: { type: string }
             acceptanceCriteria: { type: array, items: { type: string } }
@@ -2305,8 +2305,8 @@ components:
       type: object
       properties:
         id: { type: string }
-        productId: { type: string }
-        moduleId: { type: [string, 'null'] }
+        moduleId: { type: string }
+        componentId: { type: [string, 'null'] }
         title: { type: string }
         story: { type: string }
         acceptanceCriteria: { type: array, items: { type: string } }
@@ -2326,7 +2326,7 @@ components:
       required: [title]
       properties:
         id: { type: string }
-        moduleId: { type: string, description: A component of this product. }
+        componentId: { type: string, description: A component of this module. }
         title: { type: string }
         story: { type: string }
         acceptanceCriteria: { type: array, items: { type: string } }
@@ -2338,7 +2338,7 @@ components:
     BacklogItemUpdate:
       type: object
       properties:
-        moduleId: { type: string }
+        componentId: { type: string }
         title: { type: string }
         story: { type: string }
         acceptanceCriteria: { type: array, items: { type: string } }
@@ -2356,7 +2356,7 @@ components:
         sprintId: { type: string }
         backlogItemId: { type: string }
         title: { type: string }
-        moduleName: { type: string, description: Denormalised label shown on the card. }
+        componentName: { type: string, description: Denormalised label shown on the card. }
         assigneeId: { type: [string, 'null'] }
         estimate: { type: integer, minimum: 0 }
         boardColumn: { $ref: '#/components/schemas/BoardColumn' }
@@ -2371,9 +2371,9 @@ components:
       required: [title, backlogItemId]
       properties:
         id: { type: string }
-        backlogItemId: { type: string, description: Must belong to the sprint's product. }
+        backlogItemId: { type: string, description: Must belong to the sprint's module. }
         title: { type: string }
-        moduleName: { type: string }
+        componentName: { type: string }
         assigneeId: { type: string }
         estimate: { type: integer, minimum: 0 }
         boardColumn: { $ref: '#/components/schemas/BoardColumn' }
@@ -2385,7 +2385,7 @@ components:
       type: object
       properties:
         title: { type: string }
-        moduleName: { type: string }
+        componentName: { type: string }
         assigneeId: { type: string }
         estimate: { type: integer, minimum: 0 }
         boardColumn: { $ref: '#/components/schemas/BoardColumn' }
@@ -2449,7 +2449,7 @@ components:
       type: object
       properties:
         id: { type: string }
-        productId: { type: string }
+        moduleId: { type: string }
         decidedOn: { $ref: '#/components/schemas/DateOnly' }
         title: { type: string }
         detail: { type: string }
@@ -2492,7 +2492,7 @@ components:
       properties:
         id: { type: string }
         title: { type: string }
-        productId: { type: string }
+        moduleId: { type: string }
         client: { type: string }
         type: { type: string }
         template: { type: string }
@@ -2502,11 +2502,11 @@ components:
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
     ReportQueueCreate:
       type: object
-      required: [title, productId]
+      required: [title, moduleId]
       properties:
         id: { type: string }
         title: { type: string }
-        productId: { type: string }
+        moduleId: { type: string }
         client: { type: string }
         type: { type: string }
         template: { type: string }
@@ -2516,7 +2516,7 @@ components:
       type: object
       properties:
         id: { type: string }
-        productId: { type: string }
+        moduleId: { type: string }
         sprintId: { type: [string, 'null'] }
         type: { type: string }
         template: { type: string }
@@ -2527,11 +2527,11 @@ components:
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
     GeneratedReportCreate:
       type: object
-      required: [productId]
+      required: [moduleId]
       properties:
         id: { type: string }
-        productId: { type: string }
-        sprintId: { type: string, description: Must be a sprint of that product. }
+        moduleId: { type: string }
+        sprintId: { type: string, description: Must be a sprint of that module. }
         type: { type: string }
         template: { type: string }
         period: { type: string }

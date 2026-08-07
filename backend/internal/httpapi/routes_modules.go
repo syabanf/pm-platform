@@ -28,12 +28,12 @@ func newProductScopedID(prefix string) string {
 
 // ------------------------------------------------------------ requests ---
 
-// clientId is deliberately absent from both product bodies: it is derived from
-// the project, so a caller can never point a product at a client that does not
+// clientId is deliberately absent from both module bodies: it is derived from
+// the project, so a caller can never point a module at a client that does not
 // own it (and then delete that client out from under it).
-// currentSprintId is absent too: a product being created has no sprints yet, so
-// any value would be another product's — and nothing validated it.
-// Use PATCH /products/:id/current-sprint once a sprint exists.
+// currentSprintId is absent too: a module being created has no sprints yet, so
+// any value would be another module's — and nothing validated it.
+// Use PATCH /modules/:id/current-sprint once a sprint exists.
 type createProductRequest struct {
 	ID           *string          `json:"id"`
 	ProjectID    string           `json:"projectId"`
@@ -93,23 +93,23 @@ type updateProductModuleStatusRequest struct {
 // -------------------------------------------------------------- routes ---
 
 func (s *Server) registerProductRoutes(g *echo.Group) {
-	g.GET("/products", s.listProducts)
-	g.POST("/products", s.createProduct)
-	g.GET("/products/:productId", s.getProduct)
-	g.PATCH("/products/:productId", s.updateProduct)
-	g.PATCH("/products/:productId/current-sprint", s.setProductCurrentSprint)
-	g.DELETE("/products/:productId", s.deleteProduct)
-
-	g.GET("/products/:productId/modules", s.listModulesByProduct)
-	g.POST("/products/:productId/modules", s.createModule)
-
-	g.GET("/modules/:moduleId", s.getModule)
+	g.GET("/modules", s.listProducts)
+	g.POST("/modules", s.createProduct)
+	g.GET("/modules/:moduleId", s.getProduct)
 	g.PATCH("/modules/:moduleId", s.updateModule)
-	g.PATCH("/modules/:moduleId/status", s.updateModuleStatus)
-	g.DELETE("/modules/:moduleId", s.deleteModule)
+	g.PATCH("/modules/:moduleId/current-sprint", s.setProductCurrentSprint)
+	g.DELETE("/modules/:moduleId", s.deleteProduct)
+
+	g.GET("/modules/:moduleId/components", s.listModulesByProduct)
+	g.POST("/modules/:moduleId/components", s.createModule)
+
+	g.GET("/components/:componentId", s.getModule)
+	g.PATCH("/components/:componentId", s.updateComponent)
+	g.PATCH("/components/:componentId/status", s.updateComponentStatus)
+	g.DELETE("/components/:componentId", s.deleteModule)
 }
 
-// ------------------------------------------------------------ products ---
+// ------------------------------------------------------------ modules ---
 
 func (s *Server) listProducts(c echo.Context) error {
 	ctx := c.Request().Context()
@@ -164,7 +164,7 @@ func (s *Server) createProduct(c echo.Context) error {
 	}
 
 	// health has a CHECK (0..100) and DEFAULT 100; an absent value must not
-	// become 0, which would silently record a failing product.
+	// become 0, which would silently record a failing module.
 	health := int32(100)
 	if req.Health != nil {
 		health = *req.Health
@@ -198,19 +198,19 @@ func (s *Server) createProduct(c echo.Context) error {
 }
 
 func (s *Server) getProduct(c echo.Context) error {
-	id, err := param(c, "productId")
+	id, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
-	row, err := s.q.GetProduct(c.Request().Context(), id)
+	row, err := s.q.GetModule(c.Request().Context(), id)
 	if err != nil {
 		return dbErr(err)
 	}
 	return c.JSON(http.StatusOK, row)
 }
 
-func (s *Server) updateProduct(c echo.Context) error {
-	id, err := param(c, "productId")
+func (s *Server) updateModule(c echo.Context) error {
+	id, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func (s *Server) updateProduct(c echo.Context) error {
 }
 
 func (s *Server) setProductCurrentSprint(c echo.Context) error {
-	id, err := param(c, "productId")
+	id, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (s *Server) setProductCurrentSprint(c echo.Context) error {
 
 	// No key in the body means no instruction — not "clear it".
 	if !req.CurrentSprintID.Set {
-		row, getErr := s.q.GetProduct(ctx, id)
+		row, getErr := s.q.GetModule(ctx, id)
 		if getErr != nil {
 			return dbErr(getErr)
 		}
@@ -270,12 +270,12 @@ func (s *Server) setProductCurrentSprint(c echo.Context) error {
 		CurrentSprintID: req.CurrentSprintID.Value,
 	})
 	if err != nil {
-		// No row means either the product is gone or the sprint belongs to a
-		// different product; only the second is the caller's mistake.
+		// No row means either the module is gone or the sprint belongs to a
+		// different module; only the second is the caller's mistake.
 		if errors.Is(err, pgx.ErrNoRows) {
-			if _, getErr := s.q.GetProduct(ctx, id); getErr == nil {
+			if _, getErr := s.q.GetModule(ctx, id); getErr == nil {
 				return echo.NewHTTPError(http.StatusBadRequest,
-					"currentSprintId must be a sprint of this product")
+					"currentSprintId must be a sprint of this module")
 			}
 		}
 		return dbErr(err)
@@ -284,11 +284,11 @@ func (s *Server) setProductCurrentSprint(c echo.Context) error {
 }
 
 func (s *Server) deleteProduct(c echo.Context) error {
-	id, err := param(c, "productId")
+	id, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
-	// The cascade origin: it locks the product first by itself, so this only
+	// The cascade origin: it locks the module first by itself, so this only
 	// needs the larger statement budget.
 	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries) error {
 		return q.DeleteProduct(c.Request().Context(), id)
@@ -298,10 +298,10 @@ func (s *Server) deleteProduct(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// ------------------------------------------------------------- modules ---
+// ------------------------------------------------------------- components ---
 
 func (s *Server) listModulesByProduct(c echo.Context) error {
-	productID, err := param(c, "productId")
+	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -310,9 +310,9 @@ func (s *Server) listModulesByProduct(c echo.Context) error {
 		return err
 	}
 	rows, err := s.q.ListModulesByProduct(c.Request().Context(), db.ListModulesByProductParams{
-		ProductID: productID,
-		Lim:       limit + 1,
-		Off:       offset,
+		ModuleID: moduleID,
+		Lim:      limit + 1,
+		Off:      offset,
 	})
 	if err != nil {
 		return dbErr(err)
@@ -321,7 +321,7 @@ func (s *Server) listModulesByProduct(c echo.Context) error {
 }
 
 func (s *Server) createModule(c echo.Context) error {
-	productID, err := param(c, "productId")
+	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -339,27 +339,27 @@ func (s *Server) createModule(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	create := func(q *db.Queries, position int32) (db.Module, error) {
+	create := func(q *db.Queries, position int32) (db.Component, error) {
 		return q.CreateModule(ctx, db.CreateModuleParams{
-			ID:        id,
-			ProductID: productID,
-			Name:      req.Name,
-			Owner:     orDefault(deref(req.Owner), "Unassigned"),
-			Status:    orDefault(deref(req.Status), "planned"),
-			Position:  position,
+			ID:       id,
+			ModuleID: moduleID,
+			Name:     req.Name,
+			Owner:    orDefault(deref(req.Owner), "Unassigned"),
+			Status:   orDefault(deref(req.Status), "planned"),
+			Position: position,
 		})
 	}
 
-	var row db.Module
+	var row db.Component
 	if req.Position != nil {
 		row, err = create(s.q, *req.Position)
 	} else {
-		// Appending needs the product locked first — see LockProductForUpdate.
+		// Appending needs the module locked first — see LockModuleForUpdate.
 		err = s.withTx(ctx, func(q *db.Queries) error {
-			if _, lockErr := q.LockProductForUpdate(ctx, productID); lockErr != nil {
+			if _, lockErr := q.LockModuleForUpdate(ctx, moduleID); lockErr != nil {
 				return lockErr
 			}
-			position, posErr := q.NextModulePosition(ctx, productID)
+			position, posErr := q.NextModulePosition(ctx, moduleID)
 			if posErr != nil {
 				return posErr
 			}
@@ -370,7 +370,7 @@ func (s *Server) createModule(c echo.Context) error {
 	}
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return echo.NewHTTPError(http.StatusBadRequest, "productId does not exist")
+			return echo.NewHTTPError(http.StatusBadRequest, "moduleId does not exist")
 		}
 		return dbErr(err)
 	}
@@ -378,19 +378,19 @@ func (s *Server) createModule(c echo.Context) error {
 }
 
 func (s *Server) getModule(c echo.Context) error {
-	id, err := param(c, "moduleId")
+	id, err := param(c, "componentId")
 	if err != nil {
 		return err
 	}
-	row, err := s.q.GetModule(c.Request().Context(), id)
+	row, err := s.q.GetComponent(c.Request().Context(), id)
 	if err != nil {
 		return dbErr(err)
 	}
 	return c.JSON(http.StatusOK, row)
 }
 
-func (s *Server) updateModule(c echo.Context) error {
-	id, err := param(c, "moduleId")
+func (s *Server) updateComponent(c echo.Context) error {
+	id, err := param(c, "componentId")
 	if err != nil {
 		return err
 	}
@@ -414,8 +414,8 @@ func (s *Server) updateModule(c echo.Context) error {
 	return c.JSON(http.StatusOK, row)
 }
 
-func (s *Server) updateModuleStatus(c echo.Context) error {
-	id, err := param(c, "moduleId")
+func (s *Server) updateComponentStatus(c echo.Context) error {
+	id, err := param(c, "componentId")
 	if err != nil {
 		return err
 	}
@@ -438,24 +438,24 @@ func (s *Server) updateModuleStatus(c echo.Context) error {
 }
 
 func (s *Server) deleteModule(c echo.Context) error {
-	id, err := param(c, "moduleId")
+	id, err := param(c, "componentId")
 	if err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
 
-	// Same reasoning as deleteSprint: this clears module_id on the product's
-	// sprints and backlog items, which the product cascade also touches. Lock
-	// the product first so the two orders cannot cross.
+	// Same reasoning as deleteSprint: this clears component_id on the module's
+	// sprints and backlog items, which the module cascade also touches. Lock
+	// the module first so the two orders cannot cross.
 	err = s.deleteTx(ctx, func(q *db.Queries) error {
-		module, getErr := q.GetModule(ctx, id)
+		component, getErr := q.GetComponent(ctx, id)
 		if getErr != nil {
 			if errors.Is(getErr, pgx.ErrNoRows) {
 				return nil
 			}
 			return getErr
 		}
-		if _, lockErr := q.LockProductForUpdate(ctx, module.ProductID); lockErr != nil {
+		if _, lockErr := q.LockModuleForUpdate(ctx, component.ModuleID); lockErr != nil {
 			return lockErr
 		}
 		return q.DeleteModule(ctx, id)

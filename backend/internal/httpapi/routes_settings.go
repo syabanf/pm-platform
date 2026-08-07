@@ -26,7 +26,7 @@ func (s *Server) registerSettingsRoutes(g *echo.Group) {
 	g.PATCH("/report-queue/:id", s.updateReportQueueStatus)
 	g.DELETE("/report-queue/:id", s.deleteReportQueueItem)
 
-	g.GET("/products/:productId/generated-reports", s.listGeneratedReportsByProduct)
+	g.GET("/modules/:moduleId/generated-reports", s.listGeneratedReportsByProduct)
 	g.POST("/generated-reports", s.createGeneratedReport)
 	g.PATCH("/generated-reports/:id/sent", s.markGeneratedReportSent)
 
@@ -119,14 +119,14 @@ func (s *Server) deleteReportTemplate(c echo.Context) error {
 // -------------------------------------------------------------- report_queue ---
 
 type createReportQueueRequest struct {
-	ID        string  `json:"id"`
-	Title     string  `json:"title"`
-	ProductID string  `json:"productId"`
-	Client    string  `json:"client"`
-	Type      string  `json:"type"`
-	Template  string  `json:"template"`
-	Due       *string `json:"due"`
-	Status    string  `json:"status"`
+	ID       string  `json:"id"`
+	Title    string  `json:"title"`
+	ModuleID string  `json:"moduleId"`
+	Client   string  `json:"client"`
+	Type     string  `json:"type"`
+	Template string  `json:"template"`
+	Due      *string `json:"due"`
+	Status   string  `json:"status"`
 }
 
 type updateReportQueueStatusRequest struct {
@@ -153,8 +153,8 @@ func (s *Server) createReportQueueItem(c echo.Context) error {
 	if req.Title == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "title is required")
 	}
-	if req.ProductID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "productId is required")
+	if req.ModuleID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "moduleId is required")
 	}
 	due, err := parseDate(req.Due)
 	if err != nil {
@@ -165,14 +165,14 @@ func (s *Server) createReportQueueItem(c echo.Context) error {
 	}
 
 	row, err := s.q.CreateReportQueueItem(c.Request().Context(), db.CreateReportQueueItemParams{
-		ID:        req.ID,
-		Title:     req.Title,
-		ProductID: req.ProductID,
-		Client:    req.Client,
-		Type:      req.Type,
-		Template:  req.Template,
-		Due:       due,
-		Status:    orDefault(req.Status, "open"),
+		ID:       req.ID,
+		Title:    req.Title,
+		ModuleID: req.ModuleID,
+		Client:   req.Client,
+		Type:     req.Type,
+		Template: req.Template,
+		Due:      due,
+		Status:   orDefault(req.Status, "open"),
 	})
 	if err != nil {
 		return dbErr(err)
@@ -218,7 +218,7 @@ func (s *Server) deleteReportQueueItem(c echo.Context) error {
 
 type createGeneratedReportRequest struct {
 	ID          string  `json:"id"`
-	ProductID   string  `json:"productId"`
+	ModuleID    string  `json:"moduleId"`
 	SprintID    *string `json:"sprintId"`
 	Type        string  `json:"type"`
 	Template    string  `json:"template"`
@@ -228,7 +228,7 @@ type createGeneratedReportRequest struct {
 }
 
 func (s *Server) listGeneratedReportsByProduct(c echo.Context) error {
-	productID, err := param(c, "productId")
+	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
@@ -237,9 +237,9 @@ func (s *Server) listGeneratedReportsByProduct(c echo.Context) error {
 		return err
 	}
 	rows, err := s.q.ListGeneratedReportsByProduct(c.Request().Context(), db.ListGeneratedReportsByProductParams{
-		ProductID: productID,
-		Lim:       limit + 1,
-		Off:       offset,
+		ModuleID: moduleID,
+		Lim:      limit + 1,
+		Off:      offset,
 	})
 	if err != nil {
 		return dbErr(err)
@@ -252,8 +252,8 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if req.ProductID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "productId is required")
+	if req.ModuleID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "moduleId is required")
 	}
 	generatedOn, err := parseDate(req.GeneratedOn)
 	if err != nil {
@@ -269,7 +269,7 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 
 	row, err := s.q.CreateGeneratedReport(c.Request().Context(), db.CreateGeneratedReportParams{
 		ID:          req.ID,
-		ProductID:   req.ProductID,
+		ModuleID:    req.ModuleID,
 		SprintID:    req.SprintID,
 		Type:        req.Type,
 		Template:    req.Template,
@@ -278,11 +278,11 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 		Status:      orDefault(req.Status, "draft"),
 	})
 	if err != nil {
-		// The insert selects the product and checks the sprint belongs to it,
+		// The insert selects the module and checks the sprint belongs to it,
 		// so no row means one of those two did not hold.
 		if errors.Is(err, pgx.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusBadRequest,
-				"productId does not exist, or sprintId is not a sprint of that module")
+				"moduleId does not exist, or sprintId is not a sprint of that component")
 		}
 		return dbErr(err)
 	}

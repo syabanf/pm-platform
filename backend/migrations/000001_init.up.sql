@@ -1,10 +1,10 @@
 -- WIT Sprint OS — initial schema
 --
--- Hierarchy: client -> project -> product -> module -> sprint
+-- Hierarchy: client -> project -> module -> component -> sprint
 -- NOTE ON NAMING: table names follow the frontend's code identifiers, so the
--- API maps 1:1 onto the existing TypeScript types. In the product UI these
--- read as:  products = "Module",  modules = "Component".
---   clients -> projects -> products("Module") -> modules("Component") -> sprints
+-- API maps 1:1 onto the existing TypeScript types. In the module UI these
+-- read as:  modules = "Component",  components = "Component".
+--   clients -> projects -> modules("Component") -> components("Component") -> sprints
 
 -- ---------------------------------------------------------------- clients ---
 CREATE TABLE clients (
@@ -40,12 +40,12 @@ CREATE TABLE projects (
 );
 CREATE INDEX projects_client_id_idx ON projects (client_id);
 
--- ------------------------------------------------- products (UI "Module") ---
-CREATE TABLE products (
+-- ------------------------------------------------- modules (UI "Component") ---
+CREATE TABLE modules (
     id                TEXT PRIMARY KEY,
     project_id        TEXT        NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
-    -- denormalised so a product can be listed per client without a join,
-    -- mirroring the frontend Product type.
+    -- denormalised so a module can be listed per client without a join,
+    -- mirroring the frontend Module type.
     client_id         TEXT        NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
     name              TEXT        NOT NULL,
     goal              TEXT        NOT NULL DEFAULT '',
@@ -64,13 +64,13 @@ CREATE TABLE products (
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX products_project_id_idx ON products (project_id);
-CREATE INDEX products_client_id_idx ON products (client_id);
+CREATE INDEX modules_project_id_idx ON modules (project_id);
+CREATE INDEX modules_client_id_idx ON modules (client_id);
 
--- ------------------------------------------------ modules (UI "Component") ---
-CREATE TABLE modules (
+-- ------------------------------------------------ components (UI "Component") ---
+CREATE TABLE components (
     id         TEXT PRIMARY KEY,
-    product_id TEXT        NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+    module_id TEXT        NOT NULL REFERENCES modules (id) ON DELETE CASCADE,
     name       TEXT        NOT NULL,
     owner      TEXT        NOT NULL DEFAULT 'Unassigned',
     status     TEXT        NOT NULL DEFAULT 'planned'
@@ -79,7 +79,7 @@ CREATE TABLE modules (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX modules_product_id_idx ON modules (product_id, position);
+CREATE INDEX components_module_id_idx ON components (module_id, position);
 
 -- ---------------------------------------------------------------- members ---
 CREATE TABLE members (
@@ -101,8 +101,8 @@ CREATE TABLE members (
 -- ---------------------------------------------------------- backlog_items ---
 CREATE TABLE backlog_items (
     id                  TEXT PRIMARY KEY,
-    product_id          TEXT        NOT NULL REFERENCES products (id) ON DELETE CASCADE,
-    module_id           TEXT        REFERENCES modules (id) ON DELETE SET NULL,
+    module_id          TEXT        NOT NULL REFERENCES modules (id) ON DELETE CASCADE,
+    component_id           TEXT        REFERENCES components (id) ON DELETE SET NULL,
     title               TEXT        NOT NULL,
     story               TEXT        NOT NULL DEFAULT '',
     acceptance_criteria TEXT[]      NOT NULL DEFAULT '{}',
@@ -115,15 +115,15 @@ CREATE TABLE backlog_items (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX backlog_items_product_id_idx ON backlog_items (product_id);
 CREATE INDEX backlog_items_module_id_idx ON backlog_items (module_id);
+CREATE INDEX backlog_items_component_id_idx ON backlog_items (component_id);
 
 -- ---------------------------------------------------------------- sprints ---
 CREATE TABLE sprints (
     id           TEXT PRIMARY KEY,
-    product_id   TEXT        NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+    module_id   TEXT        NOT NULL REFERENCES modules (id) ON DELETE CASCADE,
     -- the Component that owns this sprint (5-level hierarchy)
-    module_id    TEXT        REFERENCES modules (id) ON DELETE SET NULL,
+    component_id    TEXT        REFERENCES components (id) ON DELETE SET NULL,
     number       INTEGER     NOT NULL,
     name         TEXT        NOT NULL DEFAULT '',
     goal         TEXT        NOT NULL DEFAULT '',
@@ -140,14 +140,14 @@ CREATE TABLE sprints (
                              CHECK (risk IN ('low', 'medium', 'high')),
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (product_id, number)
+    UNIQUE (module_id, number)
 );
-CREATE INDEX sprints_product_id_idx ON sprints (product_id);
 CREATE INDEX sprints_module_id_idx ON sprints (module_id);
+CREATE INDEX sprints_component_id_idx ON sprints (component_id);
 
--- products.current_sprint_id closes the cycle once sprints exists.
-ALTER TABLE products
-    ADD CONSTRAINT products_current_sprint_id_fkey
+-- modules.current_sprint_id closes the cycle once sprints exists.
+ALTER TABLE modules
+    ADD CONSTRAINT modules_current_sprint_id_fkey
     FOREIGN KEY (current_sprint_id) REFERENCES sprints (id) ON DELETE SET NULL;
 
 -- --------------------------------------------------------- sprint_members ---
@@ -173,7 +173,7 @@ CREATE TABLE tasks (
     sprint_id       TEXT        NOT NULL REFERENCES sprints (id) ON DELETE CASCADE,
     backlog_item_id TEXT        NOT NULL REFERENCES backlog_items (id) ON DELETE CASCADE,
     title           TEXT        NOT NULL,
-    module_name     TEXT        NOT NULL DEFAULT '',
+    component_name     TEXT        NOT NULL DEFAULT '',
     assignee_id     TEXT        REFERENCES members (id) ON DELETE SET NULL,
     estimate        INTEGER     NOT NULL DEFAULT 0,
     -- "column" is a reserved word in SQL; the API still exposes it as `column`.
@@ -203,7 +203,7 @@ CREATE TABLE task_dod (
 -- -------------------------------------------------------------- decisions ---
 CREATE TABLE decisions (
     id         TEXT PRIMARY KEY,
-    product_id TEXT        NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+    module_id TEXT        NOT NULL REFERENCES modules (id) ON DELETE CASCADE,
     decided_on DATE        NOT NULL DEFAULT CURRENT_DATE,
     title      TEXT        NOT NULL,
     detail     TEXT        NOT NULL DEFAULT '',
@@ -213,7 +213,7 @@ CREATE TABLE decisions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX decisions_product_id_idx ON decisions (product_id);
+CREATE INDEX decisions_module_id_idx ON decisions (module_id);
 
 -- ------------------------------------------------------- report_templates ---
 CREATE TABLE report_templates (
@@ -231,7 +231,7 @@ CREATE TABLE report_templates (
 CREATE TABLE report_queue (
     id         TEXT PRIMARY KEY,
     title      TEXT        NOT NULL,
-    product_id TEXT        NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+    module_id TEXT        NOT NULL REFERENCES modules (id) ON DELETE CASCADE,
     client     TEXT        NOT NULL DEFAULT '',
     type       TEXT        NOT NULL,
     template   TEXT        NOT NULL DEFAULT '',
@@ -241,12 +241,12 @@ CREATE TABLE report_queue (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX report_queue_product_id_idx ON report_queue (product_id);
+CREATE INDEX report_queue_module_id_idx ON report_queue (module_id);
 
 -- ------------------------------------------------------ generated_reports ---
 CREATE TABLE generated_reports (
     id           TEXT PRIMARY KEY,
-    product_id   TEXT        NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+    module_id   TEXT        NOT NULL REFERENCES modules (id) ON DELETE CASCADE,
     sprint_id    TEXT        REFERENCES sprints (id) ON DELETE SET NULL,
     type         TEXT        NOT NULL,
     template     TEXT        NOT NULL DEFAULT '',
@@ -257,7 +257,7 @@ CREATE TABLE generated_reports (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX generated_reports_product_id_idx ON generated_reports (product_id);
+CREATE INDEX generated_reports_module_id_idx ON generated_reports (module_id);
 
 -- ------------------------------------------------------------------ roles ---
 CREATE TABLE roles (

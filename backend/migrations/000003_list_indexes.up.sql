@@ -18,19 +18,19 @@ CREATE INDEX tasks_sprint_created_idx
     ON tasks (sprint_id, created_at, id);                    -- 34.191 ms -> 0.730 ms
 DROP INDEX tasks_sprint_id_idx;
 
-CREATE INDEX backlog_items_product_created_idx
-    ON backlog_items (product_id, created_at DESC, id);      -- 75.927 ms -> index scan
-DROP INDEX backlog_items_product_id_idx;
+CREATE INDEX backlog_items_module_created_idx
+    ON backlog_items (module_id, created_at DESC, id);      -- 75.927 ms -> index scan
+DROP INDEX backlog_items_module_id_idx;
 
-CREATE INDEX decisions_product_decided_idx
-    ON decisions (product_id, decided_on DESC, id);          -- 15.668 ms for 201 rows
-DROP INDEX decisions_product_id_idx;
+CREATE INDEX decisions_module_decided_idx
+    ON decisions (module_id, decided_on DESC, id);          -- 15.668 ms for 201 rows
+DROP INDEX decisions_module_id_idx;
 
-CREATE INDEX generated_reports_product_generated_idx
-    ON generated_reports (product_id, generated_on DESC, id);
-DROP INDEX generated_reports_product_id_idx;
+CREATE INDEX generated_reports_module_generated_idx
+    ON generated_reports (module_id, generated_on DESC, id);
+DROP INDEX generated_reports_module_id_idx;
 
--- report_queue_product_id_idx stays: it serves the cascade from products, which
+-- report_queue_module_id_idx stays: it serves the cascade from modules, which
 -- the (due, id) index below cannot.
 CREATE INDEX report_queue_due_idx
     ON report_queue (due NULLS LAST, id);                    -- 4.678 ms -> 0.063 ms
@@ -41,8 +41,8 @@ CREATE INDEX report_queue_due_idx
 CREATE INDEX clients_name_idx   ON clients (name, id);
 CREATE INDEX projects_name_idx  ON projects (name, id);      -- 1.360 ms -> 0.050 ms
 CREATE INDEX members_name_idx   ON members (name, id);       -- 1.285 ms -> 0.108 ms
-CREATE INDEX products_created_idx
-    ON products (created_at, name, id);                      -- 3.301 ms -> 0.096 ms
+CREATE INDEX modules_created_idx
+    ON modules (created_at, name, id);                      -- 3.301 ms -> 0.096 ms
 
 -- NextSprintBacklogPosition runs inside the sprint's row lock, so its cost is
 -- held contention, not just latency: 0.706 ms -> 0.057 ms, and an Index Only

@@ -13,8 +13,8 @@ import (
 
 type BacklogItem struct {
 	ID                 string             `json:"id"`
-	ProductID          string             `json:"productId"`
-	ModuleID           *string            `json:"moduleId"`
+	ModuleID           string             `json:"moduleId"`
+	ComponentID        *string            `json:"componentId"`
 	Title              string             `json:"title"`
 	Story              string             `json:"story"`
 	AcceptanceCriteria []string           `json:"acceptanceCriteria"`
@@ -44,9 +44,20 @@ type Client struct {
 	UpdatedAt    pgtype.Timestamptz `json:"updatedAt"`
 }
 
+type Component struct {
+	ID        string             `json:"id"`
+	ModuleID  string             `json:"moduleId"`
+	Name      string             `json:"name"`
+	Owner     string             `json:"owner"`
+	Status    string             `json:"status"`
+	Position  int32              `json:"position"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
+}
+
 type Decision struct {
 	ID        string             `json:"id"`
-	ProductID string             `json:"productId"`
+	ModuleID  string             `json:"moduleId"`
 	DecidedOn time.Time          `json:"decidedOn"`
 	Title     string             `json:"title"`
 	Detail    string             `json:"detail"`
@@ -66,7 +77,7 @@ type EmailVerificationToken struct {
 
 type GeneratedReport struct {
 	ID          string             `json:"id"`
-	ProductID   string             `json:"productId"`
+	ModuleID    string             `json:"moduleId"`
 	SprintID    *string            `json:"sprintId"`
 	Type        string             `json:"type"`
 	Template    string             `json:"template"`
@@ -99,17 +110,6 @@ type Member struct {
 }
 
 type Module struct {
-	ID        string             `json:"id"`
-	ProductID string             `json:"productId"`
-	Name      string             `json:"name"`
-	Owner     string             `json:"owner"`
-	Status    string             `json:"status"`
-	Position  int32              `json:"position"`
-	CreatedAt pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
-}
-
-type Product struct {
 	ID              string             `json:"id"`
 	ProjectID       string             `json:"projectId"`
 	ClientID        string             `json:"clientId"`
@@ -141,7 +141,7 @@ type Project struct {
 type ReportQueue struct {
 	ID        string             `json:"id"`
 	Title     string             `json:"title"`
-	ProductID string             `json:"productId"`
+	ModuleID  string             `json:"moduleId"`
 	Client    string             `json:"client"`
 	Type      string             `json:"type"`
 	Template  string             `json:"template"`
@@ -169,8 +169,8 @@ type Role struct {
 
 type Sprint struct {
 	ID          string             `json:"id"`
-	ProductID   string             `json:"productId"`
-	ModuleID    *string            `json:"moduleId"`
+	ModuleID    string             `json:"moduleId"`
+	ComponentID *string            `json:"componentId"`
 	Number      int32              `json:"number"`
 	Name        string             `json:"name"`
 	Goal        string             `json:"goal"`
@@ -205,7 +205,7 @@ type Task struct {
 	SprintID      string             `json:"sprintId"`
 	BacklogItemID string             `json:"backlogItemId"`
 	Title         string             `json:"title"`
-	ModuleName    string             `json:"moduleName"`
+	ComponentName string             `json:"componentName"`
 	AssigneeID    *string            `json:"assigneeId"`
 	Estimate      int32              `json:"estimate"`
 	BoardColumn   string             `json:"boardColumn"`

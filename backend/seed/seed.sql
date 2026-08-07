@@ -13,7 +13,7 @@
 
 \if :{?clients}          \else \set clients 200            \endif
 \if :{?projects_per}     \else \set projects_per 4         \endif
-\if :{?products_per}     \else \set products_per 3         \endif
+\if :{?modules_per}     \else \set modules_per 3         \endif
 \if :{?components_per}   \else \set components_per 4       \endif
 \if :{?sprints_per}      \else \set sprints_per 10         \endif
 \if :{?backlog_per}      \else \set backlog_per 30         \endif
@@ -56,8 +56,8 @@ SELECT
     (ARRAY['discovery','active','active','done','on-hold'])[1 + (p + length(c.id)) % 5]
 FROM clients c, generate_series(1, :projects_per) p;
 
--- ------------------------------------------------- products (UI "Module") ---
-INSERT INTO products (id, project_id, client_id, name, goal, owner, delivery_lead,
+-- ------------------------------------------------- modules (UI "Component") ---
+INSERT INTO modules (id, project_id, client_id, name, goal, owner, delivery_lead,
                       status, health, risk, velocity, blocked_count)
 SELECT
     pj.id || '-mod-' || m,
@@ -73,10 +73,10 @@ SELECT
     (ARRAY['low','medium','high'])[1 + m % 3],
     18 + (m * 3) % 25,
     m % 4
-FROM projects pj, generate_series(1, :products_per) m;
+FROM projects pj, generate_series(1, :modules_per) m;
 
--- ----------------------------------------------- modules (UI "Component") ---
-INSERT INTO modules (id, product_id, name, owner, status, position)
+-- ----------------------------------------------- components (UI "Component") ---
+INSERT INTO components (id, module_id, name, owner, status, position)
 SELECT
     pr.id || '-cmp-' || k,
     pr.id,
@@ -85,7 +85,7 @@ SELECT
     (ARRAY['Yoga','Putri','Rina','Budi'])[1 + k % 4],
     (ARRAY['planned','in-progress','in-progress','done'])[1 + k % 4],
     k - 1                                           -- gapless 0..n-1
-FROM products pr, generate_series(1, :components_per) k;
+FROM modules pr, generate_series(1, :components_per) k;
 
 -- ---------------------------------------------------------------- members ---
 -- members survive the client-only truncate, so a re-run must not collide.
@@ -109,9 +109,9 @@ FROM generate_series(1, :members) i
 ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------- backlog_items ---
--- module_id names a Component of this very product, which is what the composite
+-- component_id names a Component of this very module, which is what the composite
 -- foreign key requires.
-INSERT INTO backlog_items (id, product_id, module_id, title, story,
+INSERT INTO backlog_items (id, module_id, component_id, title, story,
                            acceptance_criteria, type, priority, readiness, estimate)
 SELECT
     pr.id || '-bli-' || b,
@@ -126,17 +126,17 @@ SELECT
     (ARRAY['low','medium','high','critical'])[1 + b % 4],
     (ARRAY['ready','needs-clarification','draft'])[1 + b % 3],
     (ARRAY[1, 2, 3, 5, 8, 13])[1 + b % 6]
-FROM products pr, generate_series(1, :backlog_per) b;
+FROM modules pr, generate_series(1, :backlog_per) b;
 
 -- ---------------------------------------------------------------- sprints ---
-INSERT INTO sprints (id, product_id, module_id, number, name, goal,
+INSERT INTO sprints (id, module_id, component_id, number, name, goal,
                      start_date, end_date, working_days, days_left,
                      status, committed, completed, progress, risk)
 SELECT
     pr.id || '-spr-' || n,
     pr.id,
     pr.id || '-cmp-' || (1 + n % :components_per),
-    n,                                              -- unique per product
+    n,                                              -- unique per module
     'Sprint ' || lpad(n::text, 2, '0'),
     'Close the loop on the top downtime reason.',
     DATE '2026-01-05' + ((n - 1) * 14),
@@ -150,17 +150,17 @@ SELECT
     CASE WHEN n < :sprints_per THEN 24 + n % 12 ELSE (24 + n % 12) / 2 END,
     CASE WHEN n < :sprints_per THEN 100 ELSE 45 END,
     (ARRAY['low','low','medium','high'])[1 + n % 4]
-FROM products pr, generate_series(1, :sprints_per) n;
+FROM modules pr, generate_series(1, :sprints_per) n;
 
--- the newest sprint of each product is the current one
-UPDATE products pr
+-- the newest sprint of each module is the current one
+UPDATE modules pr
 SET current_sprint_id = pr.id || '-spr-' || :sprints_per;
 
 -- --------------------------------------------------- sprint_backlog_items ---
 INSERT INTO sprint_backlog_items (sprint_id, backlog_item_id, position)
 SELECT
     s.id,
-    s.product_id || '-bli-' || (1 + ((s.number - 1) * 8 + q) % :backlog_per),
+    s.module_id || '-bli-' || (1 + ((s.number - 1) * 8 + q) % :backlog_per),
     q
 FROM sprints s, generate_series(0, 7) q
 ON CONFLICT DO NOTHING;
@@ -176,13 +176,13 @@ FROM sprints s, generate_series(0, 3) q
 ON CONFLICT DO NOTHING;
 
 -- ------------------------------------------------------------------ tasks ---
-INSERT INTO tasks (id, sprint_id, backlog_item_id, title, module_name,
+INSERT INTO tasks (id, sprint_id, backlog_item_id, title, component_name,
                    assignee_id, estimate, board_column, priority,
                    blocked_reason, blocked_days, off_goal)
 SELECT
     s.id || '-tsk-' || t,
     s.id,
-    s.product_id || '-bli-' || (1 + ((s.number - 1) * 8 + t % 8) % :backlog_per),
+    s.module_id || '-bli-' || (1 + ((s.number - 1) * 8 + t % 8) % :backlog_per),
     (ARRAY['Wire the tag reader','Add reason-code table','Chart the shift view',
            'Write the export job','Handle the alert path'])[1 + t % 5] || ' #' || t,
     (ARRAY['Machine Data Acquisition','Downtime Analytics','Operator Console',
@@ -213,7 +213,7 @@ WHERE tk.board_column IN ('in-review', 'qa', 'done')
   AND abs(hashtext(tk.id)) % 5 = 0;
 
 -- -------------------------------------------------------------- decisions ---
-INSERT INTO decisions (id, product_id, decided_on, title, detail, owner, status)
+INSERT INTO decisions (id, module_id, decided_on, title, detail, owner, status)
 SELECT
     pr.id || '-dec-' || d,
     pr.id,
@@ -223,24 +223,24 @@ SELECT
     'Recorded during sprint review; revisit at the next QBR.',
     (ARRAY['Fahmi','Rina','Yoga'])[1 + d % 3],
     (ARRAY['open','decided','decided'])[1 + d % 3]
-FROM products pr, generate_series(1, 5) d;
+FROM modules pr, generate_series(1, 5) d;
 
 -- ------------------------------------------------------ generated_reports ---
-INSERT INTO generated_reports (id, product_id, sprint_id, type, template,
+INSERT INTO generated_reports (id, module_id, sprint_id, type, template,
                                period, generated_on, status)
 SELECT
     pr.id || '-rep-' || r,
     pr.id,
-    pr.id || '-spr-' || (1 + r % :sprints_per),     -- a sprint of this product
-    (ARRAY['Sprint Report','Module Report','Client Report'])[1 + r % 3],
+    pr.id || '-spr-' || (1 + r % :sprints_per),     -- a sprint of this module
+    (ARRAY['Sprint Report','Component Report','Client Report'])[1 + r % 3],
     'Standard',
     '2026-Q' || (1 + r % 4),
     DATE '2026-03-01' + r * 11,
     (ARRAY['draft','sent','sent'])[1 + r % 3]
-FROM products pr, generate_series(1, 4) r;
+FROM modules pr, generate_series(1, 4) r;
 
 -- ----------------------------------------------------------- report_queue ---
-INSERT INTO report_queue (id, title, product_id, client, type, template, due, status)
+INSERT INTO report_queue (id, title, module_id, client, type, template, due, status)
 SELECT
     pr.id || '-rq-' || q,
     'Weekly status — ' || pr.name,
@@ -250,7 +250,7 @@ SELECT
     'Standard',
     DATE '2026-07-25' + q * 7,
     (ARRAY['open','planned','done'])[1 + q % 3]
-FROM products pr, generate_series(1, 2) q;
+FROM modules pr, generate_series(1, 2) q;
 
 -- Master data (roles, lists, report templates, workspace settings) and the
 -- initial member are seeded by migration 000004, not here — see the TRUNCATE
