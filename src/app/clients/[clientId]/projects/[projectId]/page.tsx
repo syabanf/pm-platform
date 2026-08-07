@@ -7,7 +7,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
 import { ViewSwitcher } from "@/components/ViewSwitcher";
 import { SprintGantt } from "@/components/SprintGantt";
-import { SprintCalendar } from "@/components/SprintCalendar";
+import { TaskCalendar } from "@/components/TaskCalendar";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field, inputClass } from "@/components/Document";
 import {
@@ -108,6 +108,12 @@ export default function ProjectDetailPage({
   const timelineSprints = sprints.filter((s) => filteredProductIds.has(s.productId));
   const productOf = (s: { productId: string }) =>
     projectProducts.find((p) => p.id === s.productId)!;
+  // The calendar plots tasks, not sprint boundaries: a sprint has two dates and
+  // says nothing about the days between them.
+  const timelineSprintIds = new Set(timelineSprints.map((s) => s.id));
+  const timelineTasks = tasks.filter((t) => timelineSprintIds.has(t.sprintId));
+  const sprintOf = (t: { sprintId: string }) =>
+    sprints.find((s) => s.id === t.sprintId)!;
 
   const openCreate = () => {
     setEditingId(null);
@@ -360,11 +366,12 @@ export default function ProjectDetailPage({
                     })}
                   />
                 ) : (
-                  <SprintCalendar
-                    sprints={timelineSprints}
-                    labelFor={(s) =>
-                      `${productOf(s).name} · Sprint ${String(s.number).padStart(2, "0")}`
+                  <TaskCalendar
+                    tasks={timelineTasks}
+                    hrefFor={(t) =>
+                      `${productPath(productOf(sprintOf(t)))}/sprints/${t.sprintId}/board`
                     }
+                    contextFor={(t) => productOf(sprintOf(t)).name}
                   />
                 )
               ) : (

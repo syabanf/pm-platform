@@ -100,6 +100,12 @@ export interface DodItem {
 export interface Task {
   id: string;
   sprintId: string;
+  /**
+   * The day this is meant to be finished, inside its sprint's dates. A board
+   * column says where work is, not when it is due, so the calendar had nothing
+   * to place a task on until this existed.
+   */
+  dueDate: string;
   backlogItemId: string;
   title: string;
   moduleName: string;

@@ -206,7 +206,8 @@ function AddTaskForm({
   item: BacklogItem;
   sprintId: string;
 }) {
-  const { tasksCrud, members, dodTemplate, showToast } = usePrototype();
+  const { tasksCrud, members, dodTemplate, showToast, sprints } =
+    usePrototype();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState(members[0]?.id ?? "");
@@ -217,6 +218,12 @@ function AddTaskForm({
       id: newId("task"),
       sprintId,
       backlogItemId: item.id,
+      // Due at the end of the sprint it is added to: the last day it could be
+      // finished and still count. The board has no field for it, and a task
+      // with no date would simply never appear on the calendar.
+      dueDate:
+        sprints.find((s) => s.id === sprintId)?.endDate ??
+        new Date().toISOString().slice(0, 10),
       title: title.trim(),
       moduleName: item.title,
       assigneeId,

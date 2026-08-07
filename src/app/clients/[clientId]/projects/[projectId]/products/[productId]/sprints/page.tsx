@@ -6,7 +6,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
 import { ViewSwitcher } from "@/components/ViewSwitcher";
 import { SprintGantt } from "@/components/SprintGantt";
-import { SprintCalendar } from "@/components/SprintCalendar";
+import { TaskCalendar } from "@/components/TaskCalendar";
 import { productPath } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 import { FilterBar, SectionHeader, allOf } from "@/components/ui";
@@ -17,7 +17,7 @@ export default function SprintsListPage({
   params: Promise<{ productId: string }>;
 }) {
   const { productId } = use(params);
-  const { products, sprints: allSprints, viewPrefs, setViewPref } =
+  const { products, sprints: allSprints, tasks, viewPrefs, setViewPref } =
     usePrototype();
   const product = products.find((p) => p.id === productId);
   const base = product ? productPath(product) : "";
@@ -99,7 +99,12 @@ export default function SprintsListPage({
             hrefFor={(s) => `${base}/sprints/${s.id}/board`}
           />
         ) : view === "calendar" ? (
-          <SprintCalendar sprints={filtered} />
+          <TaskCalendar
+            tasks={tasks.filter((t) =>
+              filtered.some((s) => s.id === t.sprintId)
+            )}
+            hrefFor={(t) => `${base}/sprints/${t.sprintId}/board`}
+          />
         ) : (
           <DataTable
             headers={["Sprint", "Component", "Goal", "Period", "Committed", "Completed", "Status"]}
