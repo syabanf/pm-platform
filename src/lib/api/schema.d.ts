@@ -50,6 +50,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/snapshots/capture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record today's burndown snapshot for every active sprint
+         * @description A burndown needs history that cannot be reconstructed after the fact —
+         *     the points remaining on each day. This records today's remaining and
+         *     completed points for every active sprint, in one statement. Idempotent
+         *     per day, so a daily (or hourly) cron may call it freely; the latest run
+         *     wins. Write-gated, so the cron authenticates as a lead or admin.
+         */
+        post: operations["captureSnapshots"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sprints/{sprintId}/burndown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * A sprint's recorded burndown
+         * @description The real series drawn from daily snapshots, plus the committed total and
+         *     working days so the ideal line can be drawn against it without a second
+         *     request. Empty until snapshots have been captured.
+         */
+        get: operations["sprintBurndown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/modules/{moduleId}/velocity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A module id — the UI calls this a Component. */
+                moduleId: components["parameters"]["ModuleId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Completed points per finished sprint
+         * @description Velocity's trend — committed and completed points for each review/done
+         *     sprint in the module, in sprint order. Computed from the sprints table;
+         *     no snapshot needed.
+         */
+        get: operations["moduleVelocity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clients/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export all clients as CSV
+         * @description Every client as a CSV file, properly quoted. The whole set, not a page.
+         *     Content-Disposition marks it as an attachment named clients.csv.
+         */
+        get: operations["exportClients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/modules/{moduleId}/tasks/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A module id — the UI calls this a Component. */
+                moduleId: components["parameters"]["ModuleId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Export a module's tasks as CSV
+         * @description Every task in a module, across its sprints, with the sprint number and
+         *     the assignee resolved — the list a delivery lead exports for a report.
+         *     Returned as an attachment named tasks.csv.
+         */
+        get: operations["exportModuleTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/clients": {
         parameters: {
             query?: never;
@@ -1953,6 +2072,27 @@ export interface components {
          * @enum {string}
          */
         UserStatus: "pending" | "active" | "inactive" | "suspended";
+        /** @description A sprint's recorded burn plus the lines to draw the ideal against. */
+        Burndown: {
+            sprintId?: string;
+            committed?: number;
+            workingDays?: number;
+            series?: {
+                /** Format: date */
+                date?: string;
+                remaining?: number;
+                completed?: number;
+            }[];
+        };
+        /** @description Completed points per finished sprint, in order. */
+        Velocity: {
+            sprints?: {
+                number?: number;
+                name?: string;
+                committed?: number;
+                completed?: number;
+            }[];
+        };
         /** @description Portfolio-wide counters for the home dashboard. */
         PortfolioRollup: {
             activeClients?: number;
@@ -2201,6 +2341,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModuleRollup"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    captureSnapshots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How many sprints were snapshotted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        captured?: number;
+                    };
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    sprintBurndown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sprintId: components["parameters"]["SprintId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The burndown series. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Burndown"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    moduleVelocity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A module id — the UI calls this a Component. */
+                moduleId: components["parameters"]["ModuleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The velocity series. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Velocity"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    exportClients: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A CSV file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    exportModuleTasks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A module id — the UI calls this a Component. */
+                moduleId: components["parameters"]["ModuleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A CSV file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
                 };
             };
             404: components["responses"]["NotFound"];

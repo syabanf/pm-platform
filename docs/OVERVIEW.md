@@ -184,7 +184,7 @@ alamatnya terbukti.
 ## 5. API
 
 **Layanannya mendokumentasikan dirinya sendiri.** Jalankan, lalu buka
-**http://localhost:8080/docs** — referensi lengkap 99 operasi dengan parameter,
+**http://localhost:8080/docs** — referensi lengkap 104 operasi dengan parameter,
 skema request/response, dan `curl` siap tempel untuk tiap operasi. Halaman itu
 digambar dari spesifikasi yang dibawa binary-nya sendiri, jadi selalu
 menggambarkan versi yang benar-benar berjalan, dan tidak memuat apa pun dari CDN.
@@ -288,5 +288,5 @@ skrip remediasinya lengkap di
 | [README.md](../README.md) | pengantar produk dan cara menjalankan frontend |
 | [backend/README.md](../backend/README.md) | rujukan backend lengkap — stack, limit, migrasi, ops |
 | [docs/accounts.md](accounts.md) | daftar akun untuk sosialisasi (di-generate) |
-| `http://localhost:8080/docs` | referensi API 99 operasi, dari layanan yang berjalan |
+| `http://localhost:8080/docs` | referensi API 104 operasi, dari layanan yang berjalan |
 | [AGENTS.md](../AGENTS.md) | catatan untuk agen AI yang mengedit repo ini |
