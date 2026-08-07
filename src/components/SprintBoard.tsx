@@ -480,7 +480,7 @@ function Lane({
 
 /** Classic kanban: 7 status columns, no lanes. Reuses the same DnD + DoD gate. */
 export function KanbanBoard({ sprintId }: { sprintId: string }) {
-  const { tasks, moveTask, backlog } = usePrototype();
+  const { tasks, moveTask } = usePrototype();
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
@@ -488,56 +488,6 @@ export function KanbanBoard({ sprintId }: { sprintId: string }) {
 
   const sprintTasks = tasks.filter((t) => t.sprintId === sprintId);
   const activeTask = sprintTasks.find((t) => t.id === activeId);
-
-  function KanbanColumn({ column }: { column: (typeof columns)[number] }) {
-    const { setNodeRef, isOver } = useDroppable({ id: `kanban:${column.id}` });
-    const colTasks = sprintTasks.filter((t) => t.column === column.id);
-    const points = colTasks.reduce((sum, t) => sum + t.estimate, 0);
-    return (
-      <div
-        ref={setNodeRef}
-        className={`flex w-60 shrink-0 flex-col border-t-2 ${
-          column.id === "blocked"
-            ? "border-t-danger"
-            : column.id === "done"
-              ? "border-t-success"
-              : "border-t-black"
-        } ${isOver ? "bg-soft" : ""}`}
-      >
-        <div className="flex items-baseline justify-between py-3">
-          <span className="label">{column.label}</span>
-          <span className="text-xs tabular-nums text-muted">
-            {colTasks.length} · {points} pts
-          </span>
-        </div>
-        <div className="flex min-h-40 flex-col gap-2">
-          {colTasks.map((task) => {
-            const parent = backlog.find((b) => b.id === task.backlogItemId);
-            return (
-              <div key={task.id}>
-                <DraggableTask task={task} />
-                {parent && (
-                  <div className="mt-0.5 truncate pl-0.5 text-[10px] uppercase tracking-wide text-muted">
-                    {parent.title}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {colTasks.length === 0 && (
-            <div className="border border-dashed border-line py-6 text-center text-xs text-muted">
-              No items
-            </div>
-          )}
-          {/* Kanban is the view the board opens on, and until now it had no way
-              to add a task at all — the only form lived in Swimlanes. */}
-          {column.id === "selected" && (
-            <AddTaskForm sprintId={sprintId} label="+ Add task" />
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <DndContext
@@ -553,7 +503,7 @@ export function KanbanBoard({ sprintId }: { sprintId: string }) {
     >
       <div className="flex gap-4 overflow-x-auto pb-6">
         {columns.map((column) => (
-          <KanbanColumn key={column.id} column={column} />
+          <KanbanColumn key={column.id} column={column} tasks={sprintTasks} sprintId={sprintId} />
         ))}
       </div>
       <DragOverlay>
@@ -571,6 +521,74 @@ export function KanbanBoard({ sprintId }: { sprintId: string }) {
  * client" is one thing across the board and not five spellings of it; a team
  * that needs another adds it in Settings without touching code.
  */
+
+
+/**
+ * One kanban column. Deliberately a top-level component: defined inside
+ * KanbanBoard it was a brand-new component type on every store update, so
+ * React remounted every card on every change — which closed any open Details
+ * panel and dropped focus the moment you ticked a DoD box or cleared a
+ * blocker. The e2e suite caught it as "the panel slams shut".
+ */
+function KanbanColumn({
+  column,
+  tasks,
+  sprintId,
+}: {
+  column: (typeof columns)[number];
+  tasks: Task[];
+  sprintId: string;
+}) {
+  const { backlog } = usePrototype();
+  const { setNodeRef, isOver } = useDroppable({ id: `kanban:${column.id}` });
+  const colTasks = tasks.filter((t) => t.column === column.id);
+  const points = colTasks.reduce((sum, t) => sum + t.estimate, 0);
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex w-60 shrink-0 flex-col border-t-2 ${
+        column.id === "blocked"
+          ? "border-t-danger"
+          : column.id === "done"
+            ? "border-t-success"
+            : "border-t-black"
+      } ${isOver ? "bg-soft" : ""}`}
+    >
+      <div className="flex items-baseline justify-between py-3">
+        <span className="label">{column.label}</span>
+        <span className="text-xs tabular-nums text-muted">
+          {colTasks.length} · {points} pts
+        </span>
+      </div>
+      <div className="flex min-h-40 flex-col gap-2">
+        {colTasks.map((task) => {
+          const parent = backlog.find((b) => b.id === task.backlogItemId);
+          return (
+            <div key={task.id}>
+              <DraggableTask task={task} />
+              {parent && (
+                <div className="mt-0.5 truncate pl-0.5 text-[10px] uppercase tracking-wide text-muted">
+                  {parent.title}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {colTasks.length === 0 && (
+          <div className="border border-dashed border-line py-6 text-center text-xs text-muted">
+            No items
+          </div>
+        )}
+        {/* Kanban is the view the board opens on; without this the only
+            add-task form lives in Swimlanes. */}
+        {column.id === "selected" && (
+          <AddTaskForm sprintId={sprintId} label="+ Add task" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AddBlocker({ task }: { task: Task }) {
   const { tasksCrud, masters, moveTask, showToast } = usePrototype();
   const categories = masters.blockerCategories;
