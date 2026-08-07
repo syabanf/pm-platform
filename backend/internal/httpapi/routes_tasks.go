@@ -50,6 +50,7 @@ func (s *Server) registerTaskRoutes(g *echo.Group) {
 	g.GET("/tasks/:taskId/dod", s.listTaskDod)
 	g.PUT("/tasks/:taskId/dod", s.setTaskDodItem)
 	g.PATCH("/tasks/:taskId/dod/:position", s.toggleTaskDodItem)
+	g.DELETE("/tasks/:taskId/dod/:position", s.deleteTaskDodItem)
 
 	g.GET("/members", s.listMembers)
 	g.POST("/members", s.createMember)
@@ -319,6 +320,35 @@ func (s *Server) toggleTaskDodItem(c echo.Context) error {
 		return dbErr(err)
 	}
 	return c.JSON(http.StatusOK, row)
+}
+
+// deleteTaskDodItem removes one checklist line. Until now a Definition of Done
+// could only grow — there was DELETE for the whole task but not for a single
+// mistaken item.
+func (s *Server) deleteTaskDodItem(c echo.Context) error {
+	taskID, err := param(c, "taskId")
+	if err != nil {
+		return err
+	}
+	raw, err := param(c, "position")
+	if err != nil {
+		return err
+	}
+	pos, convErr := strconv.ParseInt(raw, 10, 32)
+	if convErr != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "position must be an integer")
+	}
+	n, err := s.q.DeleteTaskDodItem(c.Request().Context(), db.DeleteTaskDodItemParams{
+		TaskID:   taskID,
+		Position: int32(pos),
+	})
+	if err != nil {
+		return dbErr(err)
+	}
+	if n == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "no checklist item at that position")
+	}
+	return c.NoContent(http.StatusNoContent)
 }
 
 // -------------------------------------------------------------- members ---

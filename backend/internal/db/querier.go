@@ -91,7 +91,10 @@ type Querier interface {
 	DeleteSession(ctx context.Context, tokenHash string) (int64, error)
 	DeleteSprint(ctx context.Context, id string) error
 	DeleteTask(ctx context.Context, id string) error
+	// Every DoD item on a task, used when the task itself is being removed.
 	DeleteTaskDod(ctx context.Context, taskID string) error
+	// One item, by position — so a checklist can shrink, not only grow.
+	DeleteTaskDodItem(ctx context.Context, arg DeleteTaskDodItemParams) (int64, error)
 	GetBacklogItem(ctx context.Context, id string) (BacklogItem, error)
 	GetClient(ctx context.Context, id string) (Client, error)
 	GetComponent(ctx context.Context, id string) (Component, error)
@@ -145,7 +148,10 @@ type Querier interface {
 	// order, and adding one costs the index-scan-backward plan.
 	ListSprintsByModule(ctx context.Context, arg ListSprintsByModuleParams) ([]Sprint, error)
 	ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]TaskDod, error)
-	ListTasksBySprint(ctx context.Context, arg ListTasksBySprintParams) ([]Task, error)
+	// Carries the assignee's name so the board need not fetch every member
+	// separately — one query per lane instead of one per card. LEFT JOIN, not
+	// JOIN: an unassigned task is a real state (assignee_id is nullable).
+	ListTasksBySprint(ctx context.Context, arg ListTasksBySprintParams) ([]ListTasksBySprintRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
 	// Taken before the sprint lock so the ordering matches the cascade's:
 	// DELETE FROM modules reaches backlog_items before sprints, so locking the

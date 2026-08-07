@@ -43,9 +43,17 @@ SELECT * FROM tasks
 WHERE id = $1;
 
 -- name: ListTasksBySprint :many
-SELECT * FROM tasks
-WHERE sprint_id = sqlc.arg('sprint_id')
-ORDER BY created_at, id
+-- Carries the assignee's name so the board need not fetch every member
+-- separately — one query per lane instead of one per card. LEFT JOIN, not
+-- JOIN: an unassigned task is a real state (assignee_id is nullable).
+SELECT t.id, t.sprint_id, t.backlog_item_id, t.title, t.component_name,
+       t.assignee_id, t.estimate, t.board_column, t.priority,
+       t.blocked_reason, t.blocked_days, t.off_goal, t.created_at, t.updated_at,
+       m.name AS assignee_name
+FROM tasks t
+LEFT JOIN members m ON m.id = t.assignee_id
+WHERE t.sprint_id = sqlc.arg('sprint_id')
+ORDER BY t.created_at, t.id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpdateTask :one
@@ -99,8 +107,14 @@ WHERE task_id = $1 AND position = $2
 RETURNING *;
 
 -- name: DeleteTaskDod :exec
+-- Every DoD item on a task, used when the task itself is being removed.
 DELETE FROM task_dod
 WHERE task_id = $1;
+
+-- name: DeleteTaskDodItem :execrows
+-- One item, by position — so a checklist can shrink, not only grow.
+DELETE FROM task_dod
+WHERE task_id = sqlc.arg('task_id') AND position = sqlc.arg('position');
 
 -- ---------------------------------------------------------------- members ---
 

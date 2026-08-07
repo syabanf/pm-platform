@@ -9,6 +9,8 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addMasterValue = `-- name: AddMasterValue :one
@@ -436,9 +438,29 @@ DELETE FROM task_dod
 WHERE task_id = $1
 `
 
+// Every DoD item on a task, used when the task itself is being removed.
 func (q *Queries) DeleteTaskDod(ctx context.Context, taskID string) error {
 	_, err := q.db.Exec(ctx, deleteTaskDod, taskID)
 	return err
+}
+
+const deleteTaskDodItem = `-- name: DeleteTaskDodItem :execrows
+DELETE FROM task_dod
+WHERE task_id = $1 AND position = $2
+`
+
+type DeleteTaskDodItemParams struct {
+	TaskID   string `json:"taskId"`
+	Position int32  `json:"position"`
+}
+
+// One item, by position — so a checklist can shrink, not only grow.
+func (q *Queries) DeleteTaskDodItem(ctx context.Context, arg DeleteTaskDodItemParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTaskDodItem, arg.TaskID, arg.Position)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getDecision = `-- name: GetDecision :one
@@ -858,9 +880,14 @@ func (q *Queries) ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]Tas
 }
 
 const listTasksBySprint = `-- name: ListTasksBySprint :many
-SELECT id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
-WHERE sprint_id = $1
-ORDER BY created_at, id
+SELECT t.id, t.sprint_id, t.backlog_item_id, t.title, t.component_name,
+       t.assignee_id, t.estimate, t.board_column, t.priority,
+       t.blocked_reason, t.blocked_days, t.off_goal, t.created_at, t.updated_at,
+       m.name AS assignee_name
+FROM tasks t
+LEFT JOIN members m ON m.id = t.assignee_id
+WHERE t.sprint_id = $1
+ORDER BY t.created_at, t.id
 LIMIT $3 OFFSET $2
 `
 
@@ -870,15 +897,36 @@ type ListTasksBySprintParams struct {
 	Lim      int32  `json:"lim"`
 }
 
-func (q *Queries) ListTasksBySprint(ctx context.Context, arg ListTasksBySprintParams) ([]Task, error) {
+type ListTasksBySprintRow struct {
+	ID            string             `json:"id"`
+	SprintID      string             `json:"sprintId"`
+	BacklogItemID string             `json:"backlogItemId"`
+	Title         string             `json:"title"`
+	ComponentName string             `json:"componentName"`
+	AssigneeID    *string            `json:"assigneeId"`
+	Estimate      int32              `json:"estimate"`
+	BoardColumn   string             `json:"boardColumn"`
+	Priority      string             `json:"priority"`
+	BlockedReason *string            `json:"blockedReason"`
+	BlockedDays   *int32             `json:"blockedDays"`
+	OffGoal       bool               `json:"offGoal"`
+	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
+	AssigneeName  *string            `json:"assigneeName"`
+}
+
+// Carries the assignee's name so the board need not fetch every member
+// separately — one query per lane instead of one per card. LEFT JOIN, not
+// JOIN: an unassigned task is a real state (assignee_id is nullable).
+func (q *Queries) ListTasksBySprint(ctx context.Context, arg ListTasksBySprintParams) ([]ListTasksBySprintRow, error) {
 	rows, err := q.db.Query(ctx, listTasksBySprint, arg.SprintID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Task{}
+	items := []ListTasksBySprintRow{}
 	for rows.Next() {
-		var i Task
+		var i ListTasksBySprintRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.SprintID,
@@ -894,6 +942,7 @@ func (q *Queries) ListTasksBySprint(ctx context.Context, arg ListTasksBySprintPa
 			&i.OffGoal,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AssigneeName,
 		); err != nil {
 			return nil, err
 		}

@@ -1076,6 +1076,17 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TaskDodItem' }
         '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [tasks]
+      summary: Remove one checklist entry
+      description: |
+        Deletes a single Definition-of-Done line by position. Until this
+        existed a checklist could only grow; a mistaken item was permanent.
+      operationId: deleteTaskDodItem
+      responses:
+        '204':
+          description: The entry is gone.
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # ------------------------------------------------------------- members ---
   /members:
