@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { StatusPill } from "@/components/StatusPill";
 import { RiskMatrix } from "@/components/RiskMatrix";
@@ -32,6 +32,29 @@ interface TriageItem {
 const longestBlock = (task: { blockers: { days?: number }[] }) =>
   task.blockers.reduce((max, b) => Math.max(max, b.days ?? 0), 0);
 
+/** The greeting for an hour of the day, on the viewer's own clock. */
+const greetingFor = (hour: number) => {
+  if (hour < 5 || hour >= 18) return "Good evening";
+  if (hour < 12) return "Good morning";
+  return "Good afternoon";
+};
+
+/**
+ * A greeting that reads the clock — but only the viewer's, and only after mount.
+ * Computing it during render would let the server (in its own timezone) and the
+ * client disagree on the hour and log a hydration mismatch, so the first render
+ * is a neutral "Hello" that both sides always agree on.
+ */
+function useGreeting() {
+  const [greeting, setGreeting] = useState("Hello");
+  useEffect(() => {
+    // One-time read of the viewer's clock after mount (see the comment above).
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setGreeting(greetingFor(new Date().getHours()));
+  }, []);
+  return greeting;
+}
+
 export default function HomePage() {
   const {
     currentUser,
@@ -47,6 +70,7 @@ export default function HomePage() {
   } = usePrototype();
   const atRiskModules = modules.filter((p) => p.risk !== "low").length;
   const firstName = currentUser?.name.split(" ")[0] ?? "there";
+  const greeting = useGreeting();
 
   // Portfolio tree: collapsed by default except the first client, so the page
   // opens calm and you expand only what you want (progressive disclosure).
@@ -120,7 +144,7 @@ export default function HomePage() {
     <PageContainer>
       <PageHeader
         eyebrow="Workspace"
-        title={`Good morning, ${firstName}.`}
+        title={`${greeting}, ${firstName}.`}
         description={
           triage.length > 0
             ? `${triage.length} things need your attention.`
