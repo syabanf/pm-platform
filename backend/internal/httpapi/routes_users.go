@@ -28,6 +28,10 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 	g.POST("/users", s.createUser)
 	g.GET("/users/:userId", s.getUser)
 
+	// The audit log is admin territory (see the /activity gate in auth.go):
+	// who-changed-what is exactly the kind of thing a member should not read.
+	g.GET("/activity", s.listActivity)
+
 	// The unauthenticated credential ops get their own, much smaller bucket:
 	// each login failure teaches an attacker something, and register/resend
 	// mint tokens. Five a minute is plenty for a person and useless for a
@@ -150,6 +154,32 @@ func (s *Server) listUsers(c echo.Context) error {
 		return err
 	}
 	rows, err := s.q.ListUsers(c.Request().Context(), db.ListUsersParams{Lim: limit + 1, Off: offset})
+	if err != nil {
+		return dbErr(err)
+	}
+	return paged(c, rows, limit)
+}
+
+// listActivity returns the audit log, newest first, optionally filtered to one
+// target with ?targetKind=&targetId=. Admin-only (gated in auth.go).
+func (s *Server) listActivity(c echo.Context) error {
+	limit, offset, err := page(c)
+	if err != nil {
+		return err
+	}
+	ctx := c.Request().Context()
+	kind := c.QueryParam("targetKind")
+	id := c.QueryParam("targetId")
+	if kind != "" && id != "" {
+		rows, err := s.q.ListActivityForTarget(ctx, db.ListActivityForTargetParams{
+			TargetKind: kind, TargetID: id, Lim: limit + 1, Off: offset,
+		})
+		if err != nil {
+			return dbErr(err)
+		}
+		return paged(c, rows, limit)
+	}
+	rows, err := s.q.ListActivity(ctx, db.ListActivityParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
 	}

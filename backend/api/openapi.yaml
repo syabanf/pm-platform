@@ -1605,6 +1605,42 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
 
   # --------------------------------------------------------------- users ---
+  /activity:
+    get:
+      tags: [users]
+      summary: The audit log
+      description: |
+        Who changed what, newest first. Every successful create, update and
+        delete under `/api/v1` is recorded with the acting user, the target, and
+        the method and path. Admin-only, reads included — the log names people.
+        Filter to one thing with `?targetKind=&targetId=` (e.g. all activity on
+        sprint `sprint-03`).
+      operationId: listActivity
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: targetKind
+          in: query
+          required: false
+          schema: { type: string }
+          description: With targetId, restrict to one target (e.g. `sprints`).
+        - name: targetId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of activity, newest first.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Activity' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   /users:
     get:
       tags: [users]
@@ -2690,6 +2726,19 @@ components:
       type: string
       enum: [pending, active, inactive, suspended]
       description: '`pending` until the address is verified; login refuses it.'
+    Activity:
+      type: object
+      description: One audit-log entry — a change and who made it.
+      properties:
+        id: { type: integer, format: int64 }
+        occurredAt: { $ref: '#/components/schemas/Timestamp' }
+        actorId: { type: string }
+        actorEmail: { type: string }
+        action: { type: string, description: 'create, update or delete.' }
+        targetKind: { type: string, description: 'The collection acted on, e.g. sprints.' }
+        targetId: { type: string }
+        method: { type: string }
+        path: { type: string }
     User:
       type: object
       description: An account. The password hash is never included.

@@ -133,12 +133,15 @@ func (s *Server) requireAuth() echo.MiddlewareFunc {
 			if path == "/api/v1/auth/logout" || path == "/api/v1/auth/logout-all" {
 				return next(c) // logging out — here or everywhere — is every session's right
 			}
-			// Accounts and the things that grant authority — roles, workspace
-			// settings — are admin territory. Roles especially: they are the
-			// definition of what a session may do, so leaving them at the write
-			// tier would let a lead promote itself.
+			// Accounts, the audit log, and the things that grant authority —
+			// roles, workspace settings — are admin territory, reads included.
+			// Roles especially: they are the definition of what a session may
+			// do, so leaving them at the write tier would let a lead promote
+			// itself; and the activity log names who did what, which a member
+			// has no business reading.
 			if !auth.IsAdmin &&
 				(strings.HasPrefix(path, "/api/v1/users") ||
+					strings.HasPrefix(path, "/api/v1/activity") ||
 					isAdminWrite(c.Request().Method, path)) {
 				return echo.NewHTTPError(http.StatusForbidden,
 					"this action requires the admin role")

@@ -100,7 +100,9 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool) *echo.Echo {
 
 	// Everything under /api/v1 authenticates except the handful of ops that
 	// exist to get you a session in the first place (see publicOps).
-	api := e.Group("/api/v1", s.requireAuth())
+	// requireAuth resolves the session; auditLog reads it to attribute writes.
+	// Order matters: audit runs inside auth, so currentUser is set when it logs.
+	api := e.Group("/api/v1", s.requireAuth(), s.auditLog())
 	s.routes(api)
 
 	return e

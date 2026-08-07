@@ -127,10 +127,13 @@ type Querier interface {
 	GetVerificationToken(ctx context.Context, tokenHash string) (GetVerificationTokenRow, error)
 	// ------------------------------------------------------ workspace_settings --
 	GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, error)
+	InsertActivity(ctx context.Context, arg InsertActivityParams) error
 	// A fresh request invalidates any outstanding link, so only the newest works.
 	InvalidateUserPasswordResetTokens(ctx context.Context, userID string) error
 	// Called before issuing a new link, so an earlier mail cannot still be used.
 	InvalidateUserVerificationTokens(ctx context.Context, userID string) error
+	ListActivity(ctx context.Context, arg ListActivityParams) ([]ActivityLog, error)
+	ListActivityForTarget(ctx context.Context, arg ListActivityForTargetParams) ([]ActivityLog, error)
 	ListBacklogItemsByComponent(ctx context.Context, arg ListBacklogItemsByComponentParams) ([]BacklogItem, error)
 	ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error)
 	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)

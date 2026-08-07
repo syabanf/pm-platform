@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ActivityLog struct {
+	ID         int64              `json:"id"`
+	OccurredAt pgtype.Timestamptz `json:"occurredAt"`
+	ActorID    string             `json:"actorId"`
+	ActorEmail string             `json:"actorEmail"`
+	Action     string             `json:"action"`
+	TargetKind string             `json:"targetKind"`
+	TargetID   string             `json:"targetId"`
+	Method     string             `json:"method"`
+	Path       string             `json:"path"`
+}
+
 type BacklogItem struct {
 	ID                 string             `json:"id"`
 	ModuleID           string             `json:"moduleId"`
