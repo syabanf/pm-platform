@@ -290,11 +290,11 @@ function DayDetail({
                 <span className="capitalize">{task.column.replace("-", " ")}</span>
                 <span className="capitalize">{task.priority} priority</span>
               </div>
-              {task.blockedReason && (
-                <p className="mt-2 pl-3.5 text-[11px] text-danger">
-                  Blocked — {task.blockedReason}
+              {task.blockers.map((b) => (
+                <p key={b.id} className="mt-2 pl-3.5 text-[11px] text-danger">
+                  <span className="font-medium">{b.category}</span> — {b.text}
                 </p>
-              )}
+              ))}
             </Link>
           ))}
         </div>

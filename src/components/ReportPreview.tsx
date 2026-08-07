@@ -21,6 +21,14 @@ import {
 } from "@/lib/data";
 import { usePrototype } from "@/lib/store";
 
+/** Every reason a task is stuck, in one line a client can read. */
+const blockerSummary = (t: { blockers: { text: string }[] }) =>
+  t.blockers.map((b) => b.text).join("; ") || "Blocked";
+
+/** How long the task has really been stuck: its oldest blocker. */
+const oldestBlocker = (t: { blockers: { days?: number }[] }) =>
+  t.blockers.reduce((max, b) => Math.max(max, b.days ?? 0), 0);
+
 function Section({
   number,
   title,
@@ -154,12 +162,12 @@ function InternalPmBody({ product, sprint }: { product: Product; sprint: Sprint 
           <ul key="u" className="space-y-1">
             {d.blocked.map((t) => (
               <li key={t.id}>
-                — {t.title}: {t.blockedReason}{" "}
-                {t.blockedDays != null && (
-                  <span className="text-danger">
-                    (open {t.blockedDays} days)
-                  </span>
-                )}
+                — {t.title}: {blockerSummary(t)}{" "}
+                  {oldestBlocker(t) > 0 && (
+                    <span className="text-danger">
+                      (open {oldestBlocker(t)} days)
+                    </span>
+                  )}
               </li>
             ))}
           </ul>,
@@ -291,7 +299,7 @@ function TechnicalBody({ product, sprint }: { product: Product; sprint: Sprint }
           <ul key="u" className="space-y-1">
             {d.blocked.map((t) => (
               <li key={t.id}>
-                — {t.title}: {t.blockedReason}
+                — {t.title}: {blockerSummary(t)}
               </li>
             ))}
           </ul>,
@@ -478,10 +486,12 @@ function RiskBody({ product, sprint }: { product: Product; sprint: Sprint }) {
             {d.blocked.length === 0 && <li className="text-muted">No open blockers.</li>}
             {d.blocked.map((t) => (
               <li key={t.id}>
-                — {t.title}: {t.blockedReason}{" "}
-                {t.blockedDays != null && (
-                  <span className="text-danger">(open {t.blockedDays} days)</span>
-                )}
+                — {t.title}: {blockerSummary(t)}{" "}
+                {oldestBlocker(t) > 0 && (
+                    <span className="text-danger">
+                      (open {oldestBlocker(t)} days)
+                    </span>
+                  )}
               </li>
             ))}
           </ul>,
@@ -552,7 +562,7 @@ function GenericTemplateBody({
     "blockers & aging": (
       <ul className="space-y-1">
         {d.blocked.map((t) => (
-          <li key={t.id}>— {t.title}: {t.blockedReason}</li>
+          <li key={t.id}>— {t.title}: {blockerSummary(t)}</li>
         ))}
       </ul>
     ),

@@ -97,6 +97,16 @@ export interface DodItem {
   done: boolean;
 }
 
+/** One reason a task cannot move, and who it is waiting on. */
+export interface Blocker {
+  id: string;
+  /** From the blockerCategories master list, so a team can add its own. */
+  category: string;
+  text: string;
+  /** How long it has been standing. */
+  days?: number;
+}
+
 export interface Task {
   id: string;
   sprintId: string;
@@ -114,8 +124,12 @@ export interface Task {
   column: BoardColumn;
   priority: Priority;
   dod: DodItem[];
-  blockedReason?: string;
-  blockedDays?: number;
+  /**
+   * Everything standing in this task's way. A task is rarely stopped by one
+   * thing, and the count is the signal the board colours by — one blocker is a
+   * note, three is an escalation.
+   */
+  blockers: Blocker[];
   offGoal?: boolean;
 }
 

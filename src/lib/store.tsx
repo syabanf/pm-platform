@@ -573,6 +573,23 @@ export function usePrototype() {
   return ctx;
 }
 
+/**
+ * How hard a task is stuck, from the number of things standing in its way.
+ *
+ * One blocker is a note; three is an escalation. The board, the home triage and
+ * the client reports all read this, so they cannot disagree about how bad the
+ * same task is.
+ */
+export type BlockerSeverity = "none" | "low" | "medium" | "high";
+
+export function blockerSeverity(task: { blockers: unknown[] }): BlockerSeverity {
+  const n = task.blockers.length;
+  if (n === 0) return "none";
+  if (n === 1) return "low";
+  if (n === 2) return "medium";
+  return "high";
+}
+
 /** Look up a sprint from the live store (so runtime-created sprints resolve). */
 export function useSprint(sprintId: string): Sprint | null {
   const { sprints } = usePrototype();

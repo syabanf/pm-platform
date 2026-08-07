@@ -134,6 +134,7 @@ const listOrder: MasterListKey[] = [
   "workItemTypes",
   "priorities",
   "impactAreas",
+  "blockerCategories",
 ];
 
 export default function ListMastersPage() {

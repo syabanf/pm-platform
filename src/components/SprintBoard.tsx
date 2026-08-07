@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 import type { BacklogItem, BoardColumn, Task } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { newId, usePrototype } from "@/lib/store";
+import { blockerSeverity, newId, usePrototype } from "@/lib/store";
 
 const columns: { id: BoardColumn; label: string }[] = [
   { id: "selected", label: "Selected" },
@@ -43,13 +43,26 @@ function TaskCardView({
   const { toggleDod, tasksCrud, members, showToast } = usePrototype();
   const member = members.find((m) => m.id === task.assigneeId);
   const dodDone = task.dod.filter((d) => d.done).length;
-  const blocked = task.column === "blocked";
+  const severity = blockerSeverity(task);
+
+  // The card carries how stuck it is, so a board scanned from across a room
+  // still says which cards to ask about first.
+  const skin =
+    severity === "high"
+      ? "border-danger border-l-4 bg-danger/10"
+      : severity === "medium"
+        ? "border-danger border-l-4 bg-danger/5"
+        : severity === "low"
+          ? "border-danger border-l-2 bg-paper"
+          : task.column === "blocked"
+            ? "border-danger border-l-2 bg-paper"
+            : "border-line bg-paper";
 
   return (
     <div
-      className={`border bg-paper p-3 text-left ${
-        blocked ? "border-danger border-l-2" : "border-line"
-      } ${dragging ? "opacity-90 shadow-sm" : ""}`}
+      className={`border p-3 text-left ${skin} ${
+        dragging ? "opacity-90 shadow-sm" : ""
+      }`}
     >
       <div className="text-sm font-medium leading-snug text-ink">
         {task.title}
@@ -77,14 +90,22 @@ function TaskCardView({
           DoD {dodDone}/{task.dod.length}
         </button>
       </div>
-      {blocked && task.blockedReason && (
-        <div className="mt-2 border-t border-line pt-2 text-[11px] text-danger">
-          {task.blockedReason}
-          {task.blockedDays != null && task.blockedDays >= 2 && (
-            <div className="mt-0.5 font-medium">
-              Open for more than {task.blockedDays} days.
+      {task.blockers.length > 0 && (
+        <div className="mt-2 space-y-1 border-t border-danger/30 pt-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-danger">
+            {task.blockers.length}{" "}
+            {task.blockers.length === 1 ? "blocker" : "blockers"}
+          </div>
+          {task.blockers.map((b) => (
+            <div key={b.id} className="text-[11px] leading-tight text-danger">
+              <span className="font-medium">{b.category}</span>
+              {" — "}
+              {b.text}
+              {b.days != null && b.days >= 2 && (
+                <span className="text-muted"> · {b.days}d</span>
+              )}
             </div>
-          )}
+          ))}
         </div>
       )}
       {expanded && (
@@ -109,6 +130,27 @@ function TaskCardView({
               </span>
             </label>
           ))}
+          <div className="label pt-1">Blockers</div>
+          {task.blockers.map((b) => (
+            <div key={b.id} className="flex items-start gap-2 text-xs">
+              <span className="min-w-0 flex-1 text-danger">
+                <span className="font-medium">{b.category}</span> — {b.text}
+              </span>
+              <button
+                onClick={() =>
+                  tasksCrud.update(task.id, {
+                    blockers: task.blockers.filter((x) => x.id !== b.id),
+                  })
+                }
+                className="shrink-0 text-[11px] text-muted hover:text-ink"
+                aria-label={`Clear blocker: ${b.text}`}
+              >
+                Clear
+              </button>
+            </div>
+          ))}
+          <AddBlocker task={task} />
+
           <div className="label pt-1">Edit Task</div>
           <input
             value={task.title}
@@ -230,6 +272,7 @@ function AddTaskForm({
       estimate: 1,
       column: "selected",
       priority: item.priority,
+      blockers: [],
       dod: dodTemplate.map((label) => ({ label, done: false })),
     });
     setTitle("");
@@ -423,6 +466,69 @@ export function KanbanBoard({ sprintId }: { sprintId: string }) {
         {activeTask ? <TaskCardView task={activeTask} dragging /> : null}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+
+/**
+ * Records one thing standing in a task's way.
+ *
+ * The category comes from the master list rather than free text, so "waiting on
+ * client" is one thing across the board and not five spellings of it; a team
+ * that needs another adds it in Settings without touching code.
+ */
+function AddBlocker({ task }: { task: Task }) {
+  const { tasksCrud, masters } = usePrototype();
+  const categories = masters.blockerCategories;
+  const [category, setCategory] = useState(categories[0] ?? "");
+  const [text, setText] = useState("");
+
+  const add = () => {
+    if (!text.trim()) return;
+    tasksCrud.update(task.id, {
+      blockers: [
+        ...task.blockers,
+        { id: newId("bk"), category, text: text.trim(), days: 0 },
+      ],
+    });
+    setText("");
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <label className="block">
+        <span className="sr-only">Blocker category</span>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full border border-line bg-paper px-2 py-1 text-xs text-ink"
+        >
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex gap-1.5">
+        <label className="min-w-0 flex-1">
+          <span className="sr-only">What is blocking this task</span>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+            placeholder="What is it waiting on?"
+            className="w-full border border-line bg-paper px-2 py-1 text-xs text-ink"
+          />
+        </label>
+        <button
+          onClick={add}
+          className="shrink-0 border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+        >
+          Add
+        </button>
+      </div>
+    </div>
   );
 }
 

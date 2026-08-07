@@ -28,6 +28,10 @@ interface TriageItem {
   href: string;
 }
 
+/** The oldest blocker on a task, which is how long it has really been stuck. */
+const longestBlock = (task: { blockers: { days?: number }[] }) =>
+  task.blockers.reduce((max, b) => Math.max(max, b.days ?? 0), 0);
+
 export default function HomePage() {
   const {
     currentUser,
@@ -65,10 +69,15 @@ export default function HomePage() {
       const sprint = sprints.find((s) => s.id === task.sprintId);
       if (!sprint) return;
       triage.push({
-        severity: 100 + (task.blockedDays ?? 0),
+        severity: 100 + task.blockers.length * 10 + longestBlock(task),
         kind: "Blocked",
         title: task.title,
-        detail: `${task.blockedReason ?? "Blocked"}${task.blockedDays ? ` · open ${task.blockedDays} days` : ""}`,
+        detail:
+          task.blockers.length > 1
+            ? `${task.blockers.length} blockers · ${task.blockers[0].text}`
+            : `${task.blockers[0]?.text ?? "Blocked"}${
+                longestBlock(task) ? ` · open ${longestBlock(task)} days` : ""
+              }`,
         href: `${sprintPath(sprint)}/board`,
       });
     });

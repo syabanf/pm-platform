@@ -169,6 +169,13 @@ export const masterLists = {
   workItemTypes: ["story", "bug", "task", "spike"],
   priorities: ["high", "medium", "low"],
   impactAreas: ["Scope", "Timeline", "Cost", "Quality"],
+  blockerCategories: [
+    "Waiting on client",
+    "Technical dependency",
+    "Waiting on a decision",
+    "Resourcing",
+    "External / vendor",
+  ],
 };
 
 export type MasterListKey = keyof typeof masterLists;
@@ -177,6 +184,10 @@ export const masterListMeta: Record<
   MasterListKey,
   { title: string; usedBy: string }
 > = {
+  blockerCategories: {
+    title: "Blocker Categories",
+    usedBy: "Task blockers",
+  },
   industries: { title: "Industries", usedBy: "Client profile" },
   contractTypes: { title: "Contract Types", usedBy: "Client profile" },
   jobRoles: { title: "Job Roles", usedBy: "Member master" },
@@ -739,6 +750,7 @@ export const tasks: Task[] = [
       { label: "All lines polled", done: true },
       { label: "Reconnect handled", done: false },
     ],
+    blockers: [],
   },
   {
     id: "sc-t2",
@@ -752,6 +764,7 @@ export const tasks: Task[] = [
     column: "ready",
     priority: "medium",
     dod: [{ label: "Offline state designed", done: false }],
+    blockers: [],
   },
   {
     id: "sc-t3",
@@ -765,6 +778,7 @@ export const tasks: Task[] = [
     column: "selected",
     priority: "medium",
     dod: [],
+    blockers: [],
   },
   {
     id: "qc-t1",
@@ -778,9 +792,18 @@ export const tasks: Task[] = [
     column: "in-progress",
     priority: "high",
     dod: [{ label: "Runs a full shift", done: false }],
+    blockers: [],
   },
   {
     id: "qc-t2",
+    blockers: [
+      {
+        id: "bk-qc2a",
+        category: "External / vendor",
+        text: "Waiting on the batch id format from the MES team",
+        days: 2,
+      },
+    ],
     sprintId: "qc-s1",
     dueDate: "2026-07-08",
     backlogItemId: "qc-b1",
@@ -790,8 +813,6 @@ export const tasks: Task[] = [
     estimate: 3,
     column: "blocked",
     priority: "high",
-    blockedReason: "Waiting on the batch id format from the MES team",
-    blockedDays: 2,
     dod: [],
   },
   {
@@ -806,6 +827,7 @@ export const tasks: Task[] = [
     column: "selected",
     priority: "medium",
     dod: [],
+    blockers: [],
   },
   {
     id: "kb-t1",
@@ -819,6 +841,7 @@ export const tasks: Task[] = [
     column: "selected",
     priority: "medium",
     dod: [],
+    blockers: [],
   },
   {
     id: "kb-t2",
@@ -832,9 +855,30 @@ export const tasks: Task[] = [
     column: "selected",
     priority: "high",
     dod: [],
+    blockers: [],
   },
   {
     id: "t1",
+    blockers: [
+      {
+        id: "bk-t1a",
+        category: "Waiting on client",
+        text: "Waiting sample machine data from client",
+        days: 3,
+      },
+      {
+        id: "bk-t1b",
+        category: "Technical dependency",
+        text: "PLC gateway credentials not issued yet",
+        days: 2,
+      },
+      {
+        id: "bk-t1c",
+        category: "Waiting on a decision",
+        text: "Tag naming convention still unagreed",
+        days: 1,
+      },
+    ],
     sprintId: "sprint-03",
     dueDate: "2026-07-06",
     backlogItemId: "b1",
@@ -849,8 +893,6 @@ export const tasks: Task[] = [
       { label: "Endpoints validated", done: false },
       { label: "Reviewed by SA", done: false },
     ],
-    blockedReason: "Waiting sample machine data from client",
-    blockedDays: 3,
   },
   {
     id: "t2",
@@ -870,6 +912,7 @@ export const tasks: Task[] = [
       { label: "Code reviewed", done: false },
       { label: "QA passed", done: false },
     ],
+    blockers: [],
   },
   {
     id: "t3",
@@ -886,9 +929,24 @@ export const tasks: Task[] = [
       { label: "Scenarios cover all machine types", done: true },
       { label: "Reviewed by SA", done: true },
     ],
+    blockers: [],
   },
   {
     id: "t4",
+    blockers: [
+      {
+        id: "bk-t4a",
+        category: "Waiting on client",
+        text: "Waiting client PIC confirmation",
+        days: 2,
+      },
+      {
+        id: "bk-t4b",
+        category: "Waiting on a decision",
+        text: "Two departments disagree on the category list",
+        days: 2,
+      },
+    ],
     sprintId: "sprint-03",
     dueDate: "2026-07-06",
     backlogItemId: "b3",
@@ -902,8 +960,6 @@ export const tasks: Task[] = [
       { label: "Categories confirmed by client", done: false },
       { label: "Documented in requirement", done: false },
     ],
-    blockedReason: "Waiting client PIC confirmation",
-    blockedDays: 2,
   },
   {
     id: "t5",
@@ -920,6 +976,7 @@ export const tasks: Task[] = [
       { label: "Response schema validated", done: false },
       { label: "Error cases handled", done: false },
     ],
+    blockers: [],
   },
   {
     id: "t6",
@@ -937,6 +994,7 @@ export const tasks: Task[] = [
       { label: "Code reviewed", done: true },
       { label: "QA passed", done: true },
     ],
+    blockers: [],
   },
   {
     id: "t7",
@@ -953,6 +1011,7 @@ export const tasks: Task[] = [
       { label: "All scenarios executed", done: true },
       { label: "Bugs logged", done: false },
     ],
+    blockers: [],
   },
   {
     id: "t8",
@@ -970,6 +1029,7 @@ export const tasks: Task[] = [
       { label: "Code reviewed", done: false },
     ],
     offGoal: true,
+    blockers: [],
   },
   {
     id: "t9",
@@ -986,6 +1046,7 @@ export const tasks: Task[] = [
       { label: "Formula documented", done: true },
       { label: "Shared with client", done: true },
     ],
+    blockers: [],
   },
 ];
 
