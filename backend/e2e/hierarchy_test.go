@@ -40,7 +40,7 @@ func TestHierarchyLifecycle(t *testing.T) {
 
 	sprint := h.expect(h.do("POST", "/api/v1/modules/"+moduleID+"/sprints", admin, map[string]any{
 		"componentId": componentID, "name": "Ingestion Spike",
-		"goal": "Read tags from the two oldest PLCs",
+		"goal":      "Read tags from the two oldest PLCs",
 		"startDate": "2026-08-10", "endDate": "2026-08-21",
 	}), http.StatusCreated, "create sprint")
 	sprintID := str(sprint.body, "id")

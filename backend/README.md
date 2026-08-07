@@ -63,7 +63,12 @@ What a session may do comes from its role's seeded permissions:
 | ---- | --- |
 | any valid session | every GET, and its own logout |
 | `lead`, `admin` (`write`/`all`) | POST/PATCH/DELETE on domain resources |
-| `admin` only (`all`) | anything under `/users`, even reading it |
+| `admin` only (`all`) | anything under `/users` (even reading it), and writing `/roles` or `/settings` — the things that define authority |
+
+`/roles` and `/settings` reads stay open to any session (the role picker needs
+them); only their writes are admin-gated. Leaving role writes at the `write`
+tier would let a lead rewrite its own permissions to `{"all":true}` and be
+admin on the next request.
 
 The credential endpoints share a five-a-minute per-IP bucket
 (`LOGIN_RATE_PER_MIN`); the rest of the API sits behind `RATE_LIMIT_RPS`.

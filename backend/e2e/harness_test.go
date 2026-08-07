@@ -43,6 +43,16 @@ type harness struct {
 	t      *testing.T
 	base   string
 	client *http.Client
+	pool   *pgxpool.Pool
+}
+
+// exec runs one statement against the test schema — the escape hatch for
+// setting up state the API deliberately will not, like an expired session.
+func (h *harness) exec(t *testing.T, sql string, args ...any) {
+	t.Helper()
+	if _, err := h.pool.Exec(context.Background(), sql, args...); err != nil {
+		t.Fatalf("exec %q: %v", sql, err)
+	}
 }
 
 // newHarness boots the full stack on a throwaway schema and returns a client
@@ -122,7 +132,7 @@ func newHarness(t *testing.T) *harness {
 	srv := httptest.NewServer(httpapi.NewServer(cfg, pool))
 	t.Cleanup(srv.Close)
 
-	return &harness{t: t, base: srv.URL, client: srv.Client()}
+	return &harness{t: t, base: srv.URL, client: srv.Client(), pool: pool}
 }
 
 // resp is what every call comes back as: the status, the decoded body when it

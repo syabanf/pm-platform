@@ -50,6 +50,30 @@ var publicOps = map[string]bool{
 	"/api/v1/auth/login":               true,
 }
 
+// adminWritePrefixes name resources that DEFINE authority rather than hold
+// domain data. Writing a role's permissions is how you decide what every
+// account may do; writing workspace settings rewrites global config. Both must
+// be admin-only, or the /users admin gate is theatre — a "write"-tier lead
+// could PUT /roles {"id":"lead","permissions":{"all":true}} and be admin on
+// its next request. Reads stay at the session tier (the role picker needs
+// GET /roles), so only the write methods are gated here.
+var adminWritePrefixes = []string{
+	"/api/v1/roles",
+	"/api/v1/settings",
+}
+
+func isAdminWrite(method, path string) bool {
+	if method == http.MethodGet || method == http.MethodHead {
+		return false
+	}
+	for _, p := range adminWritePrefixes {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // requireAuth resolves the bearer token and enforces the role policy:
 //
 //	public ops            no token needed
@@ -105,9 +129,15 @@ func (s *Server) requireAuth() echo.MiddlewareFunc {
 			if path == "/api/v1/auth/logout" {
 				return next(c) // logging out is every session's right
 			}
-			if strings.HasPrefix(path, "/api/v1/users") && !auth.IsAdmin {
+			// Accounts and the things that grant authority — roles, workspace
+			// settings — are admin territory. Roles especially: they are the
+			// definition of what a session may do, so leaving them at the write
+			// tier would let a lead promote itself.
+			if !auth.IsAdmin &&
+				(strings.HasPrefix(path, "/api/v1/users") ||
+					isAdminWrite(c.Request().Method, path)) {
 				return echo.NewHTTPError(http.StatusForbidden,
-					"managing accounts requires the admin role")
+					"this action requires the admin role")
 			}
 			switch c.Request().Method {
 			case http.MethodGet, http.MethodHead:

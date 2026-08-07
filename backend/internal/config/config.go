@@ -59,6 +59,12 @@ type Config struct {
 	RateLimitRPS    float64
 	RateLimitBurst  int
 	LoginRatePerMin float64
+	// TrustProxyHeaders decides whether X-Forwarded-For is believed. Off by
+	// default: echo trusts that header out of the box, which lets a directly
+	// exposed service be told any client IP — and the rate limiters key on it,
+	// so a spoofed header rotates past the login brute-force bucket. Turn this
+	// on ONLY when a trusted proxy sits in front and sets the header itself.
+	TrustProxyHeaders bool
 }
 
 // Load reads configuration from the environment, applying sane defaults for
@@ -87,10 +93,11 @@ func Load() (Config, error) {
 
 		VerificationTokenInLog: getenv("VERIFICATION_TOKEN_IN_LOG", "") == "true",
 
-		SessionTTL:      getenvDuration("SESSION_TTL", 168*time.Hour),
-		RateLimitRPS:    float64(getenvInt("RATE_LIMIT_RPS", 50)),
-		RateLimitBurst:  getenvInt("RATE_LIMIT_BURST", 100),
-		LoginRatePerMin: float64(getenvInt("LOGIN_RATE_PER_MIN", 5)),
+		SessionTTL:        getenvDuration("SESSION_TTL", 168*time.Hour),
+		RateLimitRPS:      float64(getenvInt("RATE_LIMIT_RPS", 50)),
+		RateLimitBurst:    getenvInt("RATE_LIMIT_BURST", 100),
+		LoginRatePerMin:   float64(getenvInt("LOGIN_RATE_PER_MIN", 5)),
+		TrustProxyHeaders: getenv("TRUST_PROXY_HEADERS", "") == "true",
 	}
 
 	if cfg.DatabaseURL == "" {

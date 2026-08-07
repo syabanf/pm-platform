@@ -41,6 +41,21 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool) *echo.Echo {
 	e.HideBanner = true
 	e.HTTPErrorHandler = errorHandler
 
+	// Decide the client IP deliberately. Echo's default believes
+	// X-Forwarded-For, and the rate limiters below key on it — so left unset, an
+	// attacker rotates that header to get a fresh login bucket per request.
+	// Direct exposure ignores the header entirely; only a trusted proxy in
+	// front earns the right to set it.
+	if cfg.TrustProxyHeaders {
+		e.IPExtractor = echo.ExtractIPFromXFFHeader(
+			echo.TrustLoopback(true),
+			echo.TrustLinkLocal(true),
+			echo.TrustPrivateNet(true),
+		)
+	} else {
+		e.IPExtractor = echo.ExtractIPDirect()
+	}
+
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger())
