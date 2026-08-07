@@ -109,6 +109,12 @@ type Querier interface {
 	DeleteTaskDod(ctx context.Context, taskID string) error
 	// One item, by position — so a checklist can shrink, not only grow.
 	DeleteTaskDodItem(ctx context.Context, arg DeleteTaskDodItemParams) (int64, error)
+	// Unbounded, ordered reads for CSV export. Deliberately not paginated: an export
+	// is the whole set, streamed row by row so a large one does not build in memory.
+	ExportClients(ctx context.Context) ([]ExportClientsRow, error)
+	// Every task in a module, across its sprints, with the sprint number and the
+	// assignee's name resolved — the task list a delivery lead exports for a report.
+	ExportModuleTasks(ctx context.Context, moduleID string) ([]ExportModuleTasksRow, error)
 	GetBacklogItem(ctx context.Context, id string) (BacklogItem, error)
 	GetClient(ctx context.Context, id string) (Client, error)
 	GetComponent(ctx context.Context, id string) (Component, error)

@@ -199,6 +199,43 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  # ------------------------------------------------------------- exports ---
+  /clients/export.csv:
+    get:
+      tags: [clients]
+      summary: Export all clients as CSV
+      description: |
+        Every client as a CSV file, properly quoted. The whole set, not a page.
+        Content-Disposition marks it as an attachment named clients.csv.
+      operationId: exportClients
+      responses:
+        '200':
+          description: A CSV file.
+          content:
+            text/csv:
+              schema: { type: string }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /modules/{moduleId}/tasks/export.csv:
+    parameters:
+      - $ref: '#/components/parameters/ModuleId'
+    get:
+      tags: [tasks, modules]
+      summary: Export a module's tasks as CSV
+      description: |
+        Every task in a module, across its sprints, with the sprint number and
+        the assignee resolved — the list a delivery lead exports for a report.
+        Returned as an attachment named tasks.csv.
+      operationId: exportModuleTasks
+      responses:
+        '200':
+          description: A CSV file.
+          content:
+            text/csv:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   # ------------------------------------------------------------- clients ---
   /clients:
     get:
