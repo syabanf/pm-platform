@@ -118,16 +118,18 @@ func newHarness(t *testing.T) *harness {
 	t.Cleanup(pool.Close)
 
 	cfg := config.Config{
-		Env:             "development", // register returns the token; no mailer needed
-		DatabaseURL:     dsn,
-		CORSOrigins:     "http://localhost:3000",
-		RequestTimeout:  20 * time.Second,
-		DeleteTimeout:   60 * time.Second,
-		MaxBodySize:     "1M",
-		SessionTTL:      time.Hour,
-		RateLimitRPS:    10000,
-		RateLimitBurst:  10000,
-		LoginRatePerMin: 100000,
+		Env:               "development", // register returns the token; no mailer needed
+		DatabaseURL:       dsn,
+		CORSOrigins:       "http://localhost:3000",
+		RequestTimeout:    20 * time.Second,
+		DeleteTimeout:     60 * time.Second,
+		MaxBodySize:       "1M",
+		SessionTTL:        time.Hour,
+		RateLimitRPS:      10000,
+		RateLimitBurst:    10000,
+		LoginRatePerMin:   100000,
+		LoginMaxFailures:  10,
+		LoginLockDuration: 15 * time.Minute,
 	}
 	srv := httptest.NewServer(httpapi.NewServer(cfg, pool))
 	t.Cleanup(srv.Close)

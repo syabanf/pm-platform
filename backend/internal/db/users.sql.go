@@ -12,6 +12,40 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearLoginFailures = `-- name: ClearLoginFailures :exec
+UPDATE users
+SET failed_login_count = 0, locked_until = NULL
+WHERE id = $1
+`
+
+func (q *Queries) ClearLoginFailures(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, clearLoginFailures, id)
+	return err
+}
+
+const consumePasswordResetToken = `-- name: ConsumePasswordResetToken :one
+UPDATE password_reset_tokens
+SET consumed_at = now()
+WHERE token_hash = $1
+  AND consumed_at IS NULL
+  AND expires_at > now()
+RETURNING token_hash, user_id
+`
+
+type ConsumePasswordResetTokenRow struct {
+	TokenHash string `json:"tokenHash"`
+	UserID    string `json:"userId"`
+}
+
+// Single-use and time-boxed, same conditional-UPDATE race guard as email
+// verification: two submits of one link, only the first flips consumed_at.
+func (q *Queries) ConsumePasswordResetToken(ctx context.Context, tokenHash string) (ConsumePasswordResetTokenRow, error) {
+	row := q.db.QueryRow(ctx, consumePasswordResetToken, tokenHash)
+	var i ConsumePasswordResetTokenRow
+	err := row.Scan(&i.TokenHash, &i.UserID)
+	return i, err
+}
+
 const consumeVerificationToken = `-- name: ConsumeVerificationToken :one
 UPDATE email_verification_tokens
 SET consumed_at = now()
@@ -33,6 +67,33 @@ func (q *Queries) ConsumeVerificationToken(ctx context.Context, tokenHash string
 	row := q.db.QueryRow(ctx, consumeVerificationToken, tokenHash)
 	var i ConsumeVerificationTokenRow
 	err := row.Scan(&i.TokenHash, &i.UserID)
+	return i, err
+}
+
+const createPasswordResetToken = `-- name: CreatePasswordResetToken :one
+
+INSERT INTO password_reset_tokens (token_hash, user_id, expires_at)
+VALUES ($1, $2, $3)
+RETURNING token_hash, user_id, expires_at, consumed_at, created_at
+`
+
+type CreatePasswordResetTokenParams struct {
+	TokenHash string             `json:"tokenHash"`
+	UserID    string             `json:"userId"`
+	ExpiresAt pgtype.Timestamptz `json:"expiresAt"`
+}
+
+// ------------------------------------------------------ password reset ---
+func (q *Queries) CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) (PasswordResetToken, error) {
+	row := q.db.QueryRow(ctx, createPasswordResetToken, arg.TokenHash, arg.UserID, arg.ExpiresAt)
+	var i PasswordResetToken
+	err := row.Scan(
+		&i.TokenHash,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
@@ -186,6 +247,20 @@ func (q *Queries) DeleteSession(ctx context.Context, tokenHash string) (int64, e
 	return result.RowsAffected(), nil
 }
 
+const deleteSessionsForUser = `-- name: DeleteSessionsForUser :execrows
+DELETE FROM sessions WHERE user_id = $1
+`
+
+// Every session for a user — "log out everywhere", and the clean slate a
+// password reset must leave (a stolen session must not outlive the reset).
+func (q *Queries) DeleteSessionsForUser(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSessionsForUser, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getSessionUser = `-- name: GetSessionUser :one
 SELECT u.id   AS user_id,
        u.email,
@@ -297,23 +372,27 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserForAuth = `-- name: GetUserForAuth :one
-SELECT id, email, password_hash, name, role, member_id, status
+SELECT id, email, password_hash, name, role, member_id, status,
+       failed_login_count, locked_until
 FROM users
 WHERE email = $1
 `
 
 type GetUserForAuthRow struct {
-	ID           string  `json:"id"`
-	Email        string  `json:"email"`
-	PasswordHash string  `json:"passwordHash"`
-	Name         string  `json:"name"`
-	Role         string  `json:"role"`
-	MemberID     *string `json:"memberId"`
-	Status       string  `json:"status"`
+	ID               string             `json:"id"`
+	Email            string             `json:"email"`
+	PasswordHash     string             `json:"passwordHash"`
+	Name             string             `json:"name"`
+	Role             string             `json:"role"`
+	MemberID         *string            `json:"memberId"`
+	Status           string             `json:"status"`
+	FailedLoginCount int32              `json:"failedLoginCount"`
+	LockedUntil      pgtype.Timestamptz `json:"lockedUntil"`
 }
 
 // The only query that returns the hash. Used to verify a password; its result
-// must never be serialised to a client.
+// must never be serialised to a client. Also carries the lockout state so login
+// can refuse an account under a lock without a second round trip.
 func (q *Queries) GetUserForAuth(ctx context.Context, email string) (GetUserForAuthRow, error) {
 	row := q.db.QueryRow(ctx, getUserForAuth, email)
 	var i GetUserForAuthRow
@@ -325,6 +404,8 @@ func (q *Queries) GetUserForAuth(ctx context.Context, email string) (GetUserForA
 		&i.Role,
 		&i.MemberID,
 		&i.Status,
+		&i.FailedLoginCount,
+		&i.LockedUntil,
 	)
 	return i, err
 }
@@ -352,6 +433,18 @@ func (q *Queries) GetVerificationToken(ctx context.Context, tokenHash string) (G
 		&i.ConsumedAt,
 	)
 	return i, err
+}
+
+const invalidateUserPasswordResetTokens = `-- name: InvalidateUserPasswordResetTokens :exec
+UPDATE password_reset_tokens
+SET consumed_at = now()
+WHERE user_id = $1 AND consumed_at IS NULL
+`
+
+// A fresh request invalidates any outstanding link, so only the newest works.
+func (q *Queries) InvalidateUserPasswordResetTokens(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, invalidateUserPasswordResetTokens, userID)
+	return err
 }
 
 const invalidateUserVerificationTokens = `-- name: InvalidateUserVerificationTokens :exec
@@ -452,4 +545,57 @@ func (q *Queries) MarkUserVerified(ctx context.Context, id string) (MarkUserVeri
 		&i.EmailVerifiedAt,
 	)
 	return i, err
+}
+
+const recordFailedLogin = `-- name: RecordFailedLogin :one
+
+UPDATE users
+SET failed_login_count = failed_login_count + 1,
+    locked_until = CASE
+        WHEN failed_login_count + 1 >= $1::int
+        THEN now() + make_interval(secs => $2::int)
+        ELSE locked_until
+    END
+WHERE id = $3
+RETURNING failed_login_count, locked_until
+`
+
+type RecordFailedLoginParams struct {
+	Threshold   int32  `json:"threshold"`
+	LockSeconds int32  `json:"lockSeconds"`
+	ID          string `json:"id"`
+}
+
+type RecordFailedLoginRow struct {
+	FailedLoginCount int32              `json:"failedLoginCount"`
+	LockedUntil      pgtype.Timestamptz `json:"lockedUntil"`
+}
+
+// --------------------------------------------------------- login lockout ---
+// Count one failure and, at the threshold, set the lock. The CASE keeps it one
+// statement: no read-modify-write race between concurrent wrong guesses.
+func (q *Queries) RecordFailedLogin(ctx context.Context, arg RecordFailedLoginParams) (RecordFailedLoginRow, error) {
+	row := q.db.QueryRow(ctx, recordFailedLogin, arg.Threshold, arg.LockSeconds, arg.ID)
+	var i RecordFailedLoginRow
+	err := row.Scan(&i.FailedLoginCount, &i.LockedUntil)
+	return i, err
+}
+
+const setUserPassword = `-- name: SetUserPassword :exec
+UPDATE users
+SET password_hash = $1,
+    failed_login_count = 0,
+    locked_until = NULL,
+    updated_at = now()
+WHERE id = $2
+`
+
+type SetUserPasswordParams struct {
+	PasswordHash string `json:"passwordHash"`
+	ID           string `json:"id"`
+}
+
+func (q *Queries) SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, setUserPassword, arg.PasswordHash, arg.ID)
+	return err
 }

@@ -38,6 +38,9 @@ func (s *Server) registerUserRoutes(g *echo.Group) {
 	g.POST("/auth/resend-verification", s.resendVerification, tight)
 	g.POST("/auth/login", s.login, tight)
 	g.POST("/auth/logout", s.logout)
+	g.POST("/auth/logout-all", s.logoutAll)
+	g.POST("/auth/forgot-password", s.forgotPassword, tight)
+	g.POST("/auth/reset-password", s.resetPassword, tight)
 }
 
 // authRateLimiter is the per-IP bucket shared by the credential endpoints.
@@ -233,7 +236,22 @@ func (s *Server) login(c echo.Context) error {
 		}
 		return dbErr(err)
 	}
+	// An account under a lock is refused before the password is even checked, so
+	// the lock cannot be worn down by continuing to guess. The message names the
+	// lock rather than the credential — the caller already proved the address by
+	// getting locked, so there is nothing more to hide from them here.
+	if user.LockedUntil.Valid && user.LockedUntil.Time.After(time.Now()) {
+		return echo.NewHTTPError(http.StatusTooManyRequests,
+			"too many failed attempts — this account is locked for a while")
+	}
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
+		// Count the failure and, at the threshold, lock the account. Best effort:
+		// a failed write here must not turn a wrong password into a 500.
+		_, _ = s.q.RecordFailedLogin(c.Request().Context(), db.RecordFailedLoginParams{
+			ID:          user.ID,
+			Threshold:   int32(s.cfg.LoginMaxFailures),
+			LockSeconds: int32(s.cfg.LoginLockDuration.Seconds()),
+		})
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid email or password")
 	}
 	if user.Status == "pending" {
@@ -242,6 +260,11 @@ func (s *Server) login(c echo.Context) error {
 	}
 	if user.Status != "active" {
 		return echo.NewHTTPError(http.StatusForbidden, "this account is not active")
+	}
+
+	// A correct password clears any accumulated failures and lock.
+	if user.FailedLoginCount > 0 || user.LockedUntil.Valid {
+		_ = s.q.ClearLoginFailures(c.Request().Context(), user.ID)
 	}
 
 	// Success mints a session. The raw token goes to the caller once and is
@@ -296,6 +319,129 @@ func (s *Server) logout(c echo.Context) error {
 		return dbErr(err)
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+// logoutAll revokes every session the caller owns — the "sign out everywhere"
+// that a lost laptop needs, and the clean slate a password change should leave.
+// The session was already resolved by requireAuth, so the acting user is known.
+func (s *Server) logoutAll(c echo.Context) error {
+	auth := currentUser(c)
+	if auth == nil {
+		// requireAuth guarantees this, but authorization is not the place to
+		// assume; a nil here is a 401, never a nil-deref.
+		return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+	}
+	if _, err := s.q.DeleteSessionsForUser(c.Request().Context(), auth.UserID); err != nil {
+		return dbErr(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+// ---------------------------------------------------------- password reset ---
+
+const passwordResetTokenTTL = 1 * time.Hour
+
+type forgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type resetPasswordRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
+// forgotPassword issues a reset token for an address. It answers 200 whether or
+// not the address exists — telling a caller "no such account" is how an attacker
+// maps which emails are registered. Outside production the token rides the
+// response (there is no mailer); in production it goes to the log under the same
+// opt-in the verification flow uses, and refuses if neither is available.
+func (s *Server) forgotPassword(c echo.Context) error {
+	req, err := bind[forgotPasswordRequest](c)
+	if err != nil {
+		return err
+	}
+	if !s.canDeliverVerification() {
+		return errNoVerificationDelivery()
+	}
+	email := strings.TrimSpace(strings.ToLower(req.Email))
+	ctx := c.Request().Context()
+
+	user, err := s.q.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Same 200 as the success case, so the response does not confirm
+			// which addresses are registered.
+			return c.JSON(http.StatusOK, echo.Map{"status": "if the address exists, a reset link was issued"})
+		}
+		return dbErr(err)
+	}
+
+	if err := s.q.InvalidateUserPasswordResetTokens(ctx, user.ID); err != nil {
+		return dbErr(err)
+	}
+	token, hash, err := newOpaqueToken()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not issue a reset token")
+	}
+	if _, err := s.q.CreatePasswordResetToken(ctx, db.CreatePasswordResetTokenParams{
+		TokenHash: hash,
+		UserID:    user.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(passwordResetTokenTTL), Valid: true},
+	}); err != nil {
+		return dbErr(err)
+	}
+
+	out := echo.Map{"status": "if the address exists, a reset link was issued"}
+	switch {
+	case s.cfg.Env != "production":
+		out["resetToken"] = token // dev/tests complete the loop from the response
+	case s.cfg.VerificationTokenInLog:
+		log.Printf("password reset token for %s: %s", email, token)
+	}
+	return c.JSON(http.StatusOK, out)
+}
+
+// resetPassword consumes a token and sets the new password. Consuming is
+// single-use and time-boxed; success also revokes every existing session, so a
+// reset prompted by a compromise does not leave the attacker's session alive.
+func (s *Server) resetPassword(c echo.Context) error {
+	req, err := bind[resetPasswordRequest](c)
+	if err != nil {
+		return err
+	}
+	if req.Token == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "token is required")
+	}
+	if len(req.Password) < 8 {
+		return echo.NewHTTPError(http.StatusBadRequest, "password must be at least 8 characters")
+	}
+	ctx := c.Request().Context()
+
+	row, err := s.q.ConsumePasswordResetToken(ctx, hashToken(req.Token))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusBadRequest,
+				"this reset link is invalid, already used, or expired")
+		}
+		return dbErr(err)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not set the password")
+	}
+	if err := s.q.SetUserPassword(ctx, db.SetUserPasswordParams{
+		ID:           row.UserID,
+		PasswordHash: string(hash),
+	}); err != nil {
+		return dbErr(err)
+	}
+	// A reset is a trust event: kill every session so a stolen one cannot ride
+	// past the new password.
+	if _, err := s.q.DeleteSessionsForUser(ctx, row.UserID); err != nil {
+		return dbErr(err)
+	}
+	return c.JSON(http.StatusOK, echo.Map{"status": "password changed — sign in with the new password"})
 }
 
 // ------------------------------------------------------------- registration ---

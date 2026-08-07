@@ -19,6 +19,10 @@ type Querier interface {
 	AddSprintBacklogItem(ctx context.Context, arg AddSprintBacklogItemParams) (SprintBacklogItem, error)
 	// --------------------------------------------------------- sprint_members ---
 	AddSprintMember(ctx context.Context, arg AddSprintMemberParams) (SprintMember, error)
+	ClearLoginFailures(ctx context.Context, id string) error
+	// Single-use and time-boxed, same conditional-UPDATE race guard as email
+	// verification: two submits of one link, only the first flips consumed_at.
+	ConsumePasswordResetToken(ctx context.Context, tokenHash string) (ConsumePasswordResetTokenRow, error)
 	// Consuming is a conditional UPDATE, not a read-then-write: two clicks on the
 	// same link race, and only the one that flips consumed_at from NULL matches a
 	// row. The loser gets no row and is told the link is already used.
@@ -52,6 +56,8 @@ type Querier interface {
 	// current_sprint_id is not settable here: a new module has no sprints, so any
 	// value would point at another module's.
 	CreateModule(ctx context.Context, arg CreateModuleParams) (Module, error)
+	// ------------------------------------------------------ password reset ---
+	CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) (PasswordResetToken, error)
 	// --------------------------------------------------------------- projects ---
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
 	CreateReportQueueItem(ctx context.Context, arg CreateReportQueueItemParams) (ReportQueue, error)
@@ -89,6 +95,9 @@ type Querier interface {
 	DeleteReportQueueItem(ctx context.Context, id string) error
 	DeleteReportTemplate(ctx context.Context, id string) error
 	DeleteSession(ctx context.Context, tokenHash string) (int64, error)
+	// Every session for a user — "log out everywhere", and the clean slate a
+	// password reset must leave (a stolen session must not outlive the reset).
+	DeleteSessionsForUser(ctx context.Context, userID string) (int64, error)
 	DeleteSprint(ctx context.Context, id string) error
 	DeleteTask(ctx context.Context, id string) error
 	// Every DoD item on a task, used when the task itself is being removed.
@@ -112,11 +121,14 @@ type Querier interface {
 	GetUser(ctx context.Context, id string) (GetUserRow, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	// The only query that returns the hash. Used to verify a password; its result
-	// must never be serialised to a client.
+	// must never be serialised to a client. Also carries the lockout state so login
+	// can refuse an account under a lock without a second round trip.
 	GetUserForAuth(ctx context.Context, email string) (GetUserForAuthRow, error)
 	GetVerificationToken(ctx context.Context, tokenHash string) (GetVerificationTokenRow, error)
 	// ------------------------------------------------------ workspace_settings --
 	GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, error)
+	// A fresh request invalidates any outstanding link, so only the newest works.
+	InvalidateUserPasswordResetTokens(ctx context.Context, userID string) error
 	// Called before issuing a new link, so an earlier mail cannot still be used.
 	InvalidateUserVerificationTokens(ctx context.Context, userID string) error
 	ListBacklogItemsByComponent(ctx context.Context, arg ListBacklogItemsByComponentParams) ([]BacklogItem, error)
@@ -179,6 +191,10 @@ type Querier interface {
 	NextComponentPosition(ctx context.Context, moduleID string) (int32, error)
 	NextSprintBacklogPosition(ctx context.Context, sprintID string) (int32, error)
 	NextSprintNumber(ctx context.Context, moduleID string) (int32, error)
+	// --------------------------------------------------------- login lockout ---
+	// Count one failure and, at the threshold, set the lock. The CASE keeps it one
+	// statement: no read-modify-write race between concurrent wrong guesses.
+	RecordFailedLogin(ctx context.Context, arg RecordFailedLoginParams) (RecordFailedLoginRow, error)
 	RemoveSprintBacklogItem(ctx context.Context, arg RemoveSprintBacklogItemParams) error
 	RemoveSprintMember(ctx context.Context, arg RemoveSprintMemberParams) error
 	// The pointer may only name a sprint of this very module. A mismatch matches
@@ -189,6 +205,7 @@ type Querier interface {
 	SetStatementTimeout(ctx context.Context, ms string) error
 	// --------------------------------------------------------------- task_dod ---
 	SetTaskDodItem(ctx context.Context, arg SetTaskDodItemParams) (TaskDod, error)
+	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
 	ToggleTaskDodItem(ctx context.Context, arg ToggleTaskDodItemParams) (TaskDod, error)
 	// Partial update (see UpdateClient).
 	UpdateBacklogItem(ctx context.Context, arg UpdateBacklogItemParams) (BacklogItem, error)

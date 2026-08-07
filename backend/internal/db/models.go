@@ -128,6 +128,14 @@ type Module struct {
 	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
 }
 
+type PasswordResetToken struct {
+	TokenHash  string             `json:"tokenHash"`
+	UserID     string             `json:"userId"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	ConsumedAt pgtype.Timestamptz `json:"consumedAt"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+}
+
 type Project struct {
 	ID        string             `json:"id"`
 	ClientID  string             `json:"clientId"`
@@ -232,16 +240,18 @@ type TaskDod struct {
 }
 
 type User struct {
-	ID              string             `json:"id"`
-	Email           string             `json:"email"`
-	PasswordHash    string             `json:"passwordHash"`
-	Name            string             `json:"name"`
-	Role            string             `json:"role"`
-	MemberID        *string            `json:"memberId"`
-	Status          string             `json:"status"`
-	EmailVerifiedAt pgtype.Timestamptz `json:"emailVerifiedAt"`
-	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
+	ID               string             `json:"id"`
+	Email            string             `json:"email"`
+	PasswordHash     string             `json:"passwordHash"`
+	Name             string             `json:"name"`
+	Role             string             `json:"role"`
+	MemberID         *string            `json:"memberId"`
+	Status           string             `json:"status"`
+	EmailVerifiedAt  pgtype.Timestamptz `json:"emailVerifiedAt"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`
+	FailedLoginCount int32              `json:"failedLoginCount"`
+	LockedUntil      pgtype.Timestamptz `json:"lockedUntil"`
 }
 
 type WorkspaceSetting struct {

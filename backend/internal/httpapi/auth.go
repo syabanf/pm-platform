@@ -48,6 +48,10 @@ var publicOps = map[string]bool{
 	"/api/v1/auth/verify":              true,
 	"/api/v1/auth/resend-verification": true,
 	"/api/v1/auth/login":               true,
+	// Resetting a forgotten password happens when you cannot sign in, so these
+	// two must work without a session. The token is the credential.
+	"/api/v1/auth/forgot-password": true,
+	"/api/v1/auth/reset-password":  true,
 }
 
 // adminWritePrefixes name resources that DEFINE authority rather than hold
@@ -126,8 +130,8 @@ func (s *Server) requireAuth() echo.MiddlewareFunc {
 			c.Set(authKey, auth)
 
 			path := c.Path()
-			if path == "/api/v1/auth/logout" {
-				return next(c) // logging out is every session's right
+			if path == "/api/v1/auth/logout" || path == "/api/v1/auth/logout-all" {
+				return next(c) // logging out — here or everywhere — is every session's right
 			}
 			// Accounts and the things that grant authority — roles, workspace
 			// settings — are admin territory. Roles especially: they are the

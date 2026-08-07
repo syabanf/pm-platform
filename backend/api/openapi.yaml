@@ -1850,6 +1850,92 @@ paths:
           description: The session no longer exists.
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /auth/logout-all:
+    post:
+      tags: [auth]
+      summary: Sign out everywhere
+      description: |
+        Revokes every session the caller owns — the "sign out of all devices" a
+        lost laptop needs. A password reset does this on its own; this is the
+        button for when nothing was reset.
+      operationId: logoutAll
+      responses:
+        '204':
+          description: Every session for the caller is gone.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/forgot-password:
+    post:
+      tags: [auth]
+      summary: Request a password reset
+      description: |
+        Issues a single-use, time-boxed reset token for an address. Answers
+        `200` whether or not the address exists — saying "no such account" would
+        map which emails are registered. Delivery mirrors registration: outside
+        production the token is in the response; in production it goes to the log
+        under `VERIFICATION_TOKEN_IN_LOG`, or the endpoint refuses with `503`.
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: If the address exists, a reset link was issued.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  resetToken:
+                    type: string
+                    description: Present only outside production, so tests and dev can complete the loop.
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /auth/reset-password:
+    post:
+      tags: [auth]
+      summary: Set a new password with a reset token
+      description: |
+        Consumes a reset token and sets the new password. Single-use and
+        time-boxed. On success every existing session is revoked, so a reset
+        prompted by a compromise does not leave the attacker's session alive.
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: Password changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+        '400':
+          description: The token is invalid, used or expired, or the password is too short.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+
   # -------------------------------------------------------------- probes ---
   # These are mounted at the root, not under /api/v1, hence the server override.
   /livez:

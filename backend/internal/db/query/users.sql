@@ -36,8 +36,10 @@ LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: GetUserForAuth :one
 -- The only query that returns the hash. Used to verify a password; its result
--- must never be serialised to a client.
-SELECT id, email, password_hash, name, role, member_id, status
+-- must never be serialised to a client. Also carries the lockout state so login
+-- can refuse an account under a lock without a second round trip.
+SELECT id, email, password_hash, name, role, member_id, status,
+       failed_login_count, locked_until
 FROM users
 WHERE email = $1;
 
@@ -113,3 +115,59 @@ DELETE FROM sessions WHERE token_hash = sqlc.arg('token_hash');
 
 -- name: DeleteExpiredSessions :execrows
 DELETE FROM sessions WHERE expires_at <= now();
+
+-- ------------------------------------------------------ password reset ---
+
+-- name: CreatePasswordResetToken :one
+INSERT INTO password_reset_tokens (token_hash, user_id, expires_at)
+VALUES (sqlc.arg('token_hash'), sqlc.arg('user_id'), sqlc.arg('expires_at'))
+RETURNING token_hash, user_id, expires_at, consumed_at, created_at;
+
+-- name: InvalidateUserPasswordResetTokens :exec
+-- A fresh request invalidates any outstanding link, so only the newest works.
+UPDATE password_reset_tokens
+SET consumed_at = now()
+WHERE user_id = $1 AND consumed_at IS NULL;
+
+-- name: ConsumePasswordResetToken :one
+-- Single-use and time-boxed, same conditional-UPDATE race guard as email
+-- verification: two submits of one link, only the first flips consumed_at.
+UPDATE password_reset_tokens
+SET consumed_at = now()
+WHERE token_hash = sqlc.arg('token_hash')
+  AND consumed_at IS NULL
+  AND expires_at > now()
+RETURNING token_hash, user_id;
+
+-- name: SetUserPassword :exec
+UPDATE users
+SET password_hash = sqlc.arg('password_hash'),
+    failed_login_count = 0,
+    locked_until = NULL,
+    updated_at = now()
+WHERE id = sqlc.arg('id');
+
+-- name: DeleteSessionsForUser :execrows
+-- Every session for a user — "log out everywhere", and the clean slate a
+-- password reset must leave (a stolen session must not outlive the reset).
+DELETE FROM sessions WHERE user_id = sqlc.arg('user_id');
+
+-- --------------------------------------------------------- login lockout ---
+
+-- name: RecordFailedLogin :one
+-- Count one failure and, at the threshold, set the lock. The CASE keeps it one
+-- statement: no read-modify-write race between concurrent wrong guesses.
+UPDATE users
+SET failed_login_count = failed_login_count + 1,
+    locked_until = CASE
+        WHEN failed_login_count + 1 >= sqlc.arg('threshold')::int
+        THEN now() + make_interval(secs => sqlc.arg('lock_seconds')::int)
+        ELSE locked_until
+    END
+WHERE id = sqlc.arg('id')
+RETURNING failed_login_count, locked_until;
+
+-- name: ClearLoginFailures :exec
+UPDATE users
+SET failed_login_count = 0, locked_until = NULL
+WHERE id = $1;

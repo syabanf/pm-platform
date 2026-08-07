@@ -66,6 +66,13 @@ type Config struct {
 	// on ONLY when a trusted proxy sits in front and sets the header itself.
 	TrustProxyHeaders bool
 
+	// LoginMaxFailures locks an account after this many consecutive wrong
+	// passwords; LoginLockDuration is how long the lock lasts. This is per
+	// account and persisted, so it survives a restart and covers a slow guess
+	// that the in-memory per-IP limiter would miss. A correct login resets both.
+	LoginMaxFailures  int
+	LoginLockDuration time.Duration
+
 	// BootstrapAdminPassword, when set, is written over the seeded admin's
 	// password at boot. The migration seeds a known hash whose plaintext
 	// ("wit-admin-changeme") is in the repo — fine for a demo, a live
@@ -107,6 +114,8 @@ func Load() (Config, error) {
 		RateLimitBurst:         getenvInt("RATE_LIMIT_BURST", 100),
 		LoginRatePerMin:        float64(getenvInt("LOGIN_RATE_PER_MIN", 5)),
 		TrustProxyHeaders:      getenv("TRUST_PROXY_HEADERS", "") == "true",
+		LoginMaxFailures:       getenvInt("LOGIN_MAX_FAILURES", 10),
+		LoginLockDuration:      getenvDuration("LOGIN_LOCK_DURATION", 15*time.Minute),
 		BootstrapAdminPassword: getenv("BOOTSTRAP_ADMIN_PASSWORD", ""),
 	}
 
