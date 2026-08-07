@@ -197,6 +197,9 @@ func (s *Server) createUser(c echo.Context) error {
 		PasswordHash: string(hash),
 		Name:         req.Name,
 		Role:         "member",
+		// An admin creating an account is vouching for it — born active,
+		// because with no mailer a pending account made here could never sign in.
+		Status: "active",
 	})
 	if err != nil {
 		// Two different unique constraints, and saying "id" for both sent
@@ -376,6 +379,7 @@ func (s *Server) register(c echo.Context) error {
 		PasswordHash: string(hash),
 		Name:         name,
 		Role:         "member",
+		Status:       "pending", // until the address is proven
 	})
 	if err != nil {
 		// An address that is already registered must not be distinguishable

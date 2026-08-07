@@ -6,14 +6,20 @@
 -- its result is never written to the client.
 
 -- name: CreateUser :one
-INSERT INTO users (id, email, password_hash, name, role, member_id)
+-- status is the caller's decision because the two callers mean different
+-- things: self-registration starts 'pending' until the address is proven,
+-- while an admin-created account is born 'active' — the admin is vouching for
+-- it, and with no mailer a pending account created this way could never sign
+-- in at all. email_verified_at stays NULL either way until a real verify.
+INSERT INTO users (id, email, password_hash, name, role, member_id, status)
 VALUES (
     sqlc.arg('id'),
     sqlc.arg('email'),
     sqlc.arg('password_hash'),
     sqlc.arg('name'),
     sqlc.arg('role'),
-    sqlc.narg('member_id')
+    sqlc.narg('member_id'),
+    sqlc.arg('status')
 )
 RETURNING id, email, name, role, member_id, status, email_verified_at, created_at, updated_at;
 

@@ -64,14 +64,15 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 
 const createUser = `-- name: CreateUser :one
 
-INSERT INTO users (id, email, password_hash, name, role, member_id)
+INSERT INTO users (id, email, password_hash, name, role, member_id, status)
 VALUES (
     $1,
     $2,
     $3,
     $4,
     $5,
-    $6
+    $6,
+    $7
 )
 RETURNING id, email, name, role, member_id, status, email_verified_at, created_at, updated_at
 `
@@ -83,6 +84,7 @@ type CreateUserParams struct {
 	Name         string  `json:"name"`
 	Role         string  `json:"role"`
 	MemberID     *string `json:"memberId"`
+	Status       string  `json:"status"`
 }
 
 type CreateUserRow struct {
@@ -103,6 +105,11 @@ type CreateUserRow struct {
 // returns an explicit column list without it, so there is no path by which a
 // hash can be marshalled into a response; only GetUserForAuth selects it, and
 // its result is never written to the client.
+// status is the caller's decision because the two callers mean different
+// things: self-registration starts 'pending' until the address is proven,
+// while an admin-created account is born 'active' — the admin is vouching for
+// it, and with no mailer a pending account created this way could never sign
+// in at all. email_verified_at stays NULL either way until a real verify.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
 	row := q.db.QueryRow(ctx, createUser,
 		arg.ID,
@@ -111,6 +118,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		arg.Name,
 		arg.Role,
 		arg.MemberID,
+		arg.Status,
 	)
 	var i CreateUserRow
 	err := row.Scan(

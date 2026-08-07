@@ -69,6 +69,11 @@ type Querier interface {
 	// returns an explicit column list without it, so there is no path by which a
 	// hash can be marshalled into a response; only GetUserForAuth selects it, and
 	// its result is never written to the client.
+	// status is the caller's decision because the two callers mean different
+	// things: self-registration starts 'pending' until the address is proven,
+	// while an admin-created account is born 'active' — the admin is vouching for
+	// it, and with no mailer a pending account created this way could never sign
+	// in at all. email_verified_at stays NULL either way until a real verify.
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	// ------------------------------------------------ email verification ---
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) (EmailVerificationToken, error)

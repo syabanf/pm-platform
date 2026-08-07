@@ -455,19 +455,30 @@ const (
 // page reads ?limit and ?offset. limit is clamped; an offset too large to
 // answer is refused rather than quietly turned into a different query.
 func page(c echo.Context) (limit, offset int32, err error) {
+	// A malformed or out-of-range value is refused, not reinterpreted. The old
+	// behaviour — ignore what does not parse, clamp what is too big — meant a
+	// typo'd ?limit=1O0 silently returned 200 rows and a scraper asking for
+	// 99999 was quietly served 1000 while believing it had everything.
 	limit, offset = defaultPageSize, 0
-	if v, convErr := strconv.Atoi(c.QueryParam("limit")); convErr == nil && v > 0 {
-		limit = int32(min(v, maxPageSize))
+	if raw := c.QueryParam("limit"); raw != "" {
+		v, convErr := strconv.Atoi(raw)
+		if convErr != nil || v < 1 || v > maxPageSize {
+			return 0, 0, echo.NewHTTPError(http.StatusBadRequest,
+				fmt.Sprintf("limit must be a whole number between 1 and %d", maxPageSize))
+		}
+		limit = int32(v)
 	}
 	if raw := c.QueryParam("offset"); raw != "" {
 		v, convErr := strconv.Atoi(raw)
-		if convErr == nil && v > maxOffset {
+		if convErr != nil || v < 0 {
+			return 0, 0, echo.NewHTTPError(http.StatusBadRequest,
+				"offset must be a whole number of rows to skip, starting at 0")
+		}
+		if v > maxOffset {
 			return 0, 0, echo.NewHTTPError(http.StatusBadRequest,
 				fmt.Sprintf("offset must not exceed %d — narrow the list by parent id instead", maxOffset))
 		}
-		if convErr == nil && v > 0 {
-			offset = int32(v)
-		}
+		offset = int32(v)
 	}
 	return limit, offset, nil
 }
