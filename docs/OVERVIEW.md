@@ -276,7 +276,7 @@ skrip remediasinya lengkap di
 | Prioritas | Hal |
 | --------- | --- |
 | Besar | **Mailer** — supaya link verifikasi benar-benar terkirim |
-| Sedang | Menyambungkan frontend ke backend (langkahnya sudah ditulis) |
+| Sedang | **Store swap** — memindahkan store in-memory ke typed client (login + baca sudah terbukti di `/backend`); sisa: semua collection + write-back mutasi |
 | Sedang | Endpoint rollup, agar dashboard tidak perlu ratusan request |
 | Kecil | CRUD akun (user belum bisa diubah atau dihapus lewat API) |
 
