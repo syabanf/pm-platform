@@ -246,10 +246,11 @@ export default function ClientsPage() {
                   </button>
                   <ConfirmButton
                     onConfirm={() => {
-                      removeClientCascade(client.id);
+                      const undo = removeClientCascade(client.id);
                       showToast(
                         `${client.name} and its projects were removed.`,
-                        "info"
+                        "info",
+                        { label: "Undo", run: undo }
                       );
                     }}
                   />

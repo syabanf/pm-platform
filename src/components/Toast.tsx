@@ -15,7 +15,7 @@ import { usePrototype } from "@/lib/store";
  * one toast replacing another is not announced as a diff of the two.
  */
 export function Toast() {
-  const { toast } = usePrototype();
+  const { toast, dismissToast } = usePrototype();
 
   const border =
     toast?.tone === "warning"
@@ -29,9 +29,20 @@ export function Toast() {
       {toast && (
         <div
           key={toast.id}
-          className={`animate-toast fixed bottom-20 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border border-line ${border} border-l-2 bg-paper px-5 py-4 text-sm text-ink lg:bottom-6`}
+          className={`animate-toast fixed bottom-20 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-4 border border-line ${border} border-l-2 bg-paper px-5 py-4 text-sm text-ink lg:bottom-6`}
         >
-          {toast.message}
+          <span>{toast.message}</span>
+          {toast.action && (
+            <button
+              onClick={() => {
+                toast.action?.run();
+                dismissToast();
+              }}
+              className="shrink-0 font-medium text-ink underline underline-offset-2 hover:no-underline"
+            >
+              {toast.action.label}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -79,10 +79,28 @@ function useCollection<T extends { id: string }>(
   return [items, crud, setItems];
 }
 
+/** An optional button on a toast — "Undo" on a delete, say. */
+interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 interface ToastState {
   id: number;
   message: string;
   tone: "info" | "warning" | "success";
+  action?: ToastAction;
+}
+
+/**
+ * Re-insert a deleted snapshot, skipping any id already back — so pressing Undo
+ * twice cannot duplicate a row. Restore order does not matter for these arrays.
+ */
+function restoreById<T extends { id: string }>(snapshot: T[]) {
+  return (prev: T[]) => {
+    const have = new Set(prev.map((x) => x.id));
+    return [...prev, ...snapshot.filter((x) => !have.has(x.id))];
+  };
 }
 
 interface PrototypeState {
@@ -108,9 +126,10 @@ interface PrototypeState {
   sprintsCrud: Crud<Sprint>;
   tasksCrud: Crud<Task>;
   decisionsCrud: Crud<Decision>;
-  removeClientCascade: (clientId: string) => void;
-  removeProjectCascade: (projectId: string) => void;
-  removeModuleCascade: (moduleId: string) => void;
+  // Each returns an undo: the whole snapshotted subtree goes back on call.
+  removeClientCascade: (clientId: string) => () => void;
+  removeProjectCascade: (projectId: string) => () => void;
+  removeModuleCascade: (moduleId: string) => () => void;
   workspaceConf: WorkspaceConf;
   setWorkspaceConf: (conf: WorkspaceConf) => void;
   roles: RoleDef[];
@@ -135,7 +154,12 @@ interface PrototypeState {
   moveTask: (taskId: string, column: BoardColumn) => boolean;
   toggleDod: (taskId: string, index: number) => void;
   toast: ToastState | null;
-  showToast: (message: string, tone?: ToastState["tone"]) => void;
+  showToast: (
+    message: string,
+    tone?: ToastState["tone"],
+    action?: ToastAction
+  ) => void;
+  dismissToast: () => void;
   aiPanelOpen: boolean;
   setAiPanelOpen: (open: boolean) => void;
   reportConfig: ReportConfig | null;
@@ -355,39 +379,66 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     useState<PrototypeState["committedSprint"]>(null);
 
   const showToast = useCallback(
-    (message: string, tone: ToastState["tone"] = "info") => {
+    (message: string, tone: ToastState["tone"] = "info", action?: ToastAction) => {
       const id = Date.now();
-      setToast({ id, message, tone });
-      setTimeout(() => {
-        setToast((t) => (t?.id === id ? null : t));
-      }, 4000);
+      setToast({ id, message, tone, action });
+      // An actionable toast lingers longer — four seconds is barely enough to
+      // notice a message, let alone read it and decide to undo.
+      setTimeout(
+        () => setToast((t) => (t?.id === id ? null : t)),
+        action ? 8000 : 4000
+      );
     },
     []
   );
 
+  const dismissToast = useCallback(() => setToast(null), []);
+
   const removeModuleCascade = useCallback(
     (moduleId: string) => {
-      const removedSprintIds = sprints
-        .filter((s) => s.moduleId === moduleId)
-        .map((s) => s.id);
+      // Snapshot every row about to go, so Undo can put the whole subtree back.
+      const gone = {
+        modules: modules.filter((p) => p.id === moduleId),
+        backlog: backlog.filter((b) => b.moduleId === moduleId),
+        sprints: sprints.filter((s) => s.moduleId === moduleId),
+        tasks: [] as Task[],
+      };
+      const removedSprintIds = gone.sprints.map((s) => s.id);
+      gone.tasks = tasks.filter((t) => removedSprintIds.includes(t.sprintId));
+
       setModules((prev) => prev.filter((p) => p.id !== moduleId));
       setBacklog((prev) => prev.filter((b) => b.moduleId !== moduleId));
       setSprints((prev) => prev.filter((s) => s.moduleId !== moduleId));
       setTasks((prev) =>
         prev.filter((t) => !removedSprintIds.includes(t.sprintId))
       );
+
+      return () => {
+        setModules(restoreById(gone.modules));
+        setBacklog(restoreById(gone.backlog));
+        setSprints(restoreById(gone.sprints));
+        setTasks(restoreById(gone.tasks));
+      };
     },
-    [sprints, setModules, setBacklog, setSprints, setTasks]
+    [modules, backlog, sprints, tasks, setModules, setBacklog, setSprints, setTasks]
   );
 
   const removeProjectCascade = useCallback(
     (projectId: string) => {
-      const removedModuleIds = modules
-        .filter((p) => p.projectId === projectId)
-        .map((p) => p.id);
-      const removedSprintIds = sprints
-        .filter((s) => removedModuleIds.includes(s.moduleId))
-        .map((s) => s.id);
+      const removedModules = modules.filter((p) => p.projectId === projectId);
+      const removedModuleIds = removedModules.map((p) => p.id);
+      const removedSprints = sprints.filter((s) =>
+        removedModuleIds.includes(s.moduleId)
+      );
+      const removedSprintIds = removedSprints.map((s) => s.id);
+      const gone = {
+        projects: projects.filter((p) => p.id === projectId),
+        modules: removedModules,
+        backlog: backlog.filter((b) => removedModuleIds.includes(b.moduleId)),
+        sprints: removedSprints,
+        tasks: tasks.filter((t) => removedSprintIds.includes(t.sprintId)),
+      };
+
       setModules((prev) => prev.filter((p) => p.projectId !== projectId));
       setBacklog((prev) =>
         prev.filter((b) => !removedModuleIds.includes(b.moduleId))
@@ -399,18 +450,46 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         prev.filter((t) => !removedSprintIds.includes(t.sprintId))
       );
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
+
+      return () => {
+        setProjects(restoreById(gone.projects));
+        setModules(restoreById(gone.modules));
+        setBacklog(restoreById(gone.backlog));
+        setSprints(restoreById(gone.sprints));
+        setTasks(restoreById(gone.tasks));
+      };
     },
-    [modules, sprints, setModules, setProjects, setBacklog, setSprints, setTasks]
+    [
+      modules,
+      sprints,
+      projects,
+      backlog,
+      tasks,
+      setModules,
+      setProjects,
+      setBacklog,
+      setSprints,
+      setTasks,
+    ]
   );
 
   const removeClientCascade = useCallback(
     (clientId: string) => {
-      const removedModuleIds = modules
-        .filter((p) => p.clientId === clientId)
-        .map((p) => p.id);
-      const removedSprintIds = sprints
-        .filter((s) => removedModuleIds.includes(s.moduleId))
-        .map((s) => s.id);
+      const removedModules = modules.filter((p) => p.clientId === clientId);
+      const removedModuleIds = removedModules.map((p) => p.id);
+      const removedSprints = sprints.filter((s) =>
+        removedModuleIds.includes(s.moduleId)
+      );
+      const removedSprintIds = removedSprints.map((s) => s.id);
+      const gone = {
+        clients: clients.filter((c) => c.id === clientId),
+        projects: projects.filter((p) => p.clientId === clientId),
+        modules: removedModules,
+        backlog: backlog.filter((b) => removedModuleIds.includes(b.moduleId)),
+        sprints: removedSprints,
+        tasks: tasks.filter((t) => removedSprintIds.includes(t.sprintId)),
+      };
+
       setProjects((prev) => prev.filter((p) => p.clientId !== clientId));
       setModules((prev) => prev.filter((p) => p.clientId !== clientId));
       setBacklog((prev) =>
@@ -423,8 +502,30 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         prev.filter((t) => !removedSprintIds.includes(t.sprintId))
       );
       setClients((prev) => prev.filter((c) => c.id !== clientId));
+
+      return () => {
+        setClients(restoreById(gone.clients));
+        setProjects(restoreById(gone.projects));
+        setModules(restoreById(gone.modules));
+        setBacklog(restoreById(gone.backlog));
+        setSprints(restoreById(gone.sprints));
+        setTasks(restoreById(gone.tasks));
+      };
     },
-    [modules, sprints, setClients, setProjects, setModules, setBacklog, setSprints, setTasks]
+    [
+      clients,
+      modules,
+      sprints,
+      projects,
+      backlog,
+      tasks,
+      setClients,
+      setProjects,
+      setModules,
+      setBacklog,
+      setSprints,
+      setTasks,
+    ]
   );
 
   const moveTask = useCallback(
@@ -554,6 +655,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         toggleDod,
         toast,
         showToast,
+        dismissToast,
         aiPanelOpen,
         setAiPanelOpen,
         reportConfig,

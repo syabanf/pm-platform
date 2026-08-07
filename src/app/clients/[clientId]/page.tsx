@@ -285,10 +285,11 @@ export default function ClientDetailPage({
                               </button>
                               <ConfirmButton
                                 onConfirm={() => {
-                                  removeProjectCascade(project.id);
+                                  const undo = removeProjectCascade(project.id);
                                   showToast(
                                     `${project.name} and its modules were removed.`,
-                                    "info"
+                                    "info",
+                                    { label: "Undo", run: undo }
                                   );
                                 }}
                               />

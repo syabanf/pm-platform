@@ -418,10 +418,11 @@ export default function ProjectDetailPage({
                             </button>
                             <ConfirmButton
                               onConfirm={() => {
-                                removeModuleCascade(mod.id);
+                                const undo = removeModuleCascade(mod.id);
                                 showToast(
                                   `${mod.name} and its backlog were removed.`,
-                                  "info"
+                                  "info",
+                                  { label: "Undo", run: undo }
                                 );
                               }}
                             />
