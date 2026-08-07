@@ -90,6 +90,8 @@ func (s *Server) registerClientRoutes(g *echo.Group) {
 	g.GET("/clients/:clientId", s.getClient)
 	g.PATCH("/clients/:clientId", s.updateClient)
 	g.DELETE("/clients/:clientId", s.deleteClient)
+	g.POST("/clients/:clientId/archive", s.archiveClient)
+	g.POST("/clients/:clientId/restore", s.restoreClient)
 	g.GET("/clients/:clientId/projects", s.listProjectsByClient)
 
 	g.GET("/projects", s.listProjects)
@@ -106,7 +108,12 @@ func (s *Server) listClients(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListClients(c.Request().Context(), db.ListClientsParams{Lim: limit + 1, Off: offset})
+	rows, err := s.q.ListClients(c.Request().Context(), db.ListClientsParams{
+		// Active clients by default; ?archived=true lists the archived ones.
+		Archived: c.QueryParam("archived") == "true",
+		Lim:      limit + 1,
+		Off:      offset,
+	})
 	if err != nil {
 		return dbErr(err)
 	}
@@ -211,6 +218,47 @@ func (s *Server) deleteClient(c echo.Context) error {
 		return q.DeleteClient(c.Request().Context(), id)
 	}); err != nil {
 		return dbErr(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+// archiveClient hides a client from the active portfolio without deleting it.
+// Reversible via restore, and idempotent — archiving an already-archived client
+// is not an error, it is the state you asked for.
+func (s *Server) archiveClient(c echo.Context) error {
+	id, err := param(c, "clientId")
+	if err != nil {
+		return err
+	}
+	n, err := s.q.ArchiveClient(c.Request().Context(), id)
+	if err != nil {
+		return dbErr(err)
+	}
+	if n == 0 {
+		// Either the client does not exist or it is already archived. Tell the
+		// two apart so a restore UI is not left guessing.
+		if _, gerr := s.q.GetClient(c.Request().Context(), id); gerr != nil {
+			return dbErr(gerr)
+		}
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+// restoreClient brings an archived client back into the active portfolio. Its
+// whole subtree is intact underneath, so restore returns a consistent client.
+func (s *Server) restoreClient(c echo.Context) error {
+	id, err := param(c, "clientId")
+	if err != nil {
+		return err
+	}
+	n, err := s.q.RestoreClient(c.Request().Context(), id)
+	if err != nil {
+		return dbErr(err)
+	}
+	if n == 0 {
+		if _, gerr := s.q.GetClient(c.Request().Context(), id); gerr != nil {
+			return dbErr(gerr)
+		}
 	}
 	return c.NoContent(http.StatusNoContent)
 }

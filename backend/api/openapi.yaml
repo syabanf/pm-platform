@@ -108,6 +108,11 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - name: archived
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: false (default) lists active clients; true lists archived ones.
       responses:
         '200':
           description: A page of clients.
@@ -183,6 +188,34 @@ paths:
         '204': { description: Deleted. }
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
+
+  /clients/{clientId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    post:
+      tags: [clients]
+      summary: Archive a client
+      description: |
+        Hides a client from the active portfolio without deleting it — the
+        reversible alternative to DELETE's permanent cascade. The subtree stays
+        intact underneath, so a later restore returns a whole client. Idempotent.
+        Archived clients are listed with `GET /clients?archived=true`.
+      operationId: archiveClient
+      responses:
+        '204': { description: Archived (or already was). }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /clients/{clientId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/ClientId'
+    post:
+      tags: [clients]
+      summary: Restore an archived client
+      description: Brings an archived client back into the active portfolio. Idempotent.
+      operationId: restoreClient
+      responses:
+        '204': { description: Restored (or was never archived). }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /clients/{clientId}/projects:
     parameters:
@@ -2240,6 +2273,10 @@ components:
         notes: { type: string }
         actionNeeded: { type: array, items: { type: string } }
         aiInsight: { $ref: '#/components/schemas/Json' }
+        archivedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the client was archived, or null if active.
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
     ClientCreate:

@@ -54,6 +54,7 @@ type Client struct {
 	AiInsight    json.RawMessage    `json:"aiInsight"`
 	CreatedAt    pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt    pgtype.Timestamptz `json:"updatedAt"`
+	ArchivedAt   pgtype.Timestamptz `json:"archivedAt"`
 }
 
 type Component struct {

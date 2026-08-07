@@ -24,7 +24,10 @@ SELECT * FROM clients
 WHERE id = $1;
 
 -- name: ListClients :many
+-- Active clients by default; pass archived=true to list the archived ones (the
+-- restore screen). One query keeps the two views from drifting apart.
 SELECT * FROM clients
+WHERE (sqlc.arg('archived')::bool = (archived_at IS NOT NULL))
 ORDER BY name, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
@@ -48,6 +51,14 @@ SET
     updated_at    = now()
 WHERE id = sqlc.arg('id')
 RETURNING *;
+
+-- name: ArchiveClient :execrows
+UPDATE clients SET archived_at = now(), updated_at = now()
+WHERE id = $1 AND archived_at IS NULL;
+
+-- name: RestoreClient :execrows
+UPDATE clients SET archived_at = NULL, updated_at = now()
+WHERE id = $1 AND archived_at IS NOT NULL;
 
 -- name: DeleteClient :exec
 DELETE FROM clients

@@ -10,6 +10,19 @@ import (
 	"encoding/json"
 )
 
+const archiveClient = `-- name: ArchiveClient :execrows
+UPDATE clients SET archived_at = now(), updated_at = now()
+WHERE id = $1 AND archived_at IS NULL
+`
+
+func (q *Queries) ArchiveClient(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.Exec(ctx, archiveClient, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createClient = `-- name: CreateClient :one
 
 INSERT INTO clients (
@@ -28,7 +41,7 @@ INSERT INTO clients (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
-RETURNING id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at
+RETURNING id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at, archived_at
 `
 
 type CreateClientParams struct {
@@ -78,6 +91,7 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 		&i.AiInsight,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -147,7 +161,7 @@ func (q *Queries) DeleteProject(ctx context.Context, id string) error {
 }
 
 const getClient = `-- name: GetClient :one
-SELECT id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at FROM clients
+SELECT id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at, archived_at FROM clients
 WHERE id = $1
 `
 
@@ -169,6 +183,7 @@ func (q *Queries) GetClient(ctx context.Context, id string) (Client, error) {
 		&i.AiInsight,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -194,18 +209,22 @@ func (q *Queries) GetProject(ctx context.Context, id string) (Project, error) {
 }
 
 const listClients = `-- name: ListClients :many
-SELECT id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at FROM clients
+SELECT id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at, archived_at FROM clients
+WHERE ($1::bool = (archived_at IS NOT NULL))
 ORDER BY name, id
-LIMIT $2 OFFSET $1
+LIMIT $3 OFFSET $2
 `
 
 type ListClientsParams struct {
-	Off int32 `json:"off"`
-	Lim int32 `json:"lim"`
+	Archived bool  `json:"archived"`
+	Off      int32 `json:"off"`
+	Lim      int32 `json:"lim"`
 }
 
+// Active clients by default; pass archived=true to list the archived ones (the
+// restore screen). One query keeps the two views from drifting apart.
 func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error) {
-	rows, err := q.db.Query(ctx, listClients, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, listClients, arg.Archived, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -228,6 +247,7 @@ func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Cli
 			&i.AiInsight,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ArchivedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -319,6 +339,19 @@ func (q *Queries) ListProjectsByClient(ctx context.Context, arg ListProjectsByCl
 	return items, nil
 }
 
+const restoreClient = `-- name: RestoreClient :execrows
+UPDATE clients SET archived_at = NULL, updated_at = now()
+WHERE id = $1 AND archived_at IS NOT NULL
+`
+
+func (q *Queries) RestoreClient(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.Exec(ctx, restoreClient, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateClient = `-- name: UpdateClient :one
 UPDATE clients
 SET
@@ -335,7 +368,7 @@ SET
     ai_insight    = COALESCE($11::jsonb, ai_insight),
     updated_at    = now()
 WHERE id = $12
-RETURNING id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at
+RETURNING id, name, industry, status, client_pic, wit_owner, contract_type, health, risk, notes, action_needed, ai_insight, created_at, updated_at, archived_at
 `
 
 type UpdateClientParams struct {
@@ -387,6 +420,7 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 		&i.AiInsight,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }

@@ -19,6 +19,7 @@ type Querier interface {
 	AddSprintBacklogItem(ctx context.Context, arg AddSprintBacklogItemParams) (SprintBacklogItem, error)
 	// --------------------------------------------------------- sprint_members ---
 	AddSprintMember(ctx context.Context, arg AddSprintMemberParams) (SprintMember, error)
+	ArchiveClient(ctx context.Context, id string) (int64, error)
 	ClearLoginFailures(ctx context.Context, id string) error
 	// Single-use and time-boxed, same conditional-UPDATE race guard as email
 	// verification: two submits of one link, only the first flips consumed_at.
@@ -136,6 +137,8 @@ type Querier interface {
 	ListActivityForTarget(ctx context.Context, arg ListActivityForTargetParams) ([]ActivityLog, error)
 	ListBacklogItemsByComponent(ctx context.Context, arg ListBacklogItemsByComponentParams) ([]BacklogItem, error)
 	ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error)
+	// Active clients by default; pass archived=true to list the archived ones (the
+	// restore screen). One query keeps the two views from drifting apart.
 	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)
 	ListComponentsByModule(ctx context.Context, arg ListComponentsByModuleParams) ([]Component, error)
 	ListDecisionsByModule(ctx context.Context, arg ListDecisionsByModuleParams) ([]Decision, error)
@@ -200,6 +203,7 @@ type Querier interface {
 	RecordFailedLogin(ctx context.Context, arg RecordFailedLoginParams) (RecordFailedLoginRow, error)
 	RemoveSprintBacklogItem(ctx context.Context, arg RemoveSprintBacklogItemParams) error
 	RemoveSprintMember(ctx context.Context, arg RemoveSprintMemberParams) error
+	RestoreClient(ctx context.Context, id string) (int64, error)
 	// The pointer may only name a sprint of this very module. A mismatch matches
 	// no row, which the handler reports as a 400 rather than silently storing it.
 	SetModuleCurrentSprint(ctx context.Context, arg SetModuleCurrentSprintParams) (Module, error)
