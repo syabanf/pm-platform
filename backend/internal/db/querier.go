@@ -193,10 +193,19 @@ type Querier interface {
 	LockSprintForUpdate(ctx context.Context, id string) (string, error)
 	MarkGeneratedReportSent(ctx context.Context, id string) (GeneratedReport, error)
 	MarkUserVerified(ctx context.Context, id string) (MarkUserVerifiedRow, error)
+	// One module's numbers without walking its sprints: what the module overview and
+	// the project drill-down recompute per row. Every column is table-qualified so
+	// the shared module_id is never ambiguous.
+	ModuleRollup(ctx context.Context, moduleID string) (ModuleRollupRow, error)
 	MoveTask(ctx context.Context, arg MoveTaskParams) (Task, error)
 	NextComponentPosition(ctx context.Context, moduleID string) (int32, error)
 	NextSprintBacklogPosition(ctx context.Context, sprintID string) (int32, error)
 	NextSprintNumber(ctx context.Context, moduleID string) (int32, error)
+	// Aggregate reads. The frontend recomputes these by pulling whole collections
+	// and counting in the browser — the dashboard alone fires a GET per sprint. One
+	// query each, computed where the data lives.
+	// The home dashboard in a single request: the counters it used to sum by hand.
+	PortfolioRollup(ctx context.Context) (PortfolioRollupRow, error)
 	// --------------------------------------------------------- login lockout ---
 	// Count one failure and, at the threshold, set the lock. The CASE keeps it one
 	// statement: no read-modify-write race between concurrent wrong guesses.

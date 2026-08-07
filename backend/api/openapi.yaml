@@ -99,6 +99,43 @@ security:
   - bearerAuth: []
 
 paths:
+  # ------------------------------------------------------------- rollups ---
+  /rollup/portfolio:
+    get:
+      tags: [rollups]
+      summary: Portfolio dashboard counters
+      description: |
+        The home dashboard in one request: counts the frontend used to sum by
+        pulling whole collections into the browser. Computed in the database.
+      operationId: portfolioRollup
+      responses:
+        '200':
+          description: The portfolio counters.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PortfolioRollup' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /modules/{moduleId}/rollup:
+    parameters:
+      - $ref: '#/components/parameters/ModuleId'
+    get:
+      tags: [rollups, modules]
+      summary: One module's counters
+      description: |
+        A module's numbers without walking its sprints — component and sprint
+        counts, committed and completed points, blocked tasks. Replaces the
+        per-sprint requests the module and project pages made to sum by hand.
+      operationId: moduleRollup
+      responses:
+        '200':
+          description: The module's counters.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModuleRollup' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   # ------------------------------------------------------------- clients ---
   /clients:
     get:
@@ -2763,6 +2800,28 @@ components:
       type: string
       enum: [pending, active, inactive, suspended]
       description: '`pending` until the address is verified; login refuses it.'
+    PortfolioRollup:
+      type: object
+      description: Portfolio-wide counters for the home dashboard.
+      properties:
+        activeClients: { type: integer }
+        projects: { type: integer }
+        modules: { type: integer }
+        atRiskModules: { type: integer, description: 'Modules whose risk is not low.' }
+        activeSprints: { type: integer }
+        blockedTasks: { type: integer }
+        reportsDue: { type: integer, description: 'Queued reports not yet done.' }
+    ModuleRollup:
+      type: object
+      description: One module's counters, summed in the database.
+      properties:
+        components: { type: integer }
+        sprints: { type: integer }
+        backlogItems: { type: integer }
+        activeSprints: { type: integer }
+        committedPoints: { type: integer }
+        completedPoints: { type: integer }
+        blockedTasks: { type: integer }
     Activity:
       type: object
       description: One audit-log entry — a change and who made it.
