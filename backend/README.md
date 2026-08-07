@@ -81,6 +81,11 @@ vouching for them, and with no mailer a pending account made that way could
 never sign in. Self-registration still starts `pending` until the address is
 proven.
 
+> **Rotate the bootstrap admin before production.** The migration seeds
+> `admin@wit.id` with a hash whose plaintext (`wit-admin-changeme`) is in this
+> repo. In production the process refuses to boot while that default is still
+> live; set `BOOTSTRAP_ADMIN_PASSWORD` once to rotate it, then unset it.
+
 ## E2E tests
 
 `backend/e2e` drives the real server over HTTP against a real Postgres.

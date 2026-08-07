@@ -81,6 +81,14 @@ func run() error {
 	}
 	log.Printf("connected to postgres")
 
+	// Rotate or refuse the committed default admin password before serving.
+	if err := ensureAdminPassword(poolCtx, pool, cfg); err != nil {
+		return err
+	}
+	if cfg.BootstrapAdminPassword != "" {
+		log.Printf("admin password: set from BOOTSTRAP_ADMIN_PASSWORD — unset it now")
+	}
+
 	// Say which of the three verification modes this process is in, so a broken
 	// registration flow is visible at boot rather than at the first sign-up.
 	switch {

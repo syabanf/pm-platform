@@ -45,6 +45,19 @@ func openAPIJSON() ([]byte, error) {
 // outside /api/v1: the documentation describes the API, it is not part of it.
 func registerDocsRoutes(e *echo.Echo) {
 	e.GET("/docs", func(c echo.Context) error {
+		// The one HTML route the service serves. Its script and style are inline
+		// and baked into the binary, and it fetches only its own /openapi.json —
+		// so lock everything else out. 'unsafe-inline' is scoped to this page's
+		// own static assets; no external origin, no eval, no framing.
+		c.Response().Header().Set("Content-Security-Policy",
+			"default-src 'none'; "+
+				"script-src 'unsafe-inline'; "+
+				"style-src 'unsafe-inline'; "+
+				"connect-src 'self'; "+
+				"img-src 'self' data:; "+
+				"base-uri 'none'; "+
+				"form-action 'none'; "+
+				"frame-ancestors 'none'")
 		return c.HTMLBlob(http.StatusOK, docsPage)
 	})
 

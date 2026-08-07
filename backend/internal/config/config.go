@@ -65,6 +65,15 @@ type Config struct {
 	// so a spoofed header rotates past the login brute-force bucket. Turn this
 	// on ONLY when a trusted proxy sits in front and sets the header itself.
 	TrustProxyHeaders bool
+
+	// BootstrapAdminPassword, when set, is written over the seeded admin's
+	// password at boot. The migration seeds a known hash whose plaintext
+	// ("wit-admin-changeme") is in the repo — fine for a demo, a live
+	// credential in production. Setting this rotates it without hand-run SQL;
+	// leaving it unset in production makes the process refuse to boot with the
+	// default still in place (see cmd/api). Env is the wrong place for a
+	// long-lived secret, so treat this as a one-shot: set it, boot once, unset.
+	BootstrapAdminPassword string
 }
 
 // Load reads configuration from the environment, applying sane defaults for
@@ -93,11 +102,12 @@ func Load() (Config, error) {
 
 		VerificationTokenInLog: getenv("VERIFICATION_TOKEN_IN_LOG", "") == "true",
 
-		SessionTTL:        getenvDuration("SESSION_TTL", 168*time.Hour),
-		RateLimitRPS:      float64(getenvInt("RATE_LIMIT_RPS", 50)),
-		RateLimitBurst:    getenvInt("RATE_LIMIT_BURST", 100),
-		LoginRatePerMin:   float64(getenvInt("LOGIN_RATE_PER_MIN", 5)),
-		TrustProxyHeaders: getenv("TRUST_PROXY_HEADERS", "") == "true",
+		SessionTTL:             getenvDuration("SESSION_TTL", 168*time.Hour),
+		RateLimitRPS:           float64(getenvInt("RATE_LIMIT_RPS", 50)),
+		RateLimitBurst:         getenvInt("RATE_LIMIT_BURST", 100),
+		LoginRatePerMin:        float64(getenvInt("LOGIN_RATE_PER_MIN", 5)),
+		TrustProxyHeaders:      getenv("TRUST_PROXY_HEADERS", "") == "true",
+		BootstrapAdminPassword: getenv("BOOTSTRAP_ADMIN_PASSWORD", ""),
 	}
 
 	if cfg.DatabaseURL == "" {
