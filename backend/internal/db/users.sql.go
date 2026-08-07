@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -32,6 +33,32 @@ func (q *Queries) ConsumeVerificationToken(ctx context.Context, tokenHash string
 	row := q.db.QueryRow(ctx, consumeVerificationToken, tokenHash)
 	var i ConsumeVerificationTokenRow
 	err := row.Scan(&i.TokenHash, &i.UserID)
+	return i, err
+}
+
+const createSession = `-- name: CreateSession :one
+
+INSERT INTO sessions (token_hash, user_id, expires_at)
+VALUES ($1, $2, $3)
+RETURNING token_hash, user_id, created_at, expires_at
+`
+
+type CreateSessionParams struct {
+	TokenHash string             `json:"tokenHash"`
+	UserID    string             `json:"userId"`
+	ExpiresAt pgtype.Timestamptz `json:"expiresAt"`
+}
+
+// --------------------------------------------------------------- sessions ---
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
+	row := q.db.QueryRow(ctx, createSession, arg.TokenHash, arg.UserID, arg.ExpiresAt)
+	var i Session
+	err := row.Scan(
+		&i.TokenHash,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+	)
 	return i, err
 }
 
@@ -123,6 +150,74 @@ func (q *Queries) CreateVerificationToken(ctx context.Context, arg CreateVerific
 		&i.ExpiresAt,
 		&i.ConsumedAt,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
+DELETE FROM sessions WHERE expires_at <= now()
+`
+
+func (q *Queries) DeleteExpiredSessions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredSessions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteSession = `-- name: DeleteSession :execrows
+DELETE FROM sessions WHERE token_hash = $1
+`
+
+func (q *Queries) DeleteSession(ctx context.Context, tokenHash string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSession, tokenHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getSessionUser = `-- name: GetSessionUser :one
+SELECT u.id   AS user_id,
+       u.email,
+       u.name,
+       u.role,
+       u.member_id,
+       r.permissions,
+       s.expires_at
+FROM sessions s
+JOIN users u ON u.id = s.user_id
+JOIN roles r ON r.id = u.role
+WHERE s.token_hash = $1
+  AND s.expires_at > now()
+`
+
+type GetSessionUserRow struct {
+	UserID      string             `json:"userId"`
+	Email       string             `json:"email"`
+	Name        string             `json:"name"`
+	Role        string             `json:"role"`
+	MemberID    *string            `json:"memberId"`
+	Permissions json.RawMessage    `json:"permissions"`
+	ExpiresAt   pgtype.Timestamptz `json:"expiresAt"`
+}
+
+// The middleware query: one indexed lookup resolves the bearer token to the
+// user and the permissions of their role. Expiry is checked here rather than
+// in Go so an expired session and a bogus token are indistinguishable.
+// password_hash is deliberately not selected (see TestPasswordHashNeverSerialised).
+func (q *Queries) GetSessionUser(ctx context.Context, tokenHash string) (GetSessionUserRow, error) {
+	row := q.db.QueryRow(ctx, getSessionUser, tokenHash)
+	var i GetSessionUserRow
+	err := row.Scan(
+		&i.UserID,
+		&i.Email,
+		&i.Name,
+		&i.Role,
+		&i.MemberID,
+		&i.Permissions,
+		&i.ExpiresAt,
 	)
 	return i, err
 }

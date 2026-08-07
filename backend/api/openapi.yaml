@@ -11,15 +11,10 @@ info:
 
     ## Naming
 
-    The URL vocabulary predates the UI's, and the two do not match. Read it as:
-
-    | URL / payload | The UI calls it |
-    | ------------- | --------------- |
-    | `module`     | **Component**      |
-    | `component`      | **Component**   |
-
-    The hierarchy is `client → project → module → component → sprint → task`,
-    which the UI presents as Client → Project → Component → Component → Sprint.
+    One vocabulary, everywhere: the URL words are the words on screen. The
+    hierarchy is `client → project → module → component → sprint → task` —
+    a **module** is a product or system built for the client, a **component**
+    is one functional part of it, and the component owns the sprints.
 
     ## Conventions
 
@@ -100,6 +95,11 @@ tags:
     description: |
       This document, and the page that renders it. Also at the root, because the
       description of the API is not part of the API.
+
+# Every operation requires a bearer session except the ones that exist to get
+# you one (the auth flow) and the health probes.
+security:
+  - bearerAuth: []
 
 paths:
   # ------------------------------------------------------------- clients ---
@@ -298,7 +298,7 @@ paths:
       tags: [modules]
       summary: List modules (UI "Components")
       description: Filter by `projectId` or `clientId`; without either, lists every module.
-      operationId: listProducts
+      operationId: listModules
       parameters:
         - name: projectId
           in: query
@@ -328,12 +328,12 @@ paths:
         `clientId` is **not accepted** — it is derived from the project, so a
         module can never be attributed to a client that does not own it.
         `currentSprintId` is not accepted either: a new module has no sprints.
-      operationId: createProduct
+      operationId: createModule
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ProductCreate' }
+            schema: { $ref: '#/components/schemas/ModuleCreate' }
       responses:
         '201':
           description: The created module.
@@ -350,11 +350,11 @@ paths:
 
   /modules/{moduleId}:
     parameters:
-      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/ModuleId'
     get:
       tags: [modules]
       summary: Get a module
-      operationId: getProduct
+      operationId: getModule
       responses:
         '200':
           description: The module.
@@ -373,7 +373,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ProductUpdate' }
+            schema: { $ref: '#/components/schemas/ModuleUpdate' }
       responses:
         '200':
           description: The updated module.
@@ -387,7 +387,7 @@ paths:
       tags: [modules]
       summary: Delete a module
       description: Cascades to its components, sprints, backlog, tasks, decisions and reports.
-      operationId: deleteProduct
+      operationId: deleteModule
       responses:
         '204': { description: Deleted. }
         '409': { $ref: '#/components/responses/Conflict' }
@@ -395,7 +395,7 @@ paths:
 
   /modules/{moduleId}/current-sprint:
     parameters:
-      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/ModuleId'
     patch:
       tags: [modules, sprints]
       summary: Point a module at its current sprint
@@ -407,7 +407,7 @@ paths:
         | `{"currentSprintId": "spr-..."}` | Sets the pointer. The sprint must belong to this module. |
         | `{"currentSprintId": null}` | Clears the pointer. |
         | `{}` | Nothing. Returns the module unchanged. |
-      operationId: setProductCurrentSprint
+      operationId: setModuleCurrentSprint
       requestBody:
         required: true
         content:
@@ -434,11 +434,11 @@ paths:
 
   /modules/{moduleId}/components:
     parameters:
-      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/ModuleId'
     get:
       tags: [components]
       summary: List a module's components
-      operationId: listModulesByProduct
+      operationId: listComponentsByModule
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
@@ -459,12 +459,12 @@ paths:
       description: |
         Omit `position` and the server appends it under a row lock, so a burst of
         concurrent creates lands on 0, 1, 2… rather than all on 0.
-      operationId: createModule
+      operationId: createComponent
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ModuleCreate' }
+            schema: { $ref: '#/components/schemas/ComponentCreate' }
       responses:
         '201':
           description: The created component.
@@ -478,11 +478,11 @@ paths:
   # ---------------------------------------------- components (UI "Components") ---
   /components/{componentId}:
     parameters:
-      - $ref: '#/components/parameters/ModuleId'
+      - $ref: '#/components/parameters/ComponentId'
     get:
       tags: [components]
       summary: Get a component
-      operationId: getModule
+      operationId: getComponent
       responses:
         '200':
           description: The component.
@@ -498,7 +498,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ModuleUpdate' }
+            schema: { $ref: '#/components/schemas/ComponentUpdate' }
       responses:
         '200':
           description: The updated component.
@@ -514,7 +514,7 @@ paths:
       description: |
         Sprints and backlog items of this component survive — their `componentId`
         is set to null. Only the component itself goes.
-      operationId: deleteModule
+      operationId: deleteComponent
       responses:
         '204': { description: Deleted. }
         '409': { $ref: '#/components/responses/Conflict' }
@@ -522,7 +522,7 @@ paths:
 
   /components/{componentId}/status:
     parameters:
-      - $ref: '#/components/parameters/ModuleId'
+      - $ref: '#/components/parameters/ComponentId'
     patch:
       tags: [components]
       summary: Set a component's status
@@ -535,7 +535,7 @@ paths:
               type: object
               required: [status]
               properties:
-                status: { $ref: '#/components/schemas/ModuleStatus' }
+                status: { $ref: '#/components/schemas/ComponentStatus' }
       responses:
         '200':
           description: The updated component.
@@ -548,13 +548,13 @@ paths:
 
   /components/{componentId}/sprints:
     parameters:
-      - $ref: '#/components/parameters/ModuleId'
+      - $ref: '#/components/parameters/ComponentId'
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Offset'
     get:
       tags: [components, sprints]
       summary: List a component's sprints
-      operationId: listSprintsByModule
+      operationId: listSprintsByComponent
       responses:
         '200':
           description: A page of sprints, newest number first.
@@ -569,13 +569,13 @@ paths:
 
   /components/{componentId}/backlog:
     parameters:
-      - $ref: '#/components/parameters/ModuleId'
+      - $ref: '#/components/parameters/ComponentId'
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Offset'
     get:
       tags: [components, backlog]
       summary: List a component's backlog items
-      operationId: listBacklogItemsByModule
+      operationId: listBacklogItemsByComponent
       responses:
         '200':
           description: A page of backlog items, newest first.
@@ -591,11 +591,11 @@ paths:
   # ------------------------------------------------------------- sprints ---
   /modules/{moduleId}/sprints:
     parameters:
-      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/ModuleId'
     get:
       tags: [sprints]
       summary: List a module's sprints
-      operationId: listSprintsByProduct
+      operationId: listSprintsByModule
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
@@ -815,11 +815,11 @@ paths:
   # ------------------------------------------------------------- backlog ---
   /modules/{moduleId}/backlog:
     parameters:
-      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/ModuleId'
     get:
       tags: [backlog]
       summary: List a module's backlog
-      operationId: listBacklogItemsByProduct
+      operationId: listBacklogItemsByModule
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
@@ -1168,11 +1168,11 @@ paths:
   # ----------------------------------------------------------- decisions ---
   /modules/{moduleId}/decisions:
     parameters:
-      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/ModuleId'
     get:
       tags: [decisions]
       summary: List a module's decision log
-      operationId: listDecisionsByProduct
+      operationId: listDecisionsByModule
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
@@ -1380,13 +1380,13 @@ paths:
 
   /modules/{moduleId}/generated-reports:
     parameters:
-      - $ref: '#/components/parameters/ProductId'
+      - $ref: '#/components/parameters/ModuleId'
       - $ref: '#/components/parameters/Limit'
       - $ref: '#/components/parameters/Offset'
     get:
       tags: [reports]
       summary: List a module's generated reports
-      operationId: listGeneratedReportsByProduct
+      operationId: listGeneratedReportsByModule
       responses:
         '200':
           description: A page of generated reports, most recent first.
@@ -1674,6 +1674,7 @@ paths:
         An address that is already registered gets the same `202` answer as a
         new one — this endpoint deliberately does not reveal who has an account.
       operationId: register
+      security: []
       requestBody:
         required: true
         content:
@@ -1713,6 +1714,7 @@ paths:
         Consuming is atomic, so two clicks on the same link cannot both succeed:
         the second gets `409`.
       operationId: verifyEmail
+      security: []
       requestBody:
         required: true
         content:
@@ -1755,6 +1757,7 @@ paths:
         Always answers `202`, whether the address is unknown, already verified,
         or genuinely pending — same reason as register.
       operationId: resendVerification
+      security: []
       requestBody:
         required: true
         content:
@@ -1779,11 +1782,15 @@ paths:
       tags: [auth]
       summary: Sign in
       description: |
-        Verifies the credentials and returns the account. There is no session or
-        token yet — remembering the result is the caller's job.
+        Verifies the credentials and returns a session token. Send it on every
+        later request as `Authorization: Bearer <token>`. Sessions last
+        `SESSION_TTL` (default 7 days) and the expiry is fixed at login — using
+        a session does not extend it.
 
-        An unknown email and a wrong password produce the same `401`.
+        An unknown email and a wrong password produce the same `401`, in the
+        same amount of time.
       operationId: login
+      security: []
       requestBody:
         required: true
         content:
@@ -1796,10 +1803,18 @@ paths:
                 password: { type: string }
       responses:
         '200':
-          description: Signed in.
+          description: Signed in. The token appears only in this response.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
+              schema:
+                type: object
+                required: [token, expiresAt, user]
+                properties:
+                  token:
+                    type: string
+                    description: Opaque bearer credential. Store it; it cannot be recovered.
+                  expiresAt: { type: string, format: date-time }
+                  user: { $ref: '#/components/schemas/User' }
         '401':
           description: Invalid email or password.
           content:
@@ -1812,6 +1827,20 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
         '413': { $ref: '#/components/responses/TooLarge' }
         '503': { $ref: '#/components/responses/Unavailable' }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Sign out
+      description: |
+        Revokes the presented session immediately — revocation is a row delete,
+        not a denylist. Idempotent: revoking an already-dead session is still a
+        signed-out caller, so both cases answer `204`.
+      operationId: logout
+      responses:
+        '204':
+          description: The session no longer exists.
+        '401': { $ref: '#/components/responses/Unauthorized' }
 
   # -------------------------------------------------------------- probes ---
   # These are mounted at the root, not under /api/v1, hence the server override.
@@ -1830,6 +1859,7 @@ paths:
         busiest but perfectly healthy — and the orchestrator answers by
         restarting it. Point `livenessProbe` here.
       operationId: livez
+      security: []
       responses:
         '200':
           description: The process is up.
@@ -1849,6 +1879,7 @@ paths:
         Pings the database with its own 500 ms deadline, so a busy pool answers
         "not ready" promptly instead of hanging. Point `readinessProbe` here.
       operationId: readyz
+      security: []
       responses:
         '200':
           description: Ready to serve.
@@ -1867,6 +1898,7 @@ paths:
       summary: Readiness (alias)
       description: An alias of `/readyz`, kept for existing probes. Prefer `/livez` or `/readyz`.
       operationId: healthz
+      security: []
       responses:
         '200':
           description: Ready to serve.
@@ -1927,6 +1959,17 @@ paths:
               schema: { type: object }
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        The `token` from `POST /auth/login`. Roles gate what a session may do:
+        every valid session can read (GET); writing needs a role whose
+        permissions grant `write` (lead) or `all` (admin); everything under
+        `/users` needs `all`, even reading — accounts grant authority, so the
+        list of them is admin territory.
+
   parameters:
     Limit:
       name: limit
@@ -1944,13 +1987,13 @@ components:
       schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
     ClientId:  { name: clientId,  in: path, required: true, schema: { type: string } }
     ProjectId: { name: projectId, in: path, required: true, schema: { type: string } }
-    ProductId:
+    ModuleId:
       name: moduleId
       in: path
       required: true
       description: 'A module id — the UI calls this a Component.'
       schema: { type: string }
-    ModuleId:
+    ComponentId:
       name: componentId
       in: path
       required: true
@@ -1967,6 +2010,16 @@ components:
       schema: { type: string, enum: ['true'] }
 
   responses:
+    Unauthorized:
+      description: No token, an invalid one, or an expired session. Sign in again.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: The session is valid but the role does not allow this action.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
     BadRequest:
       description: The request is malformed, or a value is out of range.
       content:
@@ -2012,8 +2065,8 @@ components:
     Health:            { type: string, enum: [healthy, warning, at-risk] }
     Risk:              { type: string, enum: [low, medium, high] }
     ProjectStatus:     { type: string, enum: [discovery, active, done, on-hold] }
-    ProductStatus:     { type: string, enum: [discovery, development, release, maintenance] }
-    ModuleStatus:      { type: string, enum: [planned, in-progress, done] }
+    ModuleStatus:     { type: string, enum: [discovery, development, release, maintenance] }
+    ComponentStatus:      { type: string, enum: [planned, in-progress, done] }
     SprintStatus:      { type: string, enum: [planning, active, review, done] }
     Readiness:         { type: string, enum: [ready, needs-clarification, draft] }
     BoardColumn:
@@ -2130,7 +2183,7 @@ components:
         goal: { type: string }
         owner: { type: string }
         deliveryLead: { type: string }
-        status: { $ref: '#/components/schemas/ProductStatus' }
+        status: { $ref: '#/components/schemas/ModuleStatus' }
         health: { type: integer, minimum: 0, maximum: 100 }
         risk: { $ref: '#/components/schemas/Risk' }
         velocity: { type: integer, minimum: 0 }
@@ -2139,7 +2192,7 @@ components:
         aiInsight: { $ref: '#/components/schemas/Json' }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
-    ProductCreate:
+    ModuleCreate:
       type: object
       required: [projectId, name]
       description: '`clientId` and `currentSprintId` are not accepted here.'
@@ -2150,13 +2203,13 @@ components:
         goal: { type: string }
         owner: { type: string }
         deliveryLead: { type: string }
-        status: { $ref: '#/components/schemas/ProductStatus' }
+        status: { $ref: '#/components/schemas/ModuleStatus' }
         health: { type: integer, minimum: 0, maximum: 100, default: 100 }
         risk: { $ref: '#/components/schemas/Risk' }
         velocity: { type: integer, minimum: 0 }
         blockedCount: { type: integer, minimum: 0 }
         aiInsight: { $ref: '#/components/schemas/Json' }
-    ProductUpdate:
+    ModuleUpdate:
       type: object
       description: '`clientId` is not accepted; change `projectId` to move the module.'
       properties:
@@ -2165,7 +2218,7 @@ components:
         goal: { type: string }
         owner: { type: string }
         deliveryLead: { type: string }
-        status: { $ref: '#/components/schemas/ProductStatus' }
+        status: { $ref: '#/components/schemas/ModuleStatus' }
         health: { type: integer, minimum: 0, maximum: 100 }
         risk: { $ref: '#/components/schemas/Risk' }
         velocity: { type: integer, minimum: 0 }
@@ -2180,25 +2233,25 @@ components:
         moduleId: { type: string }
         name: { type: string }
         owner: { type: string }
-        status: { $ref: '#/components/schemas/ModuleStatus' }
+        status: { $ref: '#/components/schemas/ComponentStatus' }
         position: { type: integer, minimum: 0 }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
-    ModuleCreate:
+    ComponentCreate:
       type: object
       required: [name]
       properties:
         id: { type: string }
         name: { type: string }
         owner: { type: string, default: Unassigned }
-        status: { $ref: '#/components/schemas/ModuleStatus' }
+        status: { $ref: '#/components/schemas/ComponentStatus' }
         position: { type: integer, minimum: 0, description: Omit to append. }
-    ModuleUpdate:
+    ComponentUpdate:
       type: object
       properties:
         name: { type: string }
         owner: { type: string }
-        status: { $ref: '#/components/schemas/ModuleStatus' }
+        status: { $ref: '#/components/schemas/ComponentStatus' }
         position: { type: integer, minimum: 0 }
 
     # ----------------------------------------------------------- sprints ---

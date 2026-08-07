@@ -100,9 +100,9 @@ type updateBacklogItemRequest struct {
 // registerSprintRoutes mounts sprints, sprint membership, the sprint backlog
 // and the module backlog.
 func (s *Server) registerSprintRoutes(g *echo.Group) {
-	g.GET("/modules/:moduleId/sprints", s.listSprintsByProduct)
+	g.GET("/modules/:moduleId/sprints", s.listSprintsByModule)
 	g.POST("/modules/:moduleId/sprints", s.createSprint)
-	g.GET("/components/:componentId/sprints", s.listSprintsByModule)
+	g.GET("/components/:componentId/sprints", s.listSprintsByComponent)
 
 	g.GET("/sprints/:sprintId", s.getSprint)
 	g.PATCH("/sprints/:sprintId", s.updateSprint)
@@ -116,9 +116,9 @@ func (s *Server) registerSprintRoutes(g *echo.Group) {
 	g.PUT("/sprints/:sprintId/backlog/:itemId", s.addSprintBacklogItem)
 	g.DELETE("/sprints/:sprintId/backlog/:itemId", s.removeSprintBacklogItem)
 
-	g.GET("/modules/:moduleId/backlog", s.listBacklogItemsByProduct)
+	g.GET("/modules/:moduleId/backlog", s.listBacklogItemsByModule)
 	g.POST("/modules/:moduleId/backlog", s.createBacklogItem)
-	g.GET("/components/:componentId/backlog", s.listBacklogItemsByModule)
+	g.GET("/components/:componentId/backlog", s.listBacklogItemsByComponent)
 
 	g.GET("/backlog/:itemId", s.getBacklogItem)
 	g.PATCH("/backlog/:itemId", s.updateBacklogItem)
@@ -127,7 +127,7 @@ func (s *Server) registerSprintRoutes(g *echo.Group) {
 
 // -------------------------------------------------------------- sprints ---
 
-func (s *Server) listSprintsByProduct(c echo.Context) error {
+func (s *Server) listSprintsByModule(c echo.Context) error {
 	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func (s *Server) listSprintsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListSprintsByProduct(c.Request().Context(), db.ListSprintsByProductParams{
+	rows, err := s.q.ListSprintsByModule(c.Request().Context(), db.ListSprintsByModuleParams{
 		ModuleID: moduleID,
 		Lim:      limit + 1,
 		Off:      offset,
@@ -147,7 +147,7 @@ func (s *Server) listSprintsByProduct(c echo.Context) error {
 	return paged(c, rows, limit)
 }
 
-func (s *Server) listSprintsByModule(c echo.Context) error {
+func (s *Server) listSprintsByComponent(c echo.Context) error {
 	componentID, err := param(c, "componentId")
 	if err != nil {
 		return err
@@ -156,7 +156,7 @@ func (s *Server) listSprintsByModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListSprintsByModule(c.Request().Context(), db.ListSprintsByModuleParams{
+	rows, err := s.q.ListSprintsByComponent(c.Request().Context(), db.ListSprintsByComponentParams{
 		ComponentID: ptr(componentID),
 		Lim:         limit + 1,
 		Off:         offset,
@@ -337,7 +337,23 @@ func (s *Server) deleteSprint(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.q.DeleteSprint(c.Request().Context(), id); err != nil {
+	ctx := c.Request().Context()
+	// The FK modules.current_sprint_id ON DELETE SET NULL updates the module
+	// row as a side effect of this delete. Every other writer locks module →
+	// sprint; deleting without the module lock is the other order, and that
+	// AB-BA cycle deadlocked 15.5% of overlapping module deletes before they
+	// learned the same lesson. Same fix here: lock the owner first.
+	err = s.deleteTx(ctx, func(q *db.Queries) error {
+		sprint, err := q.GetSprint(ctx, id)
+		if err != nil {
+			return err
+		}
+		if _, err := q.LockModuleForUpdate(ctx, sprint.ModuleID); err != nil {
+			return err
+		}
+		return q.DeleteSprint(ctx, id)
+	})
+	if err != nil {
 		return dbErr(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -521,7 +537,7 @@ func (s *Server) removeSprintBacklogItem(c echo.Context) error {
 
 // -------------------------------------------------------- backlog items ---
 
-func (s *Server) listBacklogItemsByProduct(c echo.Context) error {
+func (s *Server) listBacklogItemsByModule(c echo.Context) error {
 	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -530,7 +546,7 @@ func (s *Server) listBacklogItemsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListBacklogItemsByProduct(c.Request().Context(), db.ListBacklogItemsByProductParams{
+	rows, err := s.q.ListBacklogItemsByModule(c.Request().Context(), db.ListBacklogItemsByModuleParams{
 		ModuleID: moduleID,
 		Lim:      limit + 1,
 		Off:      offset,
@@ -541,7 +557,7 @@ func (s *Server) listBacklogItemsByProduct(c echo.Context) error {
 	return paged(c, rows, limit)
 }
 
-func (s *Server) listBacklogItemsByModule(c echo.Context) error {
+func (s *Server) listBacklogItemsByComponent(c echo.Context) error {
 	componentID, err := param(c, "componentId")
 	if err != nil {
 		return err
@@ -550,7 +566,7 @@ func (s *Server) listBacklogItemsByModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListBacklogItemsByModule(c.Request().Context(), db.ListBacklogItemsByModuleParams{
+	rows, err := s.q.ListBacklogItemsByComponent(c.Request().Context(), db.ListBacklogItemsByComponentParams{
 		ComponentID: ptr(componentID),
 		Lim:         limit + 1,
 		Off:         offset,

@@ -535,21 +535,21 @@ func (q *Queries) GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, e
 	return i, err
 }
 
-const listDecisionsByProduct = `-- name: ListDecisionsByProduct :many
+const listDecisionsByModule = `-- name: ListDecisionsByModule :many
 SELECT id, module_id, decided_on, title, detail, owner, status, created_at, updated_at FROM decisions
 WHERE module_id = $1
 ORDER BY decided_on DESC, id
 LIMIT $3 OFFSET $2
 `
 
-type ListDecisionsByProductParams struct {
+type ListDecisionsByModuleParams struct {
 	ModuleID string `json:"moduleId"`
 	Off      int32  `json:"off"`
 	Lim      int32  `json:"lim"`
 }
 
-func (q *Queries) ListDecisionsByProduct(ctx context.Context, arg ListDecisionsByProductParams) ([]Decision, error) {
-	rows, err := q.db.Query(ctx, listDecisionsByProduct, arg.ModuleID, arg.Off, arg.Lim)
+func (q *Queries) ListDecisionsByModule(ctx context.Context, arg ListDecisionsByModuleParams) ([]Decision, error) {
+	rows, err := q.db.Query(ctx, listDecisionsByModule, arg.ModuleID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -578,21 +578,21 @@ func (q *Queries) ListDecisionsByProduct(ctx context.Context, arg ListDecisionsB
 	return items, nil
 }
 
-const listGeneratedReportsByProduct = `-- name: ListGeneratedReportsByProduct :many
+const listGeneratedReportsByModule = `-- name: ListGeneratedReportsByModule :many
 SELECT id, module_id, sprint_id, type, template, period, generated_on, status, created_at, updated_at FROM generated_reports
 WHERE module_id = $1
 ORDER BY generated_on DESC, id
 LIMIT $3 OFFSET $2
 `
 
-type ListGeneratedReportsByProductParams struct {
+type ListGeneratedReportsByModuleParams struct {
 	ModuleID string `json:"moduleId"`
 	Off      int32  `json:"off"`
 	Lim      int32  `json:"lim"`
 }
 
-func (q *Queries) ListGeneratedReportsByProduct(ctx context.Context, arg ListGeneratedReportsByProductParams) ([]GeneratedReport, error) {
-	rows, err := q.db.Query(ctx, listGeneratedReportsByProduct, arg.ModuleID, arg.Off, arg.Lim)
+func (q *Queries) ListGeneratedReportsByModule(ctx context.Context, arg ListGeneratedReportsByModuleParams) ([]GeneratedReport, error) {
+	rows, err := q.db.Query(ctx, listGeneratedReportsByModule, arg.ModuleID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -846,47 +846,6 @@ func (q *Queries) ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]Tas
 			&i.Position,
 			&i.Label,
 			&i.Done,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listTasksByBacklogItem = `-- name: ListTasksByBacklogItem :many
-SELECT id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
-WHERE backlog_item_id = $1
-ORDER BY created_at, id
-`
-
-func (q *Queries) ListTasksByBacklogItem(ctx context.Context, backlogItemID string) ([]Task, error) {
-	rows, err := q.db.Query(ctx, listTasksByBacklogItem, backlogItemID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Task{}
-	for rows.Next() {
-		var i Task
-		if err := rows.Scan(
-			&i.ID,
-			&i.SprintID,
-			&i.BacklogItemID,
-			&i.Title,
-			&i.ComponentName,
-			&i.AssigneeID,
-			&i.Estimate,
-			&i.BoardColumn,
-			&i.Priority,
-			&i.BlockedReason,
-			&i.BlockedDays,
-			&i.OffGoal,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

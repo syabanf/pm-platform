@@ -27,6 +27,12 @@ type Querier interface {
 	CreateBacklogItem(ctx context.Context, arg CreateBacklogItemParams) (BacklogItem, error)
 	// ---------------------------------------------------------------- clients ---
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
+	// ============================================================================
+	// components (UI "Component")
+	// ============================================================================
+	// position is chosen by the caller or computed under a row lock; see
+	// LockModuleForUpdate for why it cannot be computed inline.
+	CreateComponent(ctx context.Context, arg CreateComponentParams) (Component, error)
 	// -------------------------------------------------------------- decisions ---
 	CreateDecision(ctx context.Context, arg CreateDecisionParams) (Decision, error)
 	// ------------------------------------------------------ generated_reports ---
@@ -37,12 +43,6 @@ type Querier interface {
 	// ---------------------------------------------------------------- members ---
 	CreateMember(ctx context.Context, arg CreateMemberParams) (Member, error)
 	// ============================================================================
-	// components (UI "Component")
-	// ============================================================================
-	// position is chosen by the caller or computed under a row lock; see
-	// LockModuleForUpdate for why it cannot be computed inline.
-	CreateModule(ctx context.Context, arg CreateModuleParams) (Component, error)
-	// ============================================================================
 	// modules (UI "Component")
 	// ============================================================================
 	// client_id is denormalised, so it is derived from the project rather than
@@ -51,10 +51,12 @@ type Querier interface {
 	// No matching project means no row, which the handler turns into a 400.
 	// current_sprint_id is not settable here: a new module has no sprints, so any
 	// value would point at another module's.
-	CreateProduct(ctx context.Context, arg CreateProductParams) (Module, error)
+	CreateModule(ctx context.Context, arg CreateModuleParams) (Module, error)
 	// --------------------------------------------------------------- projects ---
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
 	CreateReportQueueItem(ctx context.Context, arg CreateReportQueueItemParams) (ReportQueue, error)
+	// --------------------------------------------------------------- sessions ---
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateSprint(ctx context.Context, arg CreateSprintParams) (Sprint, error)
 	// ------------------------------------------------------------------ tasks ---
 	// The JOIN keeps a task inside its own module: the backlog item it implements
@@ -72,14 +74,16 @@ type Querier interface {
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) (EmailVerificationToken, error)
 	DeleteBacklogItem(ctx context.Context, id string) error
 	DeleteClient(ctx context.Context, id string) error
+	DeleteComponent(ctx context.Context, id string) error
 	DeleteDecision(ctx context.Context, id string) error
+	DeleteExpiredSessions(ctx context.Context) (int64, error)
 	DeleteMasterValue(ctx context.Context, arg DeleteMasterValueParams) error
 	DeleteMember(ctx context.Context, id string) error
 	DeleteModule(ctx context.Context, id string) error
-	DeleteProduct(ctx context.Context, id string) error
 	DeleteProject(ctx context.Context, id string) error
 	DeleteReportQueueItem(ctx context.Context, id string) error
 	DeleteReportTemplate(ctx context.Context, id string) error
+	DeleteSession(ctx context.Context, tokenHash string) (int64, error)
 	DeleteSprint(ctx context.Context, id string) error
 	DeleteTask(ctx context.Context, id string) error
 	DeleteTaskDod(ctx context.Context, taskID string) error
@@ -90,6 +94,11 @@ type Querier interface {
 	GetMember(ctx context.Context, id string) (Member, error)
 	GetModule(ctx context.Context, id string) (Module, error)
 	GetProject(ctx context.Context, id string) (Project, error)
+	// The middleware query: one indexed lookup resolves the bearer token to the
+	// user and the permissions of their role. Expiry is checked here rather than
+	// in Go so an expired session and a bogus token are indistinguishable.
+	// password_hash is deliberately not selected (see TestPasswordHashNeverSerialised).
+	GetSessionUser(ctx context.Context, tokenHash string) (GetSessionUserRow, error)
 	GetSprint(ctx context.Context, id string) (Sprint, error)
 	GetTask(ctx context.Context, id string) (Task, error)
 	GetUser(ctx context.Context, id string) (GetUserRow, error)
@@ -102,18 +111,18 @@ type Querier interface {
 	GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, error)
 	// Called before issuing a new link, so an earlier mail cannot still be used.
 	InvalidateUserVerificationTokens(ctx context.Context, userID string) error
+	ListBacklogItemsByComponent(ctx context.Context, arg ListBacklogItemsByComponentParams) ([]BacklogItem, error)
 	ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error)
-	ListBacklogItemsByProduct(ctx context.Context, arg ListBacklogItemsByProductParams) ([]BacklogItem, error)
 	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)
-	ListDecisionsByProduct(ctx context.Context, arg ListDecisionsByProductParams) ([]Decision, error)
-	ListGeneratedReportsByProduct(ctx context.Context, arg ListGeneratedReportsByProductParams) ([]GeneratedReport, error)
+	ListComponentsByModule(ctx context.Context, arg ListComponentsByModuleParams) ([]Component, error)
+	ListDecisionsByModule(ctx context.Context, arg ListDecisionsByModuleParams) ([]Decision, error)
+	ListGeneratedReportsByModule(ctx context.Context, arg ListGeneratedReportsByModuleParams) ([]GeneratedReport, error)
 	// ----------------------------------------------------------- master_lists ---
 	ListMasterValues(ctx context.Context, arg ListMasterValuesParams) ([]MasterList, error)
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]Member, error)
-	ListModulesByProduct(ctx context.Context, arg ListModulesByProductParams) ([]Component, error)
-	ListProducts(ctx context.Context, arg ListProductsParams) ([]Module, error)
-	ListProductsByClient(ctx context.Context, arg ListProductsByClientParams) ([]Module, error)
-	ListProductsByProject(ctx context.Context, arg ListProductsByProjectParams) ([]Module, error)
+	ListModules(ctx context.Context, arg ListModulesParams) ([]Module, error)
+	ListModulesByClient(ctx context.Context, arg ListModulesByClientParams) ([]Module, error)
+	ListModulesByProject(ctx context.Context, arg ListModulesByProjectParams) ([]Module, error)
 	ListProjects(ctx context.Context, arg ListProjectsParams) ([]Project, error)
 	ListProjectsByClient(ctx context.Context, arg ListProjectsByClientParams) ([]Project, error)
 	// ----------------------------------------------------------- report_queue ---
@@ -126,12 +135,11 @@ type Querier interface {
 	ListSprintMembers(ctx context.Context, arg ListSprintMembersParams) ([]ListSprintMembersRow, error)
 	// number is only unique per module, so it cannot order a cross-module list
 	// on its own.
-	ListSprintsByModule(ctx context.Context, arg ListSprintsByModuleParams) ([]Sprint, error)
+	ListSprintsByComponent(ctx context.Context, arg ListSprintsByComponentParams) ([]Sprint, error)
 	// No id tiebreaker: UNIQUE (module_id, number) already makes this a total
 	// order, and adding one costs the index-scan-backward plan.
-	ListSprintsByProduct(ctx context.Context, arg ListSprintsByProductParams) ([]Sprint, error)
+	ListSprintsByModule(ctx context.Context, arg ListSprintsByModuleParams) ([]Sprint, error)
 	ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]TaskDod, error)
-	ListTasksByBacklogItem(ctx context.Context, backlogItemID string) ([]Task, error)
 	ListTasksBySprint(ctx context.Context, arg ListTasksBySprintParams) ([]Task, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
 	// Taken before the sprint lock so the ordering matches the cascade's:
@@ -157,14 +165,14 @@ type Querier interface {
 	MarkGeneratedReportSent(ctx context.Context, id string) (GeneratedReport, error)
 	MarkUserVerified(ctx context.Context, id string) (MarkUserVerifiedRow, error)
 	MoveTask(ctx context.Context, arg MoveTaskParams) (Task, error)
-	NextModulePosition(ctx context.Context, moduleID string) (int32, error)
+	NextComponentPosition(ctx context.Context, moduleID string) (int32, error)
 	NextSprintBacklogPosition(ctx context.Context, sprintID string) (int32, error)
 	NextSprintNumber(ctx context.Context, moduleID string) (int32, error)
 	RemoveSprintBacklogItem(ctx context.Context, arg RemoveSprintBacklogItemParams) error
 	RemoveSprintMember(ctx context.Context, arg RemoveSprintMemberParams) error
 	// The pointer may only name a sprint of this very module. A mismatch matches
 	// no row, which the handler reports as a 400 rather than silently storing it.
-	SetProductCurrentSprint(ctx context.Context, arg SetProductCurrentSprintParams) (Module, error)
+	SetModuleCurrentSprint(ctx context.Context, arg SetModuleCurrentSprintParams) (Module, error)
 	// set_config, not SET LOCAL: the latter cannot take a parameter. `true` scopes
 	// it to the surrounding transaction.
 	SetStatementTimeout(ctx context.Context, ms string) error
@@ -177,12 +185,12 @@ type Querier interface {
 	// named is never rewritten. Two concurrent PATCHes of different fields both
 	// land instead of the second silently reverting the first.
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
+	UpdateComponent(ctx context.Context, arg UpdateComponentParams) (Component, error)
+	UpdateComponentStatus(ctx context.Context, arg UpdateComponentStatusParams) (Component, error)
 	// Partial update (see UpdateClient).
 	UpdateDecision(ctx context.Context, arg UpdateDecisionParams) (Decision, error)
 	// Partial update (see UpdateClient).
 	UpdateMember(ctx context.Context, arg UpdateMemberParams) (Member, error)
-	UpdateModule(ctx context.Context, arg UpdateModuleParams) (Component, error)
-	UpdateModuleStatus(ctx context.Context, arg UpdateModuleStatusParams) (Component, error)
 	// Partial update (see UpdateClient). client_id is never taken from the caller —
 	// it always follows whichever project the row ends up on.
 	// client_id is only recomputed when the module actually moves. Recomputing it
@@ -190,7 +198,7 @@ type Querier interface {
 	// read the pre-move snapshot while the row itself was re-read after the move,
 	// and the composite foreign key rejected the mismatched pair — failing a PATCH
 	// that never mentioned projectId.
-	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Module, error)
+	UpdateModule(ctx context.Context, arg UpdateModuleParams) (Module, error)
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error)
 	UpdateReportQueueStatus(ctx context.Context, arg UpdateReportQueueStatusParams) (ReportQueue, error)
 	// Partial update (see UpdateClient).

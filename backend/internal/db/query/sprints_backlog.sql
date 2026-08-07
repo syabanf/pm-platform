@@ -58,7 +58,7 @@ RETURNING *;
 SELECT * FROM sprints
 WHERE id = $1;
 
--- name: ListSprintsByProduct :many
+-- name: ListSprintsByModule :many
 -- No id tiebreaker: UNIQUE (module_id, number) already makes this a total
 -- order, and adding one costs the index-scan-backward plan.
 SELECT * FROM sprints
@@ -66,7 +66,7 @@ WHERE module_id = sqlc.arg('module_id')
 ORDER BY number DESC
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
--- name: ListSprintsByModule :many
+-- name: ListSprintsByComponent :many
 -- number is only unique per module, so it cannot order a cross-module list
 -- on its own.
 SELECT * FROM sprints
@@ -217,13 +217,13 @@ RETURNING *;
 SELECT * FROM backlog_items
 WHERE id = $1;
 
--- name: ListBacklogItemsByProduct :many
+-- name: ListBacklogItemsByModule :many
 SELECT * FROM backlog_items
 WHERE module_id = sqlc.arg('module_id')
 ORDER BY created_at DESC, id ASC
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
--- name: ListBacklogItemsByModule :many
+-- name: ListBacklogItemsByComponent :many
 SELECT * FROM backlog_items
 WHERE component_id = sqlc.narg('component_id')
 ORDER BY created_at DESC, id ASC

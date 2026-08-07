@@ -76,3 +76,34 @@ RETURNING id, email, name, role, member_id, status, email_verified_at;
 UPDATE email_verification_tokens
 SET consumed_at = now()
 WHERE user_id = sqlc.arg('user_id') AND consumed_at IS NULL;
+
+-- --------------------------------------------------------------- sessions ---
+
+-- name: CreateSession :one
+INSERT INTO sessions (token_hash, user_id, expires_at)
+VALUES (sqlc.arg('token_hash'), sqlc.arg('user_id'), sqlc.arg('expires_at'))
+RETURNING token_hash, user_id, created_at, expires_at;
+
+-- name: GetSessionUser :one
+-- The middleware query: one indexed lookup resolves the bearer token to the
+-- user and the permissions of their role. Expiry is checked here rather than
+-- in Go so an expired session and a bogus token are indistinguishable.
+-- password_hash is deliberately not selected (see TestPasswordHashNeverSerialised).
+SELECT u.id   AS user_id,
+       u.email,
+       u.name,
+       u.role,
+       u.member_id,
+       r.permissions,
+       s.expires_at
+FROM sessions s
+JOIN users u ON u.id = s.user_id
+JOIN roles r ON r.id = u.role
+WHERE s.token_hash = sqlc.arg('token_hash')
+  AND s.expires_at > now();
+
+-- name: DeleteSession :execrows
+DELETE FROM sessions WHERE token_hash = sqlc.arg('token_hash');
+
+-- name: DeleteExpiredSessions :execrows
+DELETE FROM sessions WHERE expires_at <= now();

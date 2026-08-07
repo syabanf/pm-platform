@@ -317,21 +317,21 @@ func (q *Queries) GetSprint(ctx context.Context, id string) (Sprint, error) {
 	return i, err
 }
 
-const listBacklogItemsByModule = `-- name: ListBacklogItemsByModule :many
+const listBacklogItemsByComponent = `-- name: ListBacklogItemsByComponent :many
 SELECT id, module_id, component_id, title, story, acceptance_criteria, type, priority, readiness, estimate, ai_suggestions, created_at, updated_at FROM backlog_items
 WHERE component_id = $1
 ORDER BY created_at DESC, id ASC
 LIMIT $3 OFFSET $2
 `
 
-type ListBacklogItemsByModuleParams struct {
+type ListBacklogItemsByComponentParams struct {
 	ComponentID *string `json:"componentId"`
 	Off         int32   `json:"off"`
 	Lim         int32   `json:"lim"`
 }
 
-func (q *Queries) ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error) {
-	rows, err := q.db.Query(ctx, listBacklogItemsByModule, arg.ComponentID, arg.Off, arg.Lim)
+func (q *Queries) ListBacklogItemsByComponent(ctx context.Context, arg ListBacklogItemsByComponentParams) ([]BacklogItem, error) {
+	rows, err := q.db.Query(ctx, listBacklogItemsByComponent, arg.ComponentID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -364,21 +364,21 @@ func (q *Queries) ListBacklogItemsByModule(ctx context.Context, arg ListBacklogI
 	return items, nil
 }
 
-const listBacklogItemsByProduct = `-- name: ListBacklogItemsByProduct :many
+const listBacklogItemsByModule = `-- name: ListBacklogItemsByModule :many
 SELECT id, module_id, component_id, title, story, acceptance_criteria, type, priority, readiness, estimate, ai_suggestions, created_at, updated_at FROM backlog_items
 WHERE module_id = $1
 ORDER BY created_at DESC, id ASC
 LIMIT $3 OFFSET $2
 `
 
-type ListBacklogItemsByProductParams struct {
+type ListBacklogItemsByModuleParams struct {
 	ModuleID string `json:"moduleId"`
 	Off      int32  `json:"off"`
 	Lim      int32  `json:"lim"`
 }
 
-func (q *Queries) ListBacklogItemsByProduct(ctx context.Context, arg ListBacklogItemsByProductParams) ([]BacklogItem, error) {
-	rows, err := q.db.Query(ctx, listBacklogItemsByProduct, arg.ModuleID, arg.Off, arg.Lim)
+func (q *Queries) ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error) {
+	rows, err := q.db.Query(ctx, listBacklogItemsByModule, arg.ModuleID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -550,14 +550,14 @@ func (q *Queries) ListSprintMembers(ctx context.Context, arg ListSprintMembersPa
 	return items, nil
 }
 
-const listSprintsByModule = `-- name: ListSprintsByModule :many
+const listSprintsByComponent = `-- name: ListSprintsByComponent :many
 SELECT id, module_id, component_id, number, name, goal, start_date, end_date, working_days, days_left, status, committed, completed, progress, risk, created_at, updated_at FROM sprints
 WHERE component_id = $1
 ORDER BY number DESC, id
 LIMIT $3 OFFSET $2
 `
 
-type ListSprintsByModuleParams struct {
+type ListSprintsByComponentParams struct {
 	ComponentID *string `json:"componentId"`
 	Off         int32   `json:"off"`
 	Lim         int32   `json:"lim"`
@@ -565,8 +565,8 @@ type ListSprintsByModuleParams struct {
 
 // number is only unique per module, so it cannot order a cross-module list
 // on its own.
-func (q *Queries) ListSprintsByModule(ctx context.Context, arg ListSprintsByModuleParams) ([]Sprint, error) {
-	rows, err := q.db.Query(ctx, listSprintsByModule, arg.ComponentID, arg.Off, arg.Lim)
+func (q *Queries) ListSprintsByComponent(ctx context.Context, arg ListSprintsByComponentParams) ([]Sprint, error) {
+	rows, err := q.db.Query(ctx, listSprintsByComponent, arg.ComponentID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -603,14 +603,14 @@ func (q *Queries) ListSprintsByModule(ctx context.Context, arg ListSprintsByModu
 	return items, nil
 }
 
-const listSprintsByProduct = `-- name: ListSprintsByProduct :many
+const listSprintsByModule = `-- name: ListSprintsByModule :many
 SELECT id, module_id, component_id, number, name, goal, start_date, end_date, working_days, days_left, status, committed, completed, progress, risk, created_at, updated_at FROM sprints
 WHERE module_id = $1
 ORDER BY number DESC
 LIMIT $3 OFFSET $2
 `
 
-type ListSprintsByProductParams struct {
+type ListSprintsByModuleParams struct {
 	ModuleID string `json:"moduleId"`
 	Off      int32  `json:"off"`
 	Lim      int32  `json:"lim"`
@@ -618,8 +618,8 @@ type ListSprintsByProductParams struct {
 
 // No id tiebreaker: UNIQUE (module_id, number) already makes this a total
 // order, and adding one costs the index-scan-backward plan.
-func (q *Queries) ListSprintsByProduct(ctx context.Context, arg ListSprintsByProductParams) ([]Sprint, error) {
-	rows, err := q.db.Query(ctx, listSprintsByProduct, arg.ModuleID, arg.Off, arg.Lim)
+func (q *Queries) ListSprintsByModule(ctx context.Context, arg ListSprintsByModuleParams) ([]Sprint, error) {
+	rows, err := q.db.Query(ctx, listSprintsByModule, arg.ModuleID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}

@@ -167,6 +167,13 @@ type Role struct {
 	Permissions json.RawMessage `json:"permissions"`
 }
 
+type Session struct {
+	TokenHash string             `json:"tokenHash"`
+	UserID    string             `json:"userId"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+	ExpiresAt pgtype.Timestamptz `json:"expiresAt"`
+}
+
 type Sprint struct {
 	ID          string             `json:"id"`
 	ModuleID    string             `json:"moduleId"`

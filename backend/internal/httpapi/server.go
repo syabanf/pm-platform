@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/time/rate"
 
 	"github.com/syabanf/pm-platform/backend/internal/config"
 	"github.com/syabanf/pm-platform/backend/internal/db"
@@ -43,6 +44,25 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool) *echo.Echo {
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Logger())
+	// The API speaks JSON, but /docs is HTML and error pages can be coerced
+	// into rendering — nosniff and DENY close both routes to mischief. HSTS
+	// only in production: locally it would pin the browser to a TLS localhost
+	// that does not exist.
+	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
+		ContentTypeNosniff: "nosniff",
+		XFrameOptions:      "DENY",
+		HSTSMaxAge:         hstsMaxAge(cfg),
+		ReferrerPolicy:     "no-referrer",
+	}))
+	// One bucket per client IP across the whole API. Sized for a person with a
+	// busy dashboard, not for a scraper; 429 with Retry-After past that.
+	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+			Rate:      rate.Limit(cfg.RateLimitRPS),
+			Burst:     cfg.RateLimitBurst,
+			ExpiresIn: 3 * time.Minute,
+		}),
+	}))
 	// Without a ceiling a single request can persist an arbitrarily large row
 	// that every later list request then has to serialise again.
 	e.Use(middleware.BodyLimit(cfg.MaxBodySize))
@@ -63,10 +83,20 @@ func NewServer(cfg config.Config, pool *pgxpool.Pool) *echo.Echo {
 	// it describes, so they cannot disagree about which version is running.
 	registerDocsRoutes(e)
 
-	api := e.Group("/api/v1")
+	// Everything under /api/v1 authenticates except the handful of ops that
+	// exist to get you a session in the first place (see publicOps).
+	api := e.Group("/api/v1", s.requireAuth())
 	s.routes(api)
 
 	return e
+}
+
+// hstsMaxAge turns HSTS on only where TLS is real.
+func hstsMaxAge(cfg config.Config) int {
+	if cfg.Env == "production" {
+		return 31536000 // a year, the conventional floor for preload lists
+	}
+	return 0
 }
 
 // requestTimeout bounds a request end to end. It replaces the request context,

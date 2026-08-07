@@ -13,23 +13,42 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 
+	"github.com/syabanf/pm-platform/backend/internal/config"
 	"github.com/syabanf/pm-platform/backend/internal/db"
 )
 
-// registerUserRoutes mounts the accounts and the one auth primitive the service
-// has: verify an email and password. There are no sessions or tokens yet —
-// login confirms the credentials and returns the account, and that is all.
+// registerUserRoutes mounts the accounts and the auth flow: register, verify,
+// login — which now mints a session — and logout, which revokes it.
 func (s *Server) registerUserRoutes(g *echo.Group) {
 	g.GET("/users", s.listUsers)
 	g.POST("/users", s.createUser)
 	g.GET("/users/:userId", s.getUser)
 
-	g.POST("/auth/register", s.register)
+	// The unauthenticated credential ops get their own, much smaller bucket:
+	// each login failure teaches an attacker something, and register/resend
+	// mint tokens. Five a minute is plenty for a person and useless for a
+	// dictionary.
+	tight := authRateLimiter(s.cfg)
+	g.POST("/auth/register", s.register, tight)
 	g.POST("/auth/verify", s.verifyEmail)
-	g.POST("/auth/resend-verification", s.resendVerification)
-	g.POST("/auth/login", s.login)
+	g.POST("/auth/resend-verification", s.resendVerification, tight)
+	g.POST("/auth/login", s.login, tight)
+	g.POST("/auth/logout", s.logout)
+}
+
+// authRateLimiter is the per-IP bucket shared by the credential endpoints.
+func authRateLimiter(cfg config.Config) echo.MiddlewareFunc {
+	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+			Rate:      rate.Limit(cfg.LoginRatePerMin / 60.0),
+			Burst:     int(cfg.LoginRatePerMin),
+			ExpiresIn: 10 * time.Minute,
+		}),
+	})
 }
 
 // Registration flow
@@ -63,10 +82,10 @@ func errNoVerificationDelivery() error {
 		"registration is unavailable: this deployment has no way to deliver a verification link")
 }
 
-// newVerificationToken returns the token to put in a link and the hash to store.
-// Only the hash is persisted: the table then holds nothing that can verify an
-// address on its own.
-func newVerificationToken() (token, hash string, err error) {
+// newOpaqueToken returns a fresh random token and the hash to store. Both the
+// verification flow and sessions use it: only the hash is ever persisted, so
+// neither table holds anything that can authenticate on its own.
+func newOpaqueToken() (token, hash string, err error) {
 	var b [32]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", "", err
@@ -202,7 +221,11 @@ func (s *Server) login(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Same answer whether the email is unknown or the password is
-			// wrong, so the endpoint does not confirm which emails exist.
+			// wrong, so the endpoint does not confirm which emails exist —
+			// and the same *cost*: without this compare the unknown-email
+			// path returns tens of milliseconds faster, which is enough to
+			// enumerate addresses by stopwatch.
+			_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(req.Password))
 			return echo.NewHTTPError(http.StatusUnauthorized, "invalid email or password")
 		}
 		return dbErr(err)
@@ -218,17 +241,58 @@ func (s *Server) login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, "this account is not active")
 	}
 
-	// No session or token yet: success returns the account (without the hash),
-	// and it is the caller's job to remember it. Building real sessions is a
-	// deliberate next step, not part of this change.
-	return c.JSON(http.StatusOK, echo.Map{
-		"id":       user.ID,
-		"email":    user.Email,
-		"name":     user.Name,
-		"role":     user.Role,
-		"memberId": user.MemberID,
-		"status":   user.Status,
+	// Success mints a session. The raw token goes to the caller once and is
+	// never stored; every later request presents it as a bearer credential.
+	ctx := c.Request().Context()
+	// Lazy pruning: logins are rare enough to absorb the delete, and it keeps
+	// the table from accumulating every session ever issued.
+	if _, err := s.q.DeleteExpiredSessions(ctx); err != nil {
+		return dbErr(err)
+	}
+	token, hash, err := newOpaqueToken()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not create a session")
+	}
+	sess, err := s.q.CreateSession(ctx, db.CreateSessionParams{
+		TokenHash: hash,
+		UserID:    user.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(s.cfg.SessionTTL), Valid: true},
 	})
+	if err != nil {
+		return dbErr(err)
+	}
+	return c.JSON(http.StatusOK, echo.Map{
+		"token":     token,
+		"expiresAt": sess.ExpiresAt.Time,
+		"user": echo.Map{
+			"id":       user.ID,
+			"email":    user.Email,
+			"name":     user.Name,
+			"role":     user.Role,
+			"memberId": user.MemberID,
+			"status":   user.Status,
+		},
+	})
+}
+
+// dummyHash exists so the unknown-email path costs the same as a real compare.
+// Generated at start-up rather than hardcoded, so it always matches the current
+// bcrypt cost.
+var dummyHash = func() []byte {
+	h, err := bcrypt.GenerateFromPassword([]byte("wit-dummy-timing-equalizer"), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err) // bcrypt failing at init is unrecoverable and loud is right
+	}
+	return h
+}()
+
+// logout revokes the presented session. Idempotent: revoking a session that is
+// already gone is still a logged-out caller, so both answers are 204.
+func (s *Server) logout(c echo.Context) error {
+	if _, err := s.q.DeleteSession(c.Request().Context(), hashToken(bearerToken(c))); err != nil {
+		return dbErr(err)
+	}
+	return c.NoContent(http.StatusNoContent)
 }
 
 // ------------------------------------------------------------- registration ---
@@ -240,7 +304,7 @@ func (s *Server) issueVerification(c echo.Context, userID string) (string, error
 	if err := s.q.InvalidateUserVerificationTokens(ctx, userID); err != nil {
 		return "", err
 	}
-	token, hash, err := newVerificationToken()
+	token, hash, err := newOpaqueToken()
 	if err != nil {
 		return "", err
 	}

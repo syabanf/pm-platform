@@ -17,8 +17,8 @@ import (
 
 // ---------------------------------------------------------------- ids ---
 
-// newProductScopedID builds a unique TEXT id with the given prefix.
-func newProductScopedID(prefix string) string {
+// newPrefixedID builds a unique TEXT id with the given prefix.
+func newPrefixedID(prefix string) string {
 	var b [8]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return prefix + "_" + strconv.FormatInt(time.Now().UnixNano(), 36)
@@ -34,7 +34,7 @@ func newProductScopedID(prefix string) string {
 // currentSprintId is absent too: a module being created has no sprints yet, so
 // any value would be another module's — and nothing validated it.
 // Use PATCH /modules/:id/current-sprint once a sprint exists.
-type createProductRequest struct {
+type createModuleRequest struct {
 	ID           *string          `json:"id"`
 	ProjectID    string           `json:"projectId"`
 	Name         string           `json:"name"`
@@ -49,7 +49,7 @@ type createProductRequest struct {
 	AiInsight    *json.RawMessage `json:"aiInsight"`
 }
 
-type updateProductRequest struct {
+type updateModuleRequest struct {
 	ProjectID    *string          `json:"projectId"`
 	Name         *string          `json:"name"`
 	Goal         *string          `json:"goal"`
@@ -67,11 +67,11 @@ type updateProductRequest struct {
 // pointer alone) apart from an explicit null (clear it), and a plain pointer
 // reports both as nil. Every other PATCH treats them the same, but this one
 // must not mutate on an empty body.
-type setProductCurrentSprintRequest struct {
+type setModuleCurrentSprintRequest struct {
 	CurrentSprintID optional[string] `json:"currentSprintId"`
 }
 
-type createProductModuleRequest struct {
+type createComponentRequest struct {
 	ID       *string `json:"id"`
 	Name     string  `json:"name"`
 	Owner    *string `json:"owner"`
@@ -79,39 +79,39 @@ type createProductModuleRequest struct {
 	Position *int32  `json:"position"`
 }
 
-type updateProductModuleRequest struct {
+type updateComponentRequest struct {
 	Name     *string `json:"name"`
 	Owner    *string `json:"owner"`
 	Status   *string `json:"status"`
 	Position *int32  `json:"position"`
 }
 
-type updateProductModuleStatusRequest struct {
+type updateComponentStatusRequest struct {
 	Status string `json:"status"`
 }
 
 // -------------------------------------------------------------- routes ---
 
-func (s *Server) registerProductRoutes(g *echo.Group) {
-	g.GET("/modules", s.listProducts)
-	g.POST("/modules", s.createProduct)
-	g.GET("/modules/:moduleId", s.getProduct)
+func (s *Server) registerModuleRoutes(g *echo.Group) {
+	g.GET("/modules", s.listModules)
+	g.POST("/modules", s.createModule)
+	g.GET("/modules/:moduleId", s.getModule)
 	g.PATCH("/modules/:moduleId", s.updateModule)
-	g.PATCH("/modules/:moduleId/current-sprint", s.setProductCurrentSprint)
-	g.DELETE("/modules/:moduleId", s.deleteProduct)
+	g.PATCH("/modules/:moduleId/current-sprint", s.setModuleCurrentSprint)
+	g.DELETE("/modules/:moduleId", s.deleteModule)
 
-	g.GET("/modules/:moduleId/components", s.listModulesByProduct)
-	g.POST("/modules/:moduleId/components", s.createModule)
+	g.GET("/modules/:moduleId/components", s.listComponentsByModule)
+	g.POST("/modules/:moduleId/components", s.createComponent)
 
-	g.GET("/components/:componentId", s.getModule)
+	g.GET("/components/:componentId", s.getComponent)
 	g.PATCH("/components/:componentId", s.updateComponent)
 	g.PATCH("/components/:componentId/status", s.updateComponentStatus)
-	g.DELETE("/components/:componentId", s.deleteModule)
+	g.DELETE("/components/:componentId", s.deleteComponent)
 }
 
 // ------------------------------------------------------------ modules ---
 
-func (s *Server) listProducts(c echo.Context) error {
+func (s *Server) listModules(c echo.Context) error {
 	ctx := c.Request().Context()
 	limit, offset, err := page(c)
 	if err != nil {
@@ -119,7 +119,7 @@ func (s *Server) listProducts(c echo.Context) error {
 	}
 
 	if projectID := c.QueryParam("projectId"); projectID != "" {
-		rows, err := s.q.ListProductsByProject(ctx, db.ListProductsByProjectParams{
+		rows, err := s.q.ListModulesByProject(ctx, db.ListModulesByProjectParams{
 			ProjectID: projectID,
 			Lim:       limit + 1,
 			Off:       offset,
@@ -131,7 +131,7 @@ func (s *Server) listProducts(c echo.Context) error {
 	}
 
 	if clientID := c.QueryParam("clientId"); clientID != "" {
-		rows, err := s.q.ListProductsByClient(ctx, db.ListProductsByClientParams{
+		rows, err := s.q.ListModulesByClient(ctx, db.ListModulesByClientParams{
 			ClientID: clientID,
 			Lim:      limit + 1,
 			Off:      offset,
@@ -142,15 +142,15 @@ func (s *Server) listProducts(c echo.Context) error {
 		return paged(c, rows, limit)
 	}
 
-	rows, err := s.q.ListProducts(ctx, db.ListProductsParams{Lim: limit + 1, Off: offset})
+	rows, err := s.q.ListModules(ctx, db.ListModulesParams{Lim: limit + 1, Off: offset})
 	if err != nil {
 		return dbErr(err)
 	}
 	return paged(c, rows, limit)
 }
 
-func (s *Server) createProduct(c echo.Context) error {
-	req, err := bind[createProductRequest](c)
+func (s *Server) createModule(c echo.Context) error {
+	req, err := bind[createModuleRequest](c)
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (s *Server) createProduct(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newProductScopedID("prd")
+		id = newPrefixedID("prd")
 	}
 
 	// health has a CHECK (0..100) and DEFAULT 100; an absent value must not
@@ -170,7 +170,7 @@ func (s *Server) createProduct(c echo.Context) error {
 		health = *req.Health
 	}
 
-	arg := db.CreateProductParams{
+	arg := db.CreateModuleParams{
 		ID:           id,
 		ProjectID:    req.ProjectID,
 		Name:         req.Name,
@@ -185,7 +185,7 @@ func (s *Server) createProduct(c echo.Context) error {
 		AiInsight:    rawOrNil(req.AiInsight),
 	}
 
-	row, err := s.q.CreateProduct(c.Request().Context(), arg)
+	row, err := s.q.CreateModule(c.Request().Context(), arg)
 	if err != nil {
 		// The insert selects from projects, so an unknown project produces no
 		// row rather than a foreign-key violation.
@@ -197,7 +197,7 @@ func (s *Server) createProduct(c echo.Context) error {
 	return c.JSON(http.StatusCreated, row)
 }
 
-func (s *Server) getProduct(c echo.Context) error {
+func (s *Server) getModule(c echo.Context) error {
 	id, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -214,14 +214,14 @@ func (s *Server) updateModule(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	req, err := bind[updateProductRequest](c)
+	req, err := bind[updateModuleRequest](c)
 	if err != nil {
 		return err
 	}
 
 	// Partial update: absent fields stay nil and the UPDATE leaves those
 	// columns untouched, so concurrent PATCHes no longer overwrite each other.
-	arg := db.UpdateProductParams{
+	arg := db.UpdateModuleParams{
 		ID:           id,
 		ProjectID:    req.ProjectID,
 		Name:         req.Name,
@@ -236,19 +236,19 @@ func (s *Server) updateModule(c echo.Context) error {
 		AiInsight:    rawOrNil(req.AiInsight),
 	}
 
-	row, err := s.q.UpdateProduct(c.Request().Context(), arg)
+	row, err := s.q.UpdateModule(c.Request().Context(), arg)
 	if err != nil {
 		return dbErr(err)
 	}
 	return c.JSON(http.StatusOK, row)
 }
 
-func (s *Server) setProductCurrentSprint(c echo.Context) error {
+func (s *Server) setModuleCurrentSprint(c echo.Context) error {
 	id, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
-	req, err := bind[setProductCurrentSprintRequest](c)
+	req, err := bind[setModuleCurrentSprintRequest](c)
 	if err != nil {
 		return err
 	}
@@ -265,7 +265,7 @@ func (s *Server) setProductCurrentSprint(c echo.Context) error {
 	}
 
 	// Present: either an explicit null (clear the pointer) or a sprint id.
-	row, err := s.q.SetProductCurrentSprint(ctx, db.SetProductCurrentSprintParams{
+	row, err := s.q.SetModuleCurrentSprint(ctx, db.SetModuleCurrentSprintParams{
 		ID:              id,
 		CurrentSprintID: req.CurrentSprintID.Value,
 	})
@@ -283,7 +283,7 @@ func (s *Server) setProductCurrentSprint(c echo.Context) error {
 	return c.JSON(http.StatusOK, row)
 }
 
-func (s *Server) deleteProduct(c echo.Context) error {
+func (s *Server) deleteModule(c echo.Context) error {
 	id, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -291,7 +291,7 @@ func (s *Server) deleteProduct(c echo.Context) error {
 	// The cascade origin: it locks the module first by itself, so this only
 	// needs the larger statement budget.
 	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries) error {
-		return q.DeleteProduct(c.Request().Context(), id)
+		return q.DeleteModule(c.Request().Context(), id)
 	}); err != nil {
 		return dbErr(err)
 	}
@@ -300,7 +300,7 @@ func (s *Server) deleteProduct(c echo.Context) error {
 
 // ------------------------------------------------------------- components ---
 
-func (s *Server) listModulesByProduct(c echo.Context) error {
+func (s *Server) listComponentsByModule(c echo.Context) error {
 	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -309,7 +309,7 @@ func (s *Server) listModulesByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListModulesByProduct(c.Request().Context(), db.ListModulesByProductParams{
+	rows, err := s.q.ListComponentsByModule(c.Request().Context(), db.ListComponentsByModuleParams{
 		ModuleID: moduleID,
 		Lim:      limit + 1,
 		Off:      offset,
@@ -320,12 +320,12 @@ func (s *Server) listModulesByProduct(c echo.Context) error {
 	return paged(c, rows, limit)
 }
 
-func (s *Server) createModule(c echo.Context) error {
+func (s *Server) createComponent(c echo.Context) error {
 	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
 	}
-	req, err := bind[createProductModuleRequest](c)
+	req, err := bind[createComponentRequest](c)
 	if err != nil {
 		return err
 	}
@@ -335,12 +335,12 @@ func (s *Server) createModule(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newProductScopedID("mod")
+		id = newPrefixedID("mod")
 	}
 
 	ctx := c.Request().Context()
 	create := func(q *db.Queries, position int32) (db.Component, error) {
-		return q.CreateModule(ctx, db.CreateModuleParams{
+		return q.CreateComponent(ctx, db.CreateComponentParams{
 			ID:       id,
 			ModuleID: moduleID,
 			Name:     req.Name,
@@ -359,7 +359,7 @@ func (s *Server) createModule(c echo.Context) error {
 			if _, lockErr := q.LockModuleForUpdate(ctx, moduleID); lockErr != nil {
 				return lockErr
 			}
-			position, posErr := q.NextModulePosition(ctx, moduleID)
+			position, posErr := q.NextComponentPosition(ctx, moduleID)
 			if posErr != nil {
 				return posErr
 			}
@@ -377,7 +377,7 @@ func (s *Server) createModule(c echo.Context) error {
 	return c.JSON(http.StatusCreated, row)
 }
 
-func (s *Server) getModule(c echo.Context) error {
+func (s *Server) getComponent(c echo.Context) error {
 	id, err := param(c, "componentId")
 	if err != nil {
 		return err
@@ -394,12 +394,12 @@ func (s *Server) updateComponent(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	req, err := bind[updateProductModuleRequest](c)
+	req, err := bind[updateComponentRequest](c)
 	if err != nil {
 		return err
 	}
 
-	arg := db.UpdateModuleParams{
+	arg := db.UpdateComponentParams{
 		ID:       id,
 		Name:     req.Name,
 		Owner:    req.Owner,
@@ -407,7 +407,7 @@ func (s *Server) updateComponent(c echo.Context) error {
 		Position: req.Position,
 	}
 
-	row, err := s.q.UpdateModule(c.Request().Context(), arg)
+	row, err := s.q.UpdateComponent(c.Request().Context(), arg)
 	if err != nil {
 		return dbErr(err)
 	}
@@ -419,7 +419,7 @@ func (s *Server) updateComponentStatus(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	req, err := bind[updateProductModuleStatusRequest](c)
+	req, err := bind[updateComponentStatusRequest](c)
 	if err != nil {
 		return err
 	}
@@ -427,7 +427,7 @@ func (s *Server) updateComponentStatus(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "status is required")
 	}
 
-	row, err := s.q.UpdateModuleStatus(c.Request().Context(), db.UpdateModuleStatusParams{
+	row, err := s.q.UpdateComponentStatus(c.Request().Context(), db.UpdateComponentStatusParams{
 		ID:     id,
 		Status: req.Status,
 	})
@@ -437,7 +437,7 @@ func (s *Server) updateComponentStatus(c echo.Context) error {
 	return c.JSON(http.StatusOK, row)
 }
 
-func (s *Server) deleteModule(c echo.Context) error {
+func (s *Server) deleteComponent(c echo.Context) error {
 	id, err := param(c, "componentId")
 	if err != nil {
 		return err
@@ -458,7 +458,7 @@ func (s *Server) deleteModule(c echo.Context) error {
 		if _, lockErr := q.LockModuleForUpdate(ctx, component.ModuleID); lockErr != nil {
 			return lockErr
 		}
-		return q.DeleteModule(ctx, id)
+		return q.DeleteComponent(ctx, id)
 	})
 	if err != nil {
 		return dbErr(err)

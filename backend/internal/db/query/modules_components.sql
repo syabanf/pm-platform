@@ -2,7 +2,7 @@
 -- modules (UI "Component")
 -- ============================================================================
 
--- name: CreateProduct :one
+-- name: CreateModule :one
 -- client_id is denormalised, so it is derived from the project rather than
 -- taken from the caller: the two can never disagree, and a module can only
 -- ever be reached (and cascaded) through the client that really owns it.
@@ -46,24 +46,24 @@ RETURNING *;
 SELECT * FROM modules
 WHERE id = $1;
 
--- name: ListProducts :many
+-- name: ListModules :many
 SELECT * FROM modules
 ORDER BY created_at, name, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
--- name: ListProductsByProject :many
+-- name: ListModulesByProject :many
 SELECT * FROM modules
 WHERE project_id = sqlc.arg('project_id')
 ORDER BY created_at, name, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
--- name: ListProductsByClient :many
+-- name: ListModulesByClient :many
 SELECT * FROM modules
 WHERE client_id = sqlc.arg('client_id')
 ORDER BY created_at, name, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
--- name: UpdateProduct :one
+-- name: UpdateModule :one
 -- Partial update (see UpdateClient). client_id is never taken from the caller —
 -- it always follows whichever project the row ends up on.
 -- client_id is only recomputed when the module actually moves. Recomputing it
@@ -92,7 +92,7 @@ SET
 WHERE p.id = sqlc.arg('id')
 RETURNING *;
 
--- name: SetProductCurrentSprint :one
+-- name: SetModuleCurrentSprint :one
 -- The pointer may only name a sprint of this very module. A mismatch matches
 -- no row, which the handler reports as a 400 rather than silently storing it.
 UPDATE modules p
@@ -109,7 +109,7 @@ WHERE p.id = sqlc.arg('id')
   )
 RETURNING *;
 
--- name: DeleteProduct :exec
+-- name: DeleteModule :exec
 DELETE FROM modules
 WHERE id = $1;
 
@@ -117,7 +117,7 @@ WHERE id = $1;
 -- components (UI "Component")
 -- ============================================================================
 
--- name: CreateModule :one
+-- name: CreateComponent :one
 -- position is chosen by the caller or computed under a row lock; see
 -- LockModuleForUpdate for why it cannot be computed inline.
 INSERT INTO components (
@@ -132,7 +132,7 @@ INSERT INTO components (
 )
 RETURNING *;
 
--- name: NextModulePosition :one
+-- name: NextComponentPosition :one
 SELECT COALESCE(MAX(position), -1) + 1 AS next_position
 FROM components
 WHERE module_id = $1;
@@ -141,13 +141,13 @@ WHERE module_id = $1;
 SELECT * FROM components
 WHERE id = $1;
 
--- name: ListModulesByProduct :many
+-- name: ListComponentsByModule :many
 SELECT * FROM components
 WHERE module_id = sqlc.arg('module_id')
 ORDER BY position, name, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
--- name: UpdateModule :one
+-- name: UpdateComponent :one
 UPDATE components
 SET
     name       = COALESCE(sqlc.narg('name'), name),
@@ -158,7 +158,7 @@ SET
 WHERE id = sqlc.arg('id')
 RETURNING *;
 
--- name: UpdateModuleStatus :one
+-- name: UpdateComponentStatus :one
 UPDATE components
 SET
     status     = $2,
@@ -166,6 +166,6 @@ SET
 WHERE id = $1
 RETURNING *;
 
--- name: DeleteModule :exec
+-- name: DeleteComponent :exec
 DELETE FROM components
 WHERE id = $1;

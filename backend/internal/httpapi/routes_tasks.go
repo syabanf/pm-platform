@@ -57,7 +57,7 @@ func (s *Server) registerTaskRoutes(g *echo.Group) {
 	g.PATCH("/members/:memberId", s.updateMember)
 	g.DELETE("/members/:memberId", s.deleteMember)
 
-	g.GET("/modules/:moduleId/decisions", s.listDecisionsByProduct)
+	g.GET("/modules/:moduleId/decisions", s.listDecisionsByModule)
 	g.POST("/modules/:moduleId/decisions", s.createDecision)
 	g.PATCH("/decisions/:decisionId", s.updateDecision)
 	g.DELETE("/decisions/:decisionId", s.deleteDecision)
@@ -478,7 +478,7 @@ type updateDecisionRequest struct {
 	Status    *string `json:"status"`
 }
 
-func (s *Server) listDecisionsByProduct(c echo.Context) error {
+func (s *Server) listDecisionsByModule(c echo.Context) error {
 	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -487,7 +487,7 @@ func (s *Server) listDecisionsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListDecisionsByProduct(c.Request().Context(), db.ListDecisionsByProductParams{
+	rows, err := s.q.ListDecisionsByModule(c.Request().Context(), db.ListDecisionsByModuleParams{
 		ModuleID: moduleID,
 		Lim:      limit + 1,
 		Off:      offset,

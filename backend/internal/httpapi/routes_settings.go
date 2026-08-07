@@ -26,7 +26,7 @@ func (s *Server) registerSettingsRoutes(g *echo.Group) {
 	g.PATCH("/report-queue/:id", s.updateReportQueueStatus)
 	g.DELETE("/report-queue/:id", s.deleteReportQueueItem)
 
-	g.GET("/modules/:moduleId/generated-reports", s.listGeneratedReportsByProduct)
+	g.GET("/modules/:moduleId/generated-reports", s.listGeneratedReportsByModule)
 	g.POST("/generated-reports", s.createGeneratedReport)
 	g.PATCH("/generated-reports/:id/sent", s.markGeneratedReportSent)
 
@@ -227,7 +227,7 @@ type createGeneratedReportRequest struct {
 	Status      string  `json:"status"`
 }
 
-func (s *Server) listGeneratedReportsByProduct(c echo.Context) error {
+func (s *Server) listGeneratedReportsByModule(c echo.Context) error {
 	moduleID, err := param(c, "moduleId")
 	if err != nil {
 		return err
@@ -236,7 +236,7 @@ func (s *Server) listGeneratedReportsByProduct(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := s.q.ListGeneratedReportsByProduct(c.Request().Context(), db.ListGeneratedReportsByProductParams{
+	rows, err := s.q.ListGeneratedReportsByModule(c.Request().Context(), db.ListGeneratedReportsByModuleParams{
 		ModuleID: moduleID,
 		Lim:      limit + 1,
 		Off:      offset,

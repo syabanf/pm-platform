@@ -49,6 +49,16 @@ type Config struct {
 	// log — and without it, and without a mailer, registration refuses rather
 	// than creating accounts nobody can ever verify.
 	VerificationTokenInLog bool
+
+	// SessionTTL is how long a login lasts. Fixed, not sliding: a sliding
+	// window means a stolen token can be kept alive forever by using it.
+	SessionTTL time.Duration
+	// RateLimitRPS/Burst bound each client IP across the whole API; the login
+	// limiter below is separate and much tighter, because login failures are
+	// the only endpoint where an attacker learns something per attempt.
+	RateLimitRPS    float64
+	RateLimitBurst  int
+	LoginRatePerMin float64
 }
 
 // Load reads configuration from the environment, applying sane defaults for
@@ -76,6 +86,11 @@ func Load() (Config, error) {
 		MaxBodySize:      getenv("MAX_BODY_SIZE", "1M"),
 
 		VerificationTokenInLog: getenv("VERIFICATION_TOKEN_IN_LOG", "") == "true",
+
+		SessionTTL:      getenvDuration("SESSION_TTL", 168*time.Hour),
+		RateLimitRPS:    float64(getenvInt("RATE_LIMIT_RPS", 50)),
+		RateLimitBurst:  getenvInt("RATE_LIMIT_BURST", 100),
+		LoginRatePerMin: float64(getenvInt("LOGIN_RATE_PER_MIN", 5)),
 	}
 
 	if cfg.DatabaseURL == "" {

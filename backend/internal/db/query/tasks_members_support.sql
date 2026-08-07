@@ -48,11 +48,6 @@ WHERE sprint_id = sqlc.arg('sprint_id')
 ORDER BY created_at, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
--- name: ListTasksByBacklogItem :many
-SELECT * FROM tasks
-WHERE backlog_item_id = $1
-ORDER BY created_at, id;
-
 -- name: UpdateTask :one
 -- Partial update (see UpdateClient): moving a card and renaming it at the same
 -- moment no longer cancel each other out.
@@ -175,7 +170,7 @@ RETURNING *;
 SELECT * FROM decisions
 WHERE id = $1;
 
--- name: ListDecisionsByProduct :many
+-- name: ListDecisionsByModule :many
 SELECT * FROM decisions
 WHERE module_id = sqlc.arg('module_id')
 ORDER BY decided_on DESC, id
@@ -286,7 +281,7 @@ WHERE p.id = sqlc.arg('module_id')
   )
 RETURNING *;
 
--- name: ListGeneratedReportsByProduct :many
+-- name: ListGeneratedReportsByModule :many
 SELECT * FROM generated_reports
 WHERE module_id = sqlc.arg('module_id')
 ORDER BY generated_on DESC, id

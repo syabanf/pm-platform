@@ -11,7 +11,7 @@ import "github.com/labstack/echo/v4"
 // while keeping each resource individually addressable by id.
 func (s *Server) routes(g *echo.Group) {
 	s.registerClientRoutes(g)
-	s.registerProductRoutes(g)
+	s.registerModuleRoutes(g)
 	s.registerSprintRoutes(g)
 	s.registerTaskRoutes(g)
 	s.registerSettingsRoutes(g)
