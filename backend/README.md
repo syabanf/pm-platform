@@ -70,6 +70,18 @@ them); only their writes are admin-gated. Leaving role writes at the `write`
 tier would let a lead rewrite its own permissions to `{"all":true}` and be
 admin on the next request.
 
+A forgotten password is reset through `POST /auth/forgot-password` →
+`POST /auth/reset-password`: a single-use, time-boxed token (delivered like the
+verification token), and completing a reset revokes every session. `POST
+/auth/logout-all` signs out of every device. Ten consecutive wrong passwords
+(`LOGIN_MAX_FAILURES`) lock an account for `LOGIN_LOCK_DURATION`, persisted on
+the user row so it survives a restart — the guard the in-memory IP limiter
+cannot give.
+
+Every mutation is recorded: `GET /activity` (admin-only) is the audit log of
+who changed what. A client can be archived (`POST /clients/:id/archive`) and
+restored rather than only permanently deleted.
+
 The credential endpoints share a five-a-minute per-IP bucket
 (`LOGIN_RATE_PER_MIN`); the rest of the API sits behind `RATE_LIMIT_RPS`.
 An unknown email and a wrong password answer with the same words in the same

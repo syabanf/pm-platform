@@ -170,7 +170,7 @@ dengan `VERIFICATION_TOKEN_IN_LOG=true` ditulis ke log; tanpa keduanya
 pendaftaran **menolak dengan 503** ketimbang membuat akun yang tak pernah bisa
 diverifikasi.
 
-**Authorization sudah jalan.** Login menerbitkan session token (opaque,
+**Authorization + account lifecycle lengkap.** Reset password, logout-all, dan lockout per-akun sudah ada; setiap mutasi tercatat di audit log (`GET /activity`, admin-only); client bisa di-archive/restore. **Authorization sudah jalan.** Login menerbitkan session token (opaque,
 hash-nya saja yang disimpan; berlaku `SESSION_TTL`, default 7 hari), logout
 mencabutnya seketika, dan seluruh operasi di luar alur auth memeriksa
 `Authorization: Bearer <token>`. Kebijakannya dari permissions role yang
@@ -184,7 +184,7 @@ alamatnya terbukti.
 ## 5. API
 
 **Layanannya mendokumentasikan dirinya sendiri.** Jalankan, lalu buka
-**http://localhost:8080/docs** — referensi lengkap 90 operasi dengan parameter,
+**http://localhost:8080/docs** — referensi lengkap 99 operasi dengan parameter,
 skema request/response, dan `curl` siap tempel untuk tiap operasi. Halaman itu
 digambar dari spesifikasi yang dibawa binary-nya sendiri, jadi selalu
 menggambarkan versi yang benar-benar berjalan, dan tidak memuat apa pun dari CDN.
@@ -277,7 +277,6 @@ skrip remediasinya lengkap di
 | --------- | --- |
 | Besar | **Mailer** — supaya link verifikasi benar-benar terkirim |
 | Sedang | **Store swap** — memindahkan store in-memory ke typed client (login + baca sudah terbukti di `/backend`); sisa: semua collection + write-back mutasi |
-| Sedang | Endpoint rollup, agar dashboard tidak perlu ratusan request |
 | Kecil | CRUD akun (user belum bisa diubah atau dihapus lewat API) |
 
 ---
@@ -289,5 +288,5 @@ skrip remediasinya lengkap di
 | [README.md](../README.md) | pengantar produk dan cara menjalankan frontend |
 | [backend/README.md](../backend/README.md) | rujukan backend lengkap — stack, limit, migrasi, ops |
 | [docs/accounts.md](accounts.md) | daftar akun untuk sosialisasi (di-generate) |
-| `http://localhost:8080/docs` | referensi API 90 operasi, dari layanan yang berjalan |
+| `http://localhost:8080/docs` | referensi API 99 operasi, dari layanan yang berjalan |
 | [AGENTS.md](../AGENTS.md) | catatan untuk agen AI yang mengedit repo ini |

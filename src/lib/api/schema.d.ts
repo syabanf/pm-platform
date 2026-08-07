@@ -4,6 +4,52 @@
  */
 
 export interface paths {
+    "/rollup/portfolio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Portfolio dashboard counters
+         * @description The home dashboard in one request: counts the frontend used to sum by
+         *     pulling whole collections into the browser. Computed in the database.
+         */
+        get: operations["portfolioRollup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/modules/{moduleId}/rollup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A module id — the UI calls this a Component. */
+                moduleId: components["parameters"]["ModuleId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * One module's counters
+         * @description A module's numbers without walking its sprints — component and sprint
+         *     counts, committed and completed points, blocked tasks. Replaces the
+         *     per-sprint requests the module and project pages made to sum by hand.
+         */
+        get: operations["moduleRollup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/clients": {
         parameters: {
             query?: never;
@@ -48,6 +94,53 @@ export interface paths {
          * @description Partial — only the keys you send are written.
          */
         patch: operations["updateClient"];
+        trace?: never;
+    };
+    "/clients/{clientId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: components["parameters"]["ClientId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive a client
+         * @description Hides a client from the active portfolio without deleting it — the
+         *     reversible alternative to DELETE's permanent cascade. The subtree stays
+         *     intact underneath, so a later restore returns a whole client. Idempotent.
+         *     Archived clients are listed with `GET /clients?archived=true`.
+         */
+        post: operations["archiveClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clients/{clientId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: components["parameters"]["ClientId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore an archived client
+         * @description Brings an archived client back into the active portfolio. Idempotent.
+         */
+        post: operations["restoreClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/clients/{clientId}/projects": {
@@ -975,6 +1068,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The audit log
+         * @description Who changed what, newest first. Every successful create, update and
+         *     delete under `/api/v1` is recorded with the acting user, the target, and
+         *     the method and path. Admin-only, reads included — the log names people.
+         *     Filter to one thing with `?targetKind=&targetId=` (e.g. all activity on
+         *     sprint `sprint-03`).
+         */
+        get: operations["listActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -1128,6 +1245,74 @@ export interface paths {
          *     signed-out caller, so both cases answer `204`.
          */
         post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out everywhere
+         * @description Revokes every session the caller owns — the "sign out of all devices" a
+         *     lost laptop needs. A password reset does this on its own; this is the
+         *     button for when nothing was reset.
+         */
+        post: operations["logoutAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a password reset
+         * @description Issues a single-use, time-boxed reset token for an address. Answers
+         *     `200` whether or not the address exists — saying "no such account" would
+         *     map which emails are registered. Delivery mirrors registration: outside
+         *     production the token is in the response; in production it goes to the log
+         *     under `VERIFICATION_TOKEN_IN_LOG`, or the endpoint refuses with `503`.
+         */
+        post: operations["forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a new password with a reset token
+         * @description Consumes a reset token and sets the new password. Single-use and
+         *     time-boxed. On success every existing session is revoked, so a reset
+         *     prompted by a compromise does not leave the attacker's session alive.
+         */
+        post: operations["resetPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1326,6 +1511,11 @@ export interface components {
             notes?: string;
             actionNeeded?: string[];
             aiInsight?: components["schemas"]["Json"];
+            /**
+             * Format: date-time
+             * @description When the client was archived, or null if active.
+             */
+            archivedAt?: string | null;
             createdAt?: components["schemas"]["Timestamp"];
             updatedAt?: components["schemas"]["Timestamp"];
         };
@@ -1763,6 +1953,43 @@ export interface components {
          * @enum {string}
          */
         UserStatus: "pending" | "active" | "inactive" | "suspended";
+        /** @description Portfolio-wide counters for the home dashboard. */
+        PortfolioRollup: {
+            activeClients?: number;
+            projects?: number;
+            modules?: number;
+            /** @description Modules whose risk is not low. */
+            atRiskModules?: number;
+            activeSprints?: number;
+            blockedTasks?: number;
+            /** @description Queued reports not yet done. */
+            reportsDue?: number;
+        };
+        /** @description One module's counters, summed in the database. */
+        ModuleRollup: {
+            components?: number;
+            sprints?: number;
+            backlogItems?: number;
+            activeSprints?: number;
+            committedPoints?: number;
+            completedPoints?: number;
+            blockedTasks?: number;
+        };
+        /** @description One audit-log entry — a change and who made it. */
+        Activity: {
+            /** Format: int64 */
+            id?: number;
+            occurredAt?: components["schemas"]["Timestamp"];
+            actorId?: string;
+            actorEmail?: string;
+            /** @description create, update or delete. */
+            action?: string;
+            /** @description The collection acted on, e.g. sprints. */
+            targetKind?: string;
+            targetId?: string;
+            method?: string;
+            path?: string;
+        };
         /** @description An account. The password hash is never included. */
         User: {
             id?: string;
@@ -1934,6 +2161,52 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    portfolioRollup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The portfolio counters. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioRollup"];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    moduleRollup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A module id — the UI calls this a Component. */
+                moduleId: components["parameters"]["ModuleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The module's counters. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleRollup"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
     listClients: {
         parameters: {
             query?: {
@@ -1946,6 +2219,8 @@ export interface operations {
                  *     with a different page.
                  */
                 offset?: components["parameters"]["Offset"];
+                /** @description false (default) lists active clients; true lists archived ones. */
+                archived?: boolean;
             };
             header?: never;
             path?: never;
@@ -2065,6 +2340,48 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
+        };
+    };
+    archiveClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: components["parameters"]["ClientId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived (or already was). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    restoreClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clientId: components["parameters"]["ClientId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored (or was never archived). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listProjectsByClient: {
@@ -4189,6 +4506,42 @@ export interface operations {
             413: components["responses"]["TooLarge"];
         };
     };
+    listActivity: {
+        parameters: {
+            query?: {
+                /** @description Page size. Clamped to 1000; anything unparseable falls back to the default. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Rows to skip. Postgres walks and discards them, so deep offsets get
+                 *     progressively more expensive — prefer narrowing by parent id. Values
+                 *     above 1,000,000 are refused with a 400 rather than silently answered
+                 *     with a different page.
+                 */
+                offset?: components["parameters"]["Offset"];
+                /** @description With targetId, restrict to one target (e.g. `sprints`). */
+                targetKind?: string;
+                targetId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of activity, newest first. */
+            200: {
+                headers: {
+                    "X-Has-More": components["headers"]["XHasMore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Activity"][];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
     listUsers: {
         parameters: {
             query?: {
@@ -4481,6 +4834,97 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    logoutAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every session for the caller is gone. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description If the address exists, a reset link was issued. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                        /** @description Present only outside production, so tests and dev can complete the loop. */
+                        resetToken?: string;
+                    };
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Password changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                    };
+                };
+            };
+            /** @description The token is invalid, used or expired, or the password is too short. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
         };
     };
     livez: {
