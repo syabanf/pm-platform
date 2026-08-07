@@ -42,6 +42,43 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  security:
+    name: Security — dependency & vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The scanner runs on the latest patched Go, not the module's declared
+      # floor — a stdlib CVE is fixed by a newer toolchain, and the point of
+      # this job is to scan against one that has the fixes.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      # govulncheck reports only vulnerabilities the code actually reaches, so a
+      # finding here is real, not a transitive advisory nobody can trigger.
+      - name: govulncheck (backend)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          cd backend && govulncheck ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # High and critical block; transitive noise below that only informs.
+      - name: npm audit (frontend)
+        run: npm audit --audit-level=high
+      # Trivy covers what the two above miss: OS packages and lockfile advisories
+      # across both ecosystems. Unfixed vulns don't fail the build — there is
+      # nothing to do about them yet — but a fixable high/critical does.
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
   backend:
     name: Backend — vet, unit, API e2e against Postgres
     runs-on: ubuntu-latest

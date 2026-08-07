@@ -1,0 +1,41 @@
+# Keep dependencies patched without anyone remembering to look. Dependabot
+# opens a PR when a new version lands; CI (ci.yml) then proves it still builds
+# and passes before it can merge.
+version: 2
+updates:
+  # Frontend npm packages.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for the routine patch/minor churn instead of a dozen.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # Backend Go modules.
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # The workflow actions themselves — a pinned action can carry its own CVE.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Base images in both Dockerfiles.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
