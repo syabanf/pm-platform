@@ -1,10 +1,8 @@
-import { test, expect, SPRINTS_TAB } from "./helpers";
+import { test, expect, SPRINTS_TAB, openPalette } from "./helpers";
 
 test("⌘K jumps from anywhere to a module by name", async ({ page }) => {
   await page.goto("/");
-  await page.keyboard.press("ControlOrMeta+k");
-  const palette = page.getByPlaceholder(/search/i);
-  await expect(palette).toBeVisible();
+  const palette = await openPalette(page);
   await palette.fill("SCADA");
   await page.keyboard.press("Enter");
   await page.waitForURL("**/modules/scada-monitoring**");
@@ -40,8 +38,7 @@ test("a blocker category added in Settings appears in the board's form", async (
   // this browsing session, because the store is in memory. Navigate
   // client-side (⌘K), not page.goto(): a full reload resets the store and
   // would wipe the category we just added.
-  await page.keyboard.press("ControlOrMeta+k");
-  const palette = page.getByPlaceholder(/search/i);
+  const palette = await openPalette(page);
   await palette.fill("OEE");
   await page.keyboard.press("Enter");
   await page.waitForURL("**/modules/oee-intelligence**");
@@ -75,6 +72,9 @@ test("phone tier shows the bottom bar and the board still works @mobile", async 
 
 test("⌘K finds a task by phrase and opens its board", async ({ page }) => {
   await page.goto("/");
+  // Wait until the page is interactive so the ⌘K listener is attached — pressing
+  // the shortcut before the effect mounts silently misses it.
+  await expect(page.getByText("Needs Attention")).toBeVisible();
   await page.keyboard.press("ControlOrMeta+k");
   const palette = page.getByPlaceholder(/search anything/i);
   await expect(palette).toBeVisible();
@@ -94,8 +94,8 @@ test("⌘K finds a task by phrase and opens its board", async ({ page }) => {
 
 test("⌘K finds a person by name", async ({ page }) => {
   await page.goto("/");
-  await page.keyboard.press("ControlOrMeta+k");
-  await page.getByPlaceholder(/search anything/i).fill("Risya");
+  const palette = await openPalette(page);
+  await palette.fill("Risya");
   const option = page.getByRole("option", { name: /Risya/ });
   await expect(option).toBeVisible();
   await option.click();

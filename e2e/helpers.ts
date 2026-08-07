@@ -1,4 +1,4 @@
-import { test as base, type Page } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 
 /**
  * Signed-in test. The prototype's session is a member id in localStorage, so
@@ -19,7 +19,28 @@ export const test = base.extend<{ page: Page }>({
   },
 });
 
-export { expect } from "@playwright/test";
+export { expect };
+
+/**
+ * Open the ⌘K palette robustly. The shortcut listener is attached in an effect,
+ * so a press fired before the page is interactive is silently missed — a race
+ * that flakes any test pressing ⌘K straight after navigation. This presses,
+ * waits briefly, and presses again if the palette has not appeared.
+ */
+export async function openPalette(page: Page) {
+  const input = page.getByPlaceholder(/search/i);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.keyboard.press("ControlOrMeta+k");
+    try {
+      await expect(input).toBeVisible({ timeout: 1500 });
+      return input;
+    } catch {
+      /* listener not attached yet — press again */
+    }
+  }
+  await expect(input).toBeVisible();
+  return input;
+}
 
 /** The seeded board every deep-link test drives. */
 export const BOARD =

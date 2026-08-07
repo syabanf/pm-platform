@@ -10,6 +10,8 @@ import {
 import { usePrototype } from "@/lib/store";
 
 interface PaletteEntry {
+  /** Unique per source record, so two same-titled tasks are distinct rows. */
+  id: string;
   label: string;
   hint: string;
   group: string;
@@ -49,6 +51,7 @@ export function CommandPalette({
     const list: PaletteEntry[] = [];
     clients.forEach((c) =>
       list.push({
+        id: c.id,
         label: c.name,
         hint: c.industry,
         group: "Clients",
@@ -58,6 +61,7 @@ export function CommandPalette({
     projects.forEach((p) => {
       const client = clients.find((c) => c.id === p.clientId);
       list.push({
+        id: p.id,
         label: p.name,
         hint: client?.name ?? "",
         group: "Projects",
@@ -66,6 +70,7 @@ export function CommandPalette({
     });
     modules.forEach((p) =>
       list.push({
+        id: p.id,
         label: p.name,
         hint: "Module",
         group: "Modules",
@@ -75,6 +80,7 @@ export function CommandPalette({
     sprints.forEach((s) => {
       const mod = modules.find((p) => p.id === s.moduleId);
       list.push({
+        id: s.id,
         label: `Sprint ${String(s.number).padStart(2, "0")} — ${s.name}`,
         hint: `${mod?.name ?? ""} · Board`,
         group: "Sprints",
@@ -91,6 +97,7 @@ export function CommandPalette({
       const sprint = sprints.find((s) => s.id === t.sprintId);
       const mod = sprint && modules.find((p) => p.id === sprint.moduleId);
       list.push({
+        id: t.id,
         label: t.title,
         hint: sprint
           ? `Sprint ${String(sprint.number).padStart(2, "0")} · ${mod?.name ?? ""}`
@@ -104,6 +111,7 @@ export function CommandPalette({
     backlog.forEach((b) => {
       const mod = modules.find((p) => p.id === b.moduleId);
       list.push({
+        id: b.id,
         label: b.title,
         hint: mod ? `${mod.name} · Backlog` : "Backlog item",
         group: "Backlog",
@@ -113,6 +121,7 @@ export function CommandPalette({
     decisions.forEach((d) => {
       const mod = modules.find((p) => p.id === d.moduleId);
       list.push({
+        id: d.id,
         label: d.title,
         hint: mod ? `${mod.name} · Decision Log` : "Decision",
         group: "Decisions",
@@ -121,6 +130,7 @@ export function CommandPalette({
     });
     members.forEach((m) =>
       list.push({
+        id: m.id,
         label: m.name,
         hint: m.roleLabel || m.role,
         group: "People",
@@ -134,7 +144,7 @@ export function CommandPalette({
       { label: "UAT Sign-off", path: "/documents/uat-signoff" },
       { label: "Kickoff Charter", path: "/documents/kickoff" },
     ].forEach((d) =>
-      list.push({ ...d, hint: "Generate document", group: "Documents" })
+      list.push({ ...d, id: d.path, hint: "Generate document", group: "Documents" })
     );
     [
       { label: "Report Queue", path: "/reports" },
@@ -143,7 +153,9 @@ export function CommandPalette({
       { label: "Workspace Settings", path: "/settings" },
       { label: "List Masters", path: "/settings/lists" },
       { label: "Report Templates", path: "/settings/report-templates" },
-    ].forEach((a) => list.push({ ...a, hint: "Go to", group: "Actions" }));
+    ].forEach((a) =>
+      list.push({ ...a, id: `action:${a.path}`, hint: "Go to", group: "Actions" })
+    );
     return list;
   }, [clients, projects, modules, sprints, tasks, backlog, decisions, members]);
 
@@ -243,7 +255,7 @@ export function CommandPalette({
           )}
           {results.map((entry, i) => (
             <button
-              key={`${entry.group}:${entry.path}:${entry.label}`}
+              key={`${entry.group}:${entry.id}`}
               id={`cmdk-option-${i}`}
               role="option"
               aria-selected={i === cursor}

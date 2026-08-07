@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, login, logout, getSessionToken } from "@/lib/api";
 
 /**
@@ -20,9 +20,15 @@ import { api, login, logout, getSessionToken } from "@/lib/api";
 export default function BackendProbe() {
   const [email, setEmail] = useState("admin@wit.id");
   const [password, setPassword] = useState("wit-admin-changeme");
-  const [status, setStatus] = useState<string>(
-    getSessionToken() ? "signed in" : "signed out"
-  );
+  // A constant first render on both server and client — reading localStorage in
+  // the initializer would make the server say "signed out" and the client
+  // "signed in", a hydration mismatch. The real value is set after mount, the
+  // same one-time-hydration pattern the store uses for its own session.
+  const [status, setStatus] = useState("signed out");
+  useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    if (getSessionToken()) setStatus("signed in");
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [clients, setClients] = useState<
     { id: string; name: string; industry: string; status: string }[]
