@@ -12,12 +12,14 @@
     "typecheck": "tsc --noEmit",
     "export:accounts": "node scripts/export-accounts.mjs",
     "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "api:types": "openapi-typescript backend/api/openapi.yaml -o src/lib/api/schema.d.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "next": "16.3.0-preview.9",
+    "openapi-fetch": "^0.17.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -33,6 +35,7 @@
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.0-preview.9",
     "jsdom": "^29.1.1",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

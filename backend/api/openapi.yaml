@@ -36,12 +36,9 @@ info:
 
     ## Authentication
 
-    None yet. Every endpoint is open, so do not expose this service publicly as
-    it stands.
-
-# There is no authentication yet. An empty list is how OpenAPI says
-# "this API requires none" — as opposed to saying nothing at all.
-security: []
+    Every operation needs a bearer session except the auth flow and the health
+    probes, which override the global requirement with `security: []`. See
+    `POST /auth/login`.
 
 servers:
   - url: http://localhost:8080/api/v1
