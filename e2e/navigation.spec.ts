@@ -72,3 +72,32 @@ test("phone tier shows the bottom bar and the board still works @mobile", async 
   await card.getByRole("button", { name: "Details" }).click();
   await expect(card.getByText("Definition of Done")).toBeVisible();
 });
+
+test("⌘K finds a task by phrase and opens its board", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("ControlOrMeta+k");
+  const palette = page.getByPlaceholder(/search anything/i);
+  await expect(palette).toBeVisible();
+
+  // A task title, not a container name — the search that did not exist before.
+  await palette.fill("machine telemetry");
+  const option = page.getByRole("option", { name: /Create API mapping/ });
+  await expect(option).toBeVisible();
+  await option.click();
+
+  // Landed on the board that holds the task.
+  await page.waitForURL("**/sprints/**/board");
+  await expect(
+    page.locator("div.p-3").filter({ hasText: "Create API mapping" })
+  ).toBeVisible();
+});
+
+test("⌘K finds a person by name", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByPlaceholder(/search anything/i).fill("Risya");
+  const option = page.getByRole("option", { name: /Risya/ });
+  await expect(option).toBeVisible();
+  await option.click();
+  await page.waitForURL("**/settings/members");
+});

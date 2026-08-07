@@ -39,7 +39,8 @@ export function CommandPalette({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const { clients, projects, modules, sprints } = usePrototype();
+  const { clients, projects, modules, sprints, tasks, backlog, decisions, members } =
+    usePrototype();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +83,50 @@ export function CommandPalette({
           : "/clients",
       });
     });
+    // The palette used to stop at names — a client, a module, a sprint. Search
+    // now reaches the content people actually look for by phrase: a task, a
+    // backlog item, a decision, a person. Each lands on the board or page that
+    // holds it, so finding it is the same as opening it.
+    tasks.forEach((t) => {
+      const sprint = sprints.find((s) => s.id === t.sprintId);
+      const mod = sprint && modules.find((p) => p.id === sprint.moduleId);
+      list.push({
+        label: t.title,
+        hint: sprint
+          ? `Sprint ${String(sprint.number).padStart(2, "0")} · ${mod?.name ?? ""}`
+          : "Task",
+        group: "Tasks",
+        path: mod
+          ? `${modulePath(mod)}/sprints/${t.sprintId}/board`
+          : "/clients",
+      });
+    });
+    backlog.forEach((b) => {
+      const mod = modules.find((p) => p.id === b.moduleId);
+      list.push({
+        label: b.title,
+        hint: mod ? `${mod.name} · Backlog` : "Backlog item",
+        group: "Backlog",
+        path: mod ? `${modulePath(mod)}/backlog` : "/clients",
+      });
+    });
+    decisions.forEach((d) => {
+      const mod = modules.find((p) => p.id === d.moduleId);
+      list.push({
+        label: d.title,
+        hint: mod ? `${mod.name} · Decision Log` : "Decision",
+        group: "Decisions",
+        path: mod ? `${modulePath(mod)}/decisions` : "/clients",
+      });
+    });
+    members.forEach((m) =>
+      list.push({
+        label: m.name,
+        hint: m.roleLabel || m.role,
+        group: "People",
+        path: "/settings/members",
+      })
+    );
     [
       { label: "MoM Generator", path: "/documents/mom" },
       { label: "Status Update", path: "/documents/status-update" },
@@ -100,7 +145,7 @@ export function CommandPalette({
       { label: "Report Templates", path: "/settings/report-templates" },
     ].forEach((a) => list.push({ ...a, hint: "Go to", group: "Actions" }));
     return list;
-  }, [clients, projects, modules, sprints]);
+  }, [clients, projects, modules, sprints, tasks, backlog, decisions, members]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -169,7 +214,7 @@ export function CommandPalette({
           aria-controls="cmdk-listbox"
           aria-activedescendant={activeId}
           aria-autocomplete="list"
-          aria-label="Search clients, modules, sprints, and documents"
+          aria-label="Search clients, modules, sprints, tasks, people and documents"
           onKeyDown={(e) => {
             if (e.key === "Escape") onClose();
             if (e.key === "ArrowDown") {
@@ -182,7 +227,7 @@ export function CommandPalette({
             }
             if (e.key === "Enter" && results[cursor]) go(results[cursor]);
           }}
-          placeholder="Search clients, modules, sprints, documents…"
+          placeholder="Search anything — clients, tasks, people, decisions…"
           className="w-full border-b border-line bg-paper px-4 py-3.5 text-sm text-ink placeholder:text-muted focus:outline-none"
         />
         <div
