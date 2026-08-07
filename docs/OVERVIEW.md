@@ -18,25 +18,30 @@ dilaporkan ke klien hari Jumat.
 Pekerjaan bersarang lima tingkat, dari yang terbesar:
 
 ```
-Client  →  Project  →  Module  →  Component  →  Sprint  →  Task
+Client  →  Project  →  Component  →  Component  →  Sprint  →  Task
 ```
 
-**Client** perusahaannya. **Project** hasil yang mereka bayar. **Module** produk
+**Client** perusahaannya. **Project** hasil yang mereka bayar. **Component** produk
 atau sistem yang Anda bangun untuk itu. **Component** satu bagian dari modul
 tersebut, dan **Component-lah yang memiliki Sprint**.
 
-### Satu jebakan yang harus diketahui sebelum membaca kode
+### Satu kosakata, dari layar sampai tabel
 
-Label UI dan nama di kode **berbeda**, dan itu disengaja:
+Kata yang Anda baca di layar adalah kata yang sama di kode, di URL, dan di
+database:
 
-| Di kode / URL / tabel | Di UI |
-| --------------------- | ----- |
-| `product`, `/products/`, tabel `products` | **Module** |
-| `module`, `/modules/`, tabel `modules` | **Component** |
+| Di UI | Tipe / route | Tabel |
+| ----- | ------------ | ----- |
+| **Component** | `Component`, `/components/[componentId]` | `components` |
+| **Component** | `Component`, `/components/[componentId]` | `components` |
 
-Jadi baca `product` sebagai "Module" dan `module` sebagai "Component". Tidak ada
-yang rusak — penamaan kode mendahului penamaan produk, dan dipertahankan agar
-API cocok 1:1 dengan tipe TypeScript yang sudah ada.
+Dulu tidak begitu: kode memakai `Module` dan `Component` — bergeser satu tingkat
+dari label UI — jadi `component` bisa berarti Component atau induknya tergantung
+file yang sedang dibuka. Sekarang tidak ada lagi yang perlu diterjemahkan.
+
+> Satu kata yang **bukan** bagian dari hierarki ini: `src/components/` adalah
+> folder komponen React, bukan tingkat Component. Begitu juga `components:` di
+> `openapi.yaml`, yang bagian dari spesifikasi OpenAPI.
 
 ---
 
@@ -191,8 +196,8 @@ menggagalkan build bila keduanya berbeda — ke arah mana pun.
 
 - **PATCH itu partial.** Hanya field yang dikirim yang ditulis. Inilah yang
   membuat dua editan bersamaan ke field berbeda sama-sama selamat.
-- **`clientId` tidak diterima pada product** — diturunkan dari project, supaya
-  sebuah product tidak bisa diklaim (atau ikut terhapus) oleh klien yang bukan
+- **`clientId` tidak diterima pada module** — diturunkan dari project, supaya
+  sebuah module tidak bisa diklaim (atau ikut terhapus) oleh klien yang bukan
   pemiliknya. Pindahkan lewat `projectId`.
 - **Semua list paginated.** `?limit=` (default 200, maks 1000) dan `?offset=`,
   dengan header `X-Has-More`.

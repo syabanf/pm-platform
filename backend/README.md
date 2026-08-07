@@ -40,22 +40,26 @@ backend/
 └─ Makefile
 ```
 
-## Naming: `products` vs `modules`
+## The hierarchy
 
-Table names deliberately follow the **frontend's code identifiers** so the API
-maps 1:1 onto the existing TypeScript types (`productId`, `moduleId`) and can be
-wired up later with no translation layer. The product UI renames them:
+One vocabulary, all the way down — the tables, the API paths and the labels on
+screen use the same five words:
 
-| Table      | Called in the UI | Meaning                                  |
-| ---------- | ---------------- | ---------------------------------------- |
-| `clients`  | Client           | the customer                             |
-| `projects` | Project          | an engagement for a client               |
-| `products` | **Module**       | the deliverable that owns sprints/backlog |
-| `modules`  | **Component**    | a functional part of a Module; owns sprints |
-| `sprints`  | Sprint           | belongs to a Component (`module_id`)      |
+| Table        | Meaning                                              |
+| ------------ | ---------------------------------------------------- |
+| `clients`    | the customer                                         |
+| `projects`   | an engagement for a client                           |
+| `components`    | a module or system built for that engagement        |
+| `components` | one functional part of a component; owns the sprints    |
+| `sprints`    | belongs to a component (`component_id`)              |
 
-So the hierarchy is `clients → projects → products → modules → sprints`, which
-reads in the UI as **Client → Project → Module → Component → Sprint**.
+```
+clients → projects → components → components → sprints
+```
+
+There used to be a translation layer here: the tables said `modules` and
+`components` while the UI said Component and Component, shifted one rung. They now
+agree, so nothing has to be read twice.
 
 ## Getting started
 
@@ -106,13 +110,13 @@ All routes are under `/api/v1`. IDs are opaque `TEXT`.
 | ---------- | --------------------------------------------------------------------------- |
 | Clients    | `GET/POST /clients`, `GET/PATCH/DELETE /clients/:clientId`                   |
 | Projects   | `GET /clients/:clientId/projects`, `GET/POST /projects`, `…/:projectId`      |
-| Products   | `GET/POST /products` (`?projectId=`/`?clientId=`), `…/:productId`            |
-| Modules    | `GET/POST /products/:productId/modules`, `…/modules/:moduleId`               |
-| Sprints    | `GET/POST /products/:productId/sprints`, `GET /modules/:moduleId/sprints`, `…/sprints/:sprintId` |
-| Backlog    | `GET/POST /products/:productId/backlog`, `…/backlog/:itemId`                 |
+| Modules   | `GET/POST /modules` (`?projectId=`/`?clientId=`), `…/:moduleId`            |
+| Components    | `GET/POST /modules/:moduleId/components`, `…/components/:componentId`               |
+| Sprints    | `GET/POST /modules/:moduleId/sprints`, `GET /components/:componentId/sprints`, `…/sprints/:sprintId` |
+| Backlog    | `GET/POST /modules/:moduleId/backlog`, `…/backlog/:itemId`                 |
 | Tasks      | `GET/POST /sprints/:sprintId/tasks`, `PATCH /tasks/:taskId/column`, `…/dod`  |
 | Members    | `GET/POST /members`, `…/members/:memberId`                                   |
-| Decisions  | `GET/POST /products/:productId/decisions`, `…/decisions/:decisionId`         |
+| Decisions  | `GET/POST /modules/:moduleId/decisions`, `…/decisions/:decisionId`         |
 | Settings   | `/report-templates`, `/report-queue`, `/generated-reports`, `/roles`, `/lists/:key`, `/settings` |
 
 Errors are always `{"error": "..."}` with an appropriate status.
@@ -123,14 +127,14 @@ Two request conventions are worth knowing:
   written; anything you leave out keeps its stored value. Sending an explicit
   empty array (`"actionNeeded": []`) does clear that column — `null` and an
   omitted key both mean "leave it alone".
-- **`clientId` is not accepted on a product.** It is derived from the project, so
-  a product can never be attributed to — or deleted by — a client that does not
-  own it. Move the product by changing `projectId`. `currentSprintId` is not
-  accepted on create either — a new product has no sprints; use
-  `PATCH /products/:id/current-sprint` once one exists.
+- **`clientId` is not accepted on a module.** It is derived from the project, so
+  a module can never be attributed to — or deleted by — a client that does not
+  own it. Move the module by changing `projectId`. `currentSprintId` is not
+  accepted on create either — a new module has no sprints; use
+  `PATCH /modules/:id/current-sprint` once one exists.
 - **List endpoints are paginated.** `?limit=` (default 200, max 1000) and
   `?offset=`. The body stays a plain array; an `X-Has-More: true` response header
-  says another page exists. `PATCH /products/:id/current-sprint` is the one
+  says another page exists. `PATCH /modules/:id/current-sprint` is the one
   endpoint where an explicit `null` differs from an absent key: `null` clears the
   pointer, an empty body `{}` changes nothing.
 
@@ -167,15 +171,15 @@ Endpoint groups, all under `/api/v1`:
 | ----- | --------- | --------- |
 | clients | `/clients`, `/clients/{id}`, `/clients/{id}/projects` | yes |
 | projects | `/projects`, `/projects/{id}` | yes |
-| products (UI "Modules") | `/products`, `/products/{id}`, `/products/{id}/current-sprint` | yes |
-| modules (UI "Components") | `/products/{id}/modules`, `/modules/{id}`, `/modules/{id}/status` | yes |
-| sprints | `/products/{id}/sprints`, `/sprints/{id}`, `/modules/{id}/sprints` | yes |
+| modules | `/modules`, `/modules/{id}`, `/modules/{id}/current-sprint` | yes |
+| components | `/modules/{id}/components`, `/components/{id}`, `/components/{id}/status` | yes |
+| sprints | `/modules/{id}/sprints`, `/sprints/{id}`, `/components/{id}/sprints` | yes |
 | sprint membership | `/sprints/{id}/members`, `/sprints/{id}/members/{memberId}` | yes |
 | sprint backlog | `/sprints/{id}/backlog`, `/sprints/{id}/backlog/{itemId}` | yes |
-| backlog | `/products/{id}/backlog`, `/modules/{id}/backlog`, `/backlog/{id}` | yes |
+| backlog | `/modules/{id}/backlog`, `/components/{id}/backlog`, `/backlog/{id}` | yes |
 | tasks | `/sprints/{id}/tasks`, `/tasks/{id}`, `/tasks/{id}/column`, `/tasks/{id}/dod` | yes (list) |
 | members | `/members`, `/members/{id}` | yes |
-| decisions | `/products/{id}/decisions`, `/decisions/{id}` | yes |
+| decisions | `/modules/{id}/decisions`, `/decisions/{id}` | yes |
 | reports | `/report-templates`, `/report-queue`, `/generated-reports` | queue + generated |
 | settings | `/roles`, `/lists/{key}`, `/settings` | yes (except `/settings`, a singleton) |
 | users | `/users`, `/users/{id}` | yes |
@@ -274,27 +278,36 @@ that was only busy.
 
 ## Migrating a database that already has data
 
+> **A database created before the hierarchy rename cannot be migrated forward.**
+> The tables were `products` and `modules`; they are now `modules` and
+> `components`, and that change was made by rewriting the migrations rather than
+> by adding one — half the objects needing new names were named by Postgres
+> itself, so an ALTER-based migration would have been guesswork. Drop the old
+> database and run `make migrate-up && make seed`. Nothing but development data
+> existed at the time of the change.
+
+
 `000002_integrity_hardening` adds the foreign keys and CHECKs that 000001 was
 missing. Rows that already break them stop the migration — it names the offending
 row and leaves `schema_migrations.dirty = true` rather than accepting bad data.
 On a database that has been written to, clean up first:
 
 ```sql
--- a product must be attributed to its project's client
-UPDATE products p SET client_id = pj.client_id
+-- a module must be attributed to its project's client
+UPDATE modules p SET client_id = pj.client_id
   FROM projects pj WHERE pj.id = p.project_id AND pj.client_id <> p.client_id;
 
--- a sprint or backlog item may only point at a Component of its own Module
-UPDATE sprints s SET module_id = NULL
-  FROM modules m WHERE m.id = s.module_id AND m.product_id <> s.product_id;
-UPDATE backlog_items b SET module_id = NULL
-  FROM modules m WHERE m.id = b.module_id AND m.product_id <> b.product_id;
+-- a sprint or backlog item may only point at a Component of its own Component
+UPDATE sprints s SET component_id = NULL
+  FROM components m WHERE m.id = s.component_id AND m.module_id <> s.module_id;
+UPDATE backlog_items b SET component_id = NULL
+  FROM components m WHERE m.id = b.component_id AND m.module_id <> b.module_id;
 
--- the current-sprint pointer must name a sprint of that product
-UPDATE products p SET current_sprint_id = NULL
+-- the current-sprint pointer must name a sprint of that module
+UPDATE modules p SET current_sprint_id = NULL
  WHERE p.current_sprint_id IS NOT NULL
    AND NOT EXISTS (SELECT 1 FROM sprints s
-                    WHERE s.id = p.current_sprint_id AND s.product_id = p.id);
+                    WHERE s.id = p.current_sprint_id AND s.module_id = p.id);
 
 -- bounds
 UPDATE sprints SET progress = LEAST(GREATEST(progress, 0), 100);
@@ -306,19 +319,19 @@ UPDATE sprints SET working_days = GREATEST(working_days, 0), days_left = GREATES
                    committed = GREATEST(committed, 0), completed = GREATEST(completed, 0);
 UPDATE tasks SET estimate = GREATEST(estimate, 0);
 UPDATE backlog_items SET estimate = GREATEST(estimate, 0);
-UPDATE modules SET position = GREATEST(position, 0);
+UPDATE components SET position = GREATEST(position, 0);
 UPDATE sprint_backlog_items SET position = GREATEST(position, 0);
 UPDATE task_dod SET position = GREATEST(position, 0);
 
 -- a sprint ending before it starts
 UPDATE sprints SET end_date = NULL WHERE start_date IS NOT NULL AND end_date < start_date;
 
--- sprint numbers start at 1; move any non-positive one to the end of its product
+-- sprint numbers start at 1; move any non-positive one to the end of its module
 WITH renumber AS (
   SELECT s.id,
          (SELECT GREATEST(COALESCE(MAX(x.number), 0), 0) FROM sprints x
-           WHERE x.product_id = s.product_id)
-         + ROW_NUMBER() OVER (PARTITION BY s.product_id ORDER BY s.id) AS new_number
+           WHERE x.module_id = s.module_id)
+         + ROW_NUMBER() OVER (PARTITION BY s.module_id ORDER BY s.id) AS new_number
     FROM sprints s WHERE s.number <= 0
 )
 UPDATE sprints t SET number = r.new_number FROM renumber r WHERE t.id = r.id;
@@ -334,7 +347,7 @@ The frontend currently reads from `src/lib/store.tsx` (in-memory, seeded from
 
 1. Point a data layer at `NEXT_PUBLIC_API_URL` (this service).
 2. Replace the `useCollection` seeds with fetches — the JSON field names already
-   match (`productId`, `moduleId`, camelCase throughout).
+   match (`moduleId`, `componentId`, camelCase throughout).
 3. Seed the database from `src/lib/data.ts` so the prototype data survives.
 
 Until then this service is free to evolve without touching the app.

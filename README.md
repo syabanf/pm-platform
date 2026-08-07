@@ -14,14 +14,8 @@ A **Client** is the company. A **Project** is the outcome they hired you for. A
 **Module** is a product or system you build for it. A **Component** is one piece
 of that module, and it owns its own **Sprints**.
 
-> **Naming note for contributors.** The code predates those labels and still uses
-> the older ones: the UI's "Module" is the `Product` type and the `/products/`
-> route, and the UI's "Component" is the `Module` type and the `/modules/` route.
-> The backend tables follow the code, not the UI. Nothing is broken — just read
-> `product` as "Module" and `module` as "Component".
-
 New here, or back after a while? **[docs/OVERVIEW.md](docs/OVERVIEW.md)** is the
-whole system on one page — both halves, the naming trap, accounts, the API, and
+whole system on one page — both halves, accounts, the API, and
 what is still open.
 
 ## Running it
