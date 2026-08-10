@@ -1,0 +1,6 @@
+{
+  "_": "Measured ceilings with ~8% headroom. Re-bless deliberately on a Next upgrade; do not raise to make CI green.",
+  "sharedKB": 135,
+  "largestChunkKB": 75,
+  "totalKB": 385
+}

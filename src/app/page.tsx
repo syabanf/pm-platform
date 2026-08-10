@@ -290,7 +290,18 @@ export default function HomePage() {
                     <StatusPill status={client.risk} label={`${client.risk} risk`} />
                   </span>
                 </div>
-                <div id={regionId} className="animate-collapse" data-open={isOpen}>
+                {/*
+                  `inert` for the same reason Folder has it: the grid collapse
+                  takes the height to zero and clips overflow, but every link
+                  inside keeps its own box, so a closed client's projects and
+                  modules stayed in the tab order and in the accessibility tree.
+                */}
+                <div
+                  id={regionId}
+                  className="animate-collapse"
+                  data-open={isOpen}
+                  inert={!isOpen}
+                >
                 <div>
                 <div className="border-t border-line">
                 {clientProjects.map((project) => {

@@ -69,3 +69,37 @@ test("editing a template changes the report it produces", async ({ page }) => {
   // The metric table that used to be welded to this template is gone with it.
   await expect(first).not.toContainText("Blocked Items");
 });
+
+test("deleting a template breaks its reports, and Undo puts both back", async ({
+  page,
+}) => {
+  await generate(page, "Internal PM");
+  const article = page.locator("#main-content article");
+  await expect(article.locator("h3").first()).toContainText("Sprint Health");
+
+  // Client-side to Settings: the store is in memory.
+  await page.getByLabel("Primary").getByRole("link", { name: "Settings", exact: true }).click();
+  await page.waitForURL("**/settings");
+  await page.getByLabel("Section").getByRole("link", { name: "Report Templates" }).click();
+  await page.waitForURL("**/settings/report-templates");
+
+  // The card itself, not the grid that holds all six of them.
+  const card = page
+    .locator("div.group.border-line")
+    .filter({ hasText: "Internal PM" })
+    .first();
+  await card.getByRole("button", { name: "Delete" }).click();
+  await card.getByRole("button", { name: "Confirm?" }).click();
+
+  // The toast names the consequence rather than saying "removed".
+  const toast = page.getByRole("status");
+  await expect(toast).toContainText("Reports generated from it");
+
+  // Undo restores the template — and, the part that matters, restores what the
+  // reports made from it render. A fix that put the row back without that
+  // would pass a naive test.
+  await toast.getByRole("button", { name: "Undo" }).click();
+  await expect(
+    page.locator("#main-content").getByText("Internal PM", { exact: true })
+  ).toBeVisible();
+});

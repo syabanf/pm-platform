@@ -114,3 +114,53 @@ test("⌘K finds the MoM generator by its abbreviation", async ({ page }) => {
   await option.click();
   await page.waitForURL("**/documents/mom");
 });
+
+test("the sidebar is never both visible and unusable, at a small root font size", async ({
+  page,
+}, testInfo) => {
+  // Tailwind emits `lg:` as 64rem, and rem in a media query resolves against
+  // the browser's default font size — so a JS mirror written in px agreed only
+  // at 16px. At 12px the CSS said desktop and the JS said mobile, leaving the
+  // sidebar fully visible with every one of its controls inert. 16px is the
+  // one setting under which that bug is invisible, which is why it shipped.
+  //
+  // It has to be CDP: media-query rem resolves against the browser's *initial*
+  // font size, which no page script can change. Setting html{font-size} looks
+  // like it should work and does nothing at all here.
+  test.skip(testInfo.project.name !== "desktop", "CDP is Chromium-only");
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Page.enable");
+  await cdp.send("Page.setFontSizes", { fontSizes: { standard: 12, fixed: 12 } });
+
+  // 12px root puts 64rem at 768px. 900px is inside the window where the two
+  // units disagree: desktop by the CSS (>768) and mobile by the old px mirror
+  // (<1024). Outside that window both agree and the bug is invisible — which
+  // is the whole reason it survived every test written at 16px.
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto("/clients");
+  await expect(page.locator("aside")).toBeAttached();
+
+  const state = await page.evaluate(() => {
+    const aside = document.querySelector("aside")!;
+    const controls = [...aside.querySelectorAll("a[href], button")];
+    return {
+      remIs: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      cssSaysDesktop: matchMedia("(min-width: 64rem)").matches,
+      onScreen: aside.getBoundingClientRect().x >= 0,
+      reachable: controls.filter((el) => !el.closest("[inert]")).length,
+      total: controls.length,
+    };
+  });
+
+  // Guard the guard: if CDP stopped taking effect this test would pass at the
+  // default 16px and prove nothing.
+  expect(state.remIs, "CDP did not change the root font size").toBeLessThan(16);
+  expect(state.total).toBeGreaterThan(0);
+
+  // The invariant, whatever the font size: on screen means usable, off screen
+  // means out of the way. Never one without the other.
+  expect(
+    state.onScreen ? state.reachable > 0 : state.reachable === 0,
+    `rem=${state.remIs}px cssDesktop=${state.cssSaysDesktop} onScreen=${state.onScreen} reachable=${state.reachable}/${state.total}`
+  ).toBe(true);
+});

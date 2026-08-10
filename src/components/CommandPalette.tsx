@@ -51,6 +51,12 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const entries = useMemo<PaletteEntry[]>(() => {
+    // Nothing to index while the palette is shut, and this runs on every store
+    // change — a keystroke on a form, a task moved on the board — because it
+    // depends on eight collections. The early return has to live inside the
+    // memo rather than above it: `if (!open) return null` sits below these
+    // hooks and cannot move, because hooks may not be called conditionally.
+    if (!open) return [];
     const list: PaletteEntry[] = [];
     clients.forEach((c) =>
       list.push({
@@ -162,7 +168,7 @@ export function CommandPalette({
       list.push({ ...a, id: `action:${a.path}`, hint: "Go to", group: "Actions" })
     );
     return list;
-  }, [clients, projects, modules, sprints, tasks, backlog, decisions, members]);
+  }, [open, clients, projects, modules, sprints, tasks, backlog, decisions, members]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
