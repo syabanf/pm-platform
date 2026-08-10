@@ -82,6 +82,16 @@ export function AIInsightBlock({
   );
 }
 
+/**
+ * The floating AI Coach launcher is off.
+ *
+ * Turned off deliberately rather than deleted: the panel, its insights and the
+ * /ai-coach page all still work, and the inline AI blocks on the module and
+ * sprint pages are untouched — this is only the pill that followed you around
+ * every screen. Flip to true to bring it back.
+ */
+const AI_COACH_LAUNCHER_ENABLED = false;
+
 export function AICoachSlideOver({ insights }: { insights: AIInsight[] }) {
   const { aiPanelOpen, setAiPanelOpen } = usePrototype();
 
@@ -93,6 +103,10 @@ export function AICoachSlideOver({ insights }: { insights: AIInsight[] }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [aiPanelOpen, setAiPanelOpen]);
+
+  // After the hooks, never before — bailing earlier would call a different
+  // number of hooks on the first render than on later ones.
+  if (!AI_COACH_LAUNCHER_ENABLED) return null;
 
   return (
     <>
