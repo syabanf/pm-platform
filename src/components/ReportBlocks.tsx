@@ -13,11 +13,11 @@ import type {
 import { dailyUpdates, reportExtras, velocity } from "@/lib/data";
 
 /** Every reason a task is stuck, in one line a client can read. */
-export const blockerSummary = (t: { blockers: { text: string }[] }) =>
+const blockerSummary = (t: { blockers: { text: string }[] }) =>
   t.blockers.map((b) => b.text).join("; ") || "Blocked";
 
 /** How long the task has really been stuck: its oldest blocker. */
-export const oldestBlocker = (t: { blockers: { days?: number }[] }) =>
+const oldestBlocker = (t: { blockers: { days?: number }[] }) =>
   t.blockers.reduce((max, b) => Math.max(max, b.days ?? 0), 0);
 
 function MetricRow({ label, value }: { label: string; value: React.ReactNode }) {
