@@ -18,12 +18,12 @@ import {
 import { newId, usePrototype } from "@/lib/store";
 import type { Member } from "@/lib/types";
 
-const emptyDraft = {
+const emptyDraft = (roleLabel: string) => ({
   name: "",
-  roleLabel: "Fullstack Developer",
+  roleLabel,
   allocation: 50,
   skillTags: [] as string[],
-};
+});
 
 export function MembersMaster({
   heading = "Module Member Master",
@@ -35,15 +35,15 @@ export function MembersMaster({
   const { members, membersCrud, masters, showToast } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState(emptyDraft);
+  const [draft, setDraft] = useState(() => emptyDraft(masters.jobRoles[0] ?? ""));
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const overloaded = members.filter((m) => m.workload > 100);
 
-  const roleOptions = Array.from(
-    new Set(members.map((m) => m.roleLabel))
-  ).sort();
+  // The master, not the roles that happen to be in use: a role with nobody
+  // assigned to it yet was previously missing from this filter entirely.
+  const roleOptions = masters.jobRoles;
 
   const filtered = members.filter(
     (m) =>
@@ -53,7 +53,7 @@ export function MembersMaster({
 
   const openCreate = () => {
     setEditingId(null);
-    setDraft(emptyDraft);
+    setDraft(emptyDraft(masters.jobRoles[0] ?? ""));
     setPanelOpen(true);
   };
 

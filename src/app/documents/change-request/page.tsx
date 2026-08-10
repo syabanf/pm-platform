@@ -29,7 +29,11 @@ export default function ChangeRequestPage() {
   const [reason, setReason] = useState(
     "Requested during Sprint 03 review. Shift-level visibility is required for the plant's daily production meeting, which is the main adoption moment for the dashboard."
   );
-  const [impacts, setImpacts] = useState<string[]>(["Scope", "Timeline"]);
+  // Seeded from the master rather than named literally, so a workspace that
+  // renamed or removed these does not open the form with dead selections.
+  const [impacts, setImpacts] = useState<string[]>(() =>
+    masters.impactAreas.slice(0, 2)
+  );
   const [effort, setEffort] = useState("4");
   const [scheduleImpact, setScheduleImpact] = useState(
     "Fits Sprint 04 if one low-priority item moves out. No release date change."

@@ -74,7 +74,7 @@ const staticNavBottom: NavItem[] = [
       { label: "Members", href: "/settings/members" },
       { label: "Roles & Permissions", href: "/settings/roles" },
       { label: "Report Templates", href: "/settings/report-templates" },
-      { label: "Lists", href: "/settings/lists" },
+      { label: "Master Data", href: "/settings/masters" },
       { label: "Definition of Done", href: "/settings/dod" },
     ],
   },
@@ -212,7 +212,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   kickoff: "Kickoff Charter",
   dod: "Definition of Done",
   "report-templates": "Report Templates",
-  lists: "Lists",
+  masters: "Master Data",
   roles: "Roles",
   burndown: "Charts",
 };

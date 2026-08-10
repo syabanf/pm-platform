@@ -26,10 +26,8 @@ test("the calendar view opens a day's detail and Escape closes it", async ({ pag
 });
 
 test("a blocker category added in Settings appears in the board's form", async ({ page }) => {
-  await page.goto("/settings/lists");
-  // blockerCategories is the last list on the page, so its add-box is the
-  // last "Add value…" input.
-  const addBox = page.getByPlaceholder("Add value…").last();
+  await page.goto("/settings/masters/blockerCategories");
+  const addBox = page.getByPlaceholder("Add value…");
   await addBox.fill("Legal review");
   await addBox.press("Enter");
   await expect(page.getByText("Legal review")).toBeVisible();

@@ -21,12 +21,15 @@ import {
 import { newId, usePrototype } from "@/lib/store";
 import type { Client } from "@/lib/types";
 
-const emptyDraft = {
+// A function, not a constant: the defaults come from the masters, which the
+// user can edit, so a fixed "Retainer" here could name a contract type that no
+// longer exists.
+const emptyDraft = (contractType: string) => ({
   name: "",
   industry: "",
   clientPic: "",
-  contractType: "Retainer",
-};
+  contractType,
+});
 
 export default function ClientsPage() {
   const {
@@ -40,7 +43,9 @@ export default function ClientsPage() {
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState(emptyDraft);
+  const [draft, setDraft] = useState(() =>
+    emptyDraft(masters.contractTypes[0] ?? "")
+  );
   const [statusFilter, setStatusFilter] = useState("all");
   const [healthFilter, setHealthFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
@@ -80,7 +85,7 @@ export default function ClientsPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setDraft(emptyDraft);
+    setDraft(emptyDraft(masters.contractTypes[0] ?? ""));
     setPanelOpen(true);
   };
 

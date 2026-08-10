@@ -17,7 +17,7 @@ import {
   Panel,
   Select,
 } from "@/components/ui";
-import { modulePathById } from "@/lib/data";
+import { modulePathById, reportTypes } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
 
 export default function GlobalReportsPage({
@@ -118,8 +118,10 @@ export default function GlobalReportsPage({
                 value={draft.type}
                 onChange={(value) => setDraft({ ...draft, type: value })}
               >
-                {["Sprint Report", "Module Report", "Client Report", "Member Performance Report", "Risk Report"].map((t) => (
-                  <option key={t}>{t}</option>
+                {reportTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </Select>
             </Field>

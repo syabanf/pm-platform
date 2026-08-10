@@ -227,7 +227,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
   const [workspaceConf, setWorkspaceConf] =
     useState<WorkspaceConf>(workspaceDefaults);
   const [roles, , setRoles] = useCollection<RoleDef>(roleMatrix);
-  const [reportTemplates, reportTemplatesCrud] =
+  const [reportTemplates, reportTemplatesCrud, setReportTemplates] =
     useCollection<ReportTemplateDef>(reportTemplateMaster);
   const [dodTemplate, setDodTemplate] = useState<string[]>(defaultDodTemplate);
   const [masters, setMasters] = useState<Masters>(masterLists);
@@ -311,9 +311,22 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
             skillTags: m.skillTags.map((t) => (t === oldValue ? v : t)),
           }))
         );
+      } else if (key === "reportFrequencies") {
+        setReportTemplates((prev) =>
+          prev.map((t) =>
+            t.frequency === oldValue ? { ...t, frequency: v } : t
+          )
+        );
+      } else if (key === "reportFormats") {
+        setReportTemplates((prev) =>
+          prev.map((t) => ({
+            ...t,
+            formats: t.formats.map((f) => (f === oldValue ? v : f)),
+          }))
+        );
       }
     },
-    [setClients, setBacklog, setTasks, setMembers]
+    [setClients, setBacklog, setTasks, setMembers, setReportTemplates]
   );
 
   const removeMasterValue = useCallback((key: MasterListKey, value: string) => {

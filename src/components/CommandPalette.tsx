@@ -151,7 +151,7 @@ export function CommandPalette({
       { label: "New Client", path: "/clients" },
       { label: "AI Coach", path: "/ai-coach" },
       { label: "Workspace Settings", path: "/settings" },
-      { label: "List Masters", path: "/settings/lists" },
+      { label: "Master Data", path: "/settings/masters" },
       { label: "Report Templates", path: "/settings/report-templates" },
     ].forEach((a) =>
       list.push({ ...a, id: `action:${a.path}`, hint: "Go to", group: "Actions" })

@@ -7,6 +7,7 @@ import type {
   Member,
   Module,
   Project,
+  ReportType,
   Sprint,
   Task,
   VelocityEntry,
@@ -171,26 +172,117 @@ export const masterLists = {
     "Resourcing",
     "External / vendor",
   ],
+  reportFrequencies: ["Weekly", "Sprint-end", "Monthly", "Sprint-end / Monthly"],
+  reportFormats: ["Markdown", "PDF", "Slides"],
 };
 
 export type MasterListKey = keyof typeof masterLists;
 
+/**
+ * Which feature owns a list, so the master data index can be a directory
+ * instead of one page of eight equal cards.
+ */
+export type MasterListFeature =
+  | "Clients"
+  | "People"
+  | "Delivery"
+  | "Reports & Documents";
+
+export const masterListFeatures: MasterListFeature[] = [
+  "Clients",
+  "People",
+  "Delivery",
+  "Reports & Documents",
+];
+
 export const masterListMeta: Record<
   MasterListKey,
-  { title: string; usedBy: string }
+  {
+    title: string;
+    feature: MasterListFeature;
+    /** Where the values show up, shown on the list's page. */
+    usedBy: string;
+    /** One line on what belongs in the list, for whoever edits it next. */
+    hint: string;
+  }
 > = {
+  industries: {
+    title: "Industries",
+    feature: "Clients",
+    usedBy: "Client profile, and the folders on the client directory",
+    hint: "The sector a client operates in. Clients with none file under Uncategorised.",
+  },
+  contractTypes: {
+    title: "Contract Types",
+    feature: "Clients",
+    usedBy: "Client profile",
+    hint: "How the engagement is billed — retainer, fixed scope, and so on.",
+  },
+  jobRoles: {
+    title: "Job Roles",
+    feature: "People",
+    usedBy: "Member master, and the role filter on it",
+    hint: "What a person does on delivery. Separate from Roles & Permissions, which controls access.",
+  },
+  skillTags: {
+    title: "Skill Tags",
+    feature: "People",
+    usedBy: "Member master",
+    hint: "Short capability labels used to staff a sprint.",
+  },
+  workItemTypes: {
+    title: "Work Item Types",
+    feature: "Delivery",
+    usedBy: "Module backlog",
+    hint: "The shape of a backlog item — story, bug, spike.",
+  },
+  priorities: {
+    title: "Priorities",
+    feature: "Delivery",
+    usedBy: "Backlog and tasks, including the backlog filter",
+    hint: "Ordering labels for backlog items and tasks.",
+  },
   blockerCategories: {
     title: "Blocker Categories",
-    usedBy: "Task blockers",
+    feature: "Delivery",
+    usedBy: "Task blockers on the sprint board",
+    hint: "Why a task is stuck, so blockers can be counted by cause.",
   },
-  industries: { title: "Industries", usedBy: "Client profile" },
-  contractTypes: { title: "Contract Types", usedBy: "Client profile" },
-  jobRoles: { title: "Job Roles", usedBy: "Member master" },
-  skillTags: { title: "Skill Tags", usedBy: "Member master" },
-  workItemTypes: { title: "Work Item Types", usedBy: "Module backlog" },
-  priorities: { title: "Priorities", usedBy: "Backlog & tasks" },
-  impactAreas: { title: "Impact Areas", usedBy: "Change requests" },
+  impactAreas: {
+    title: "Impact Areas",
+    feature: "Reports & Documents",
+    usedBy: "Change requests",
+    hint: "What a change request affects — scope, timeline, cost, quality.",
+  },
+  reportFrequencies: {
+    title: "Report Frequencies",
+    feature: "Reports & Documents",
+    usedBy: "Report templates",
+    hint: "How often a template is expected to be produced.",
+  },
+  reportFormats: {
+    title: "Report Formats",
+    feature: "Reports & Documents",
+    usedBy: "Report templates",
+    hint: "What a template can be delivered as.",
+  },
 };
+
+/**
+ * The report types.
+ *
+ * Deliberately NOT a master list: each type is rendered by its own body in
+ * ReportPreview, so a type added here without a matching body would produce an
+ * empty report. It is exported instead of being re-typed at each call site,
+ * which is what let the copy on the reports queue drift out of the union.
+ */
+export const reportTypes: ReportType[] = [
+  "Sprint Report",
+  "Module Report",
+  "Client Report",
+  "Member Performance Report",
+  "Risk Report",
+];
 
 export const clients: Client[] = [
   {

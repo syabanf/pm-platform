@@ -168,11 +168,15 @@ export default function BacklogPage({
                 label: "Priority",
                 value: priorityFilter,
                 onChange: setPriorityFilter,
-                options: allOf([
-                  { value: "high", label: "High" },
-                  { value: "medium", label: "Medium" },
-                  { value: "low", label: "Low" },
-                ]),
+                // From the master, like the editor on this same page: a
+                // priority added in Settings was previously assignable but
+                // not filterable.
+                options: allOf(
+                  masters.priorities.map((p) => ({
+                    value: p,
+                    label: p.charAt(0).toUpperCase() + p.slice(1),
+                  }))
+                ),
               },
               {
                 label: "Readiness",

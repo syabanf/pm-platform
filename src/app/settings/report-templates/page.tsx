@@ -23,7 +23,8 @@ const emptyDraft = {
 };
 
 export default function ReportTemplatesPage() {
-  const { reportTemplates, reportTemplatesCrud, showToast } = usePrototype();
+  const { reportTemplates, reportTemplatesCrud, masters, showToast } =
+    usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
@@ -71,7 +72,7 @@ export default function ReportTemplatesPage() {
         audience: draft.audience.trim() || "—",
         frequency: draft.frequency,
         visibility: draft.visibility,
-        formats: ["Markdown"],
+        formats: masters.reportFormats.slice(0, 1),
         sections,
       });
       showToast("Template created.", "success");
@@ -116,10 +117,11 @@ export default function ReportTemplatesPage() {
                     value={draft.frequency}
                     onChange={(value) => setDraft({ ...draft, frequency: value })}
                   >
-                    <option>Weekly</option>
-                    <option>Sprint-end</option>
-                    <option>Monthly</option>
-                    <option>Sprint-end / Monthly</option>
+                    {masters.reportFrequencies.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
                   </Select>
                 </Field>
                 <Field label="Visibility">

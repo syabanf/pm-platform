@@ -6,20 +6,13 @@ import { StatusPill } from "@/components/StatusPill";
 import { articleToMarkdown, downloadFile, slugify } from "@/lib/export";
 import { newId, usePrototype } from "@/lib/store";
 import type { ReportConfig, ReportType } from "@/lib/types";
+import { reportTypes } from "@/lib/data";
 import {
   Button,
   EmptyState,
   SectionHeader,
   ToggleButton,
 } from "@/components/ui";
-
-const reportTypes: ReportType[] = [
-  "Sprint Report",
-  "Module Report",
-  "Client Report",
-  "Member Performance Report",
-  "Risk Report",
-];
 
 const periods = ["Current Sprint", "Last Sprint", "Monthly", "Custom Date"];
 
