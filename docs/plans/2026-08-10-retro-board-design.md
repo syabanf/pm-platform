@@ -12,12 +12,19 @@ closed. Three consequences, all reachable:
 
 1. Every sprint shows the same retro. Open Sprint 01's retro and you are
    reading Sprint 03's.
-2. The home dashboard raises "Overdue action" triage items from
-   `retroData.actions`, and there is no way for anyone to resolve them. They
-   are permanent.
+2. The home dashboard derives "Overdue action" triage items from
+   `retroData.actions`, and there is no way for anyone to resolve one.
+
+   **Correction, found during implementation:** this fault was real in the
+   code but produced nothing in practice. Home compares against
+   `TODAY = "2026-07-08"` and the three seeded actions were due 07-11, 07-13
+   and 07-14, so none was ever overdue and the block never rendered an item.
+   The claim that unresolvable items were on screen was written without
+   checking. What was true is that had any action gone overdue, nobody could
+   have closed it.
 3. That triage item links to a hardcoded
    `oee-intelligence/sprints/sprint-03/retro`, so an overdue action from any
-   sprint sends you to Sprint 03.
+   sprint sends you to Sprint 03 regardless of where it came from.
 
 The sprint review page has a related but distinct fault: `demoChecklist` and
 `clientFeedback` are `useState` seeded from `reviewData`, so ticking a demo

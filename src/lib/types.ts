@@ -185,6 +185,48 @@ export interface VelocityEntry {
   completed: number;
 }
 
+/**
+ * A retro observation — one line under Went Well or Needs Improvement.
+ *
+ * Keyed by sprint, because a retrospective belongs to the sprint it looked
+ * back on. It used to be one global object, so every sprint in the workspace
+ * displayed the same retro.
+ */
+export interface RetroNote {
+  id: string;
+  sprintId: string;
+  kind: "went-well" | "needs-improvement";
+  text: string;
+}
+
+/** An improvement the team committed to, with someone's name against it. */
+export interface RetroAction {
+  id: string;
+  sprintId: string;
+  action: string;
+  /** A member id — the owner used to be free text that matched nothing. */
+  ownerId: string;
+  due: string;
+  status: "open" | "done";
+}
+
+/** One line of the sprint review's demo checklist. */
+export interface DemoItem {
+  id: string;
+  sprintId: string;
+  label: string;
+  done: boolean;
+}
+
+/** Something the client said at the review, and what was done about it. */
+export interface ClientFeedback {
+  id: string;
+  sprintId: string;
+  from: string;
+  note: string;
+  disposition: string;
+}
+
 export interface Decision {
   id: string;
   moduleId: string; // the Component this decision belongs to

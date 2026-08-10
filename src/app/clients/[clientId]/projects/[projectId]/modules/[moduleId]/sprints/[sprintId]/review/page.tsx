@@ -3,9 +3,9 @@
 import { use, useState } from "react";
 import { AIInsightBlock } from "@/components/AICoachPanel";
 import { StatusPill } from "@/components/StatusPill";
-import { Button, Input } from "@/components/ui";
+import { Button, EmptyState, Input } from "@/components/ui";
 import { reviewData } from "@/lib/data";
-import { usePrototype, useSprint } from "@/lib/store";
+import { newId, usePrototype, useSprint } from "@/lib/store";
 
 export default function SprintReviewPage({
   params,
@@ -14,12 +14,22 @@ export default function SprintReviewPage({
 }) {
   const { sprintId } = use(params);
   const sprint = useSprint(sprintId);
-  const { tasks, showToast } = usePrototype();
-  const [checklist, setChecklist] = useState(reviewData.demoChecklist);
-  const [feedback, setFeedback] = useState(reviewData.clientFeedback);
+  const {
+    tasks,
+    demoItems,
+    demoItemsCrud,
+    clientFeedback,
+    clientFeedbackCrud,
+    showToast,
+  } = usePrototype();
   const [draft, setDraft] = useState("");
 
   if (!sprint) return null;
+
+  // From the store, not local state seeded from a frozen object — ticking an
+  // item or capturing feedback used to last until you navigated away.
+  const checklist = demoItems.filter((d) => d.sprintId === sprintId);
+  const feedback = clientFeedback.filter((f) => f.sprintId === sprintId);
 
   const increment = tasks.filter(
     (t) => t.sprintId === sprintId && t.column === "done"
@@ -27,10 +37,13 @@ export default function SprintReviewPage({
 
   const addFeedback = () => {
     if (!draft.trim()) return;
-    setFeedback((prev) => [
-      ...prev,
-      { from: "Client PIC", note: draft.trim(), disposition: "New" },
-    ]);
+    clientFeedbackCrud.add({
+      id: newId("feedback"),
+      sprintId,
+      from: "Client PIC",
+      note: draft.trim(),
+      disposition: "New",
+    });
     setDraft("");
     showToast("Feedback captured. Send it to the backlog from refinement.", "success");
   };
@@ -57,19 +70,20 @@ export default function SprintReviewPage({
       <div className="mt-8 grid gap-12 md:grid-cols-2">
         <section>
           <h4 className="label">Demo Checklist</h4>
+          {checklist.length === 0 ? (
+            <EmptyState className="mt-3">
+              No demo checklist for this sprint yet.
+            </EmptyState>
+          ) : (
           <ul className="mt-3 divide-y divide-line border-y border-line">
-            {checklist.map((item, i) => (
-              <li key={item.label}>
+            {checklist.map((item) => (
+              <li key={item.id}>
                 <label className="flex cursor-pointer items-center gap-3 py-3">
                   <input
                     type="checkbox"
                     checked={item.done}
                     onChange={() =>
-                      setChecklist((prev) =>
-                        prev.map((c, j) =>
-                          j === i ? { ...c, done: !c.done } : c
-                        )
-                      )
+                      demoItemsCrud.update(item.id, { done: !item.done })
                     }
                     className="h-4 w-4 accent-black"
                   />
@@ -82,6 +96,7 @@ export default function SprintReviewPage({
               </li>
             ))}
           </ul>
+          )}
 
           <h4 className="label mt-10">Increment Summary</h4>
           <ul className="mt-3 divide-y divide-line border-y border-line">
@@ -104,9 +119,14 @@ export default function SprintReviewPage({
 
         <section>
           <h4 className="label">Client Feedback</h4>
+          {feedback.length === 0 ? (
+            <EmptyState className="mt-3">
+              Nothing captured from the client yet.
+            </EmptyState>
+          ) : (
           <ul className="mt-3 divide-y divide-line border-y border-line">
-            {feedback.map((item, i) => (
-              <li key={i} className="py-3">
+            {feedback.map((item) => (
+              <li key={item.id} className="py-3">
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm text-ink">{item.note}</p>
                   <StatusPill
@@ -118,6 +138,7 @@ export default function SprintReviewPage({
               </li>
             ))}
           </ul>
+          )}
           <div className="mt-3 flex gap-2">
             <Input
               value={draft}

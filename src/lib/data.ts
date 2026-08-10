@@ -6,8 +6,12 @@ import type {
   Decision,
   Member,
   Module,
+  ClientFeedback,
+  DemoItem,
   Project,
   ReportSection,
+  RetroAction,
+  RetroNote,
   ReportType,
   Sprint,
   Task,
@@ -1516,24 +1520,28 @@ export const velocityInsight: AIInsight = {
 };
 
 // Sprint Review mock data (spec §10.9)
+/**
+ * The sprint review's demo checklist and captured client feedback.
+ *
+ * These were local useState on the review page seeded from a frozen object, so
+ * ticking an item or capturing feedback lasted until you navigated away.
+ */
+export const demoItems: DemoItem[] = [
+  { id: "dm-03-1", sprintId: "sprint-03", label: "Machine data preview table with live telemetry", done: true },
+  { id: "dm-03-2", sprintId: "sprint-03", label: "OEE formula documentation walkthrough", done: true },
+  { id: "dm-03-3", sprintId: "sprint-03", label: "Dashboard UI (work in progress preview)", done: false },
+  { id: "dm-02-1", sprintId: "sprint-02", label: "Telemetry ingestion for Line 1 machines", done: true },
+  { id: "dm-02-2", sprintId: "sprint-02", label: "OEE calculation against the manual baseline", done: true },
+];
+
+export const clientFeedback: ClientFeedback[] = [
+  { id: "cf-03-1", sprintId: "sprint-03", from: "Pak Hendra", note: "Preview table is exactly what operators need. Add shift filter.", disposition: "Added to backlog" },
+  { id: "cf-03-2", sprintId: "sprint-03", from: "Plant supervisor", note: "OEE formula matches our manual calculation for Line 1.", disposition: "Validated" },
+  { id: "cf-02-1", sprintId: "sprint-02", from: "Pak Hendra", note: "Ingestion latency is acceptable for the daily meeting.", disposition: "Validated" },
+];
+
+/** The review page's AI summary, which stays read-only. */
 export const reviewData = {
-  demoChecklist: [
-    { label: "Machine data preview table with live telemetry", done: true },
-    { label: "OEE formula documentation walkthrough", done: true },
-    { label: "Dashboard UI (work in progress preview)", done: false },
-  ],
-  clientFeedback: [
-    {
-      from: "Pak Hendra",
-      note: "Preview table is exactly what operators need. Add shift filter.",
-      disposition: "Added to backlog",
-    },
-    {
-      from: "Plant supervisor",
-      note: "OEE formula matches our manual calculation for Line 1.",
-      disposition: "Validated",
-    },
-  ],
   aiSummary: {
     insight:
       "Review produced 1 new backlog item and validated the OEE formula.",
@@ -1548,37 +1556,58 @@ export const reviewData = {
 };
 
 // Sprint Retrospective mock data (spec §10.10)
-export const retroData = {
-  wentWell: [
-    "QA scenarios were ready before development finished",
-    "Daily updates were consistent across the whole team",
-    "Formula documentation unblocked client validation early",
-  ],
-  needsImprovement: [
-    "Client data dependency blocked core work for 3 days",
-    "Backend capacity was overcommitted from day one",
-    "Requirement confirmation loops took more than 48 hours",
-  ],
-  actions: [
-    {
-      action: "Add client confirmation checklist into Definition of Ready",
-      owner: "Risya",
-      due: "2026-07-14",
-      status: "open" as const,
-    },
-    {
-      action: "Introduce Data Readiness Gate in sprint planning",
-      owner: "Fahmi",
-      due: "2026-07-13",
-      status: "open" as const,
-    },
-    {
-      action: "Rebalance backend allocation for Sprint 04",
-      owner: "Fahmi",
-      due: "2026-07-11",
-      status: "done" as const,
-    },
-  ],
+/**
+ * Retro notes, per sprint.
+ *
+ * These used to be two string arrays on one global object, so Sprint 01's
+ * retro page showed Sprint 03's retro. Sprints that have finished carry their
+ * own; the ones still running start empty, which is what a retro looks like
+ * before the team has held it.
+ */
+export const retroNotes: RetroNote[] = [
+  // Sprint 03 — the content this page has always shown.
+  { id: "rn-03-w1", sprintId: "sprint-03", kind: "went-well", text: "QA scenarios were ready before development finished" },
+  { id: "rn-03-w2", sprintId: "sprint-03", kind: "went-well", text: "Daily updates were consistent across the whole team" },
+  { id: "rn-03-w3", sprintId: "sprint-03", kind: "went-well", text: "Formula documentation unblocked client validation early" },
+  { id: "rn-03-i1", sprintId: "sprint-03", kind: "needs-improvement", text: "Client data dependency blocked core work for 3 days" },
+  { id: "rn-03-i2", sprintId: "sprint-03", kind: "needs-improvement", text: "Backend capacity was overcommitted from day one" },
+  { id: "rn-03-i3", sprintId: "sprint-03", kind: "needs-improvement", text: "Requirement confirmation loops took more than 48 hours" },
+
+  { id: "rn-02-w1", sprintId: "sprint-02", kind: "went-well", text: "Telemetry ingestion landed a sprint earlier than planned" },
+  { id: "rn-02-w2", sprintId: "sprint-02", kind: "went-well", text: "Pairing on the OEE formula cut review time in half" },
+  { id: "rn-02-i1", sprintId: "sprint-02", kind: "needs-improvement", text: "Two backlog items entered the sprint without acceptance criteria" },
+  { id: "rn-02-i2", sprintId: "sprint-02", kind: "needs-improvement", text: "Machine data samples arrived late from the client" },
+
+  { id: "rn-01-w1", sprintId: "sprint-01", kind: "went-well", text: "Discovery workshops produced a clear pilot scope" },
+  { id: "rn-01-i1", sprintId: "sprint-01", kind: "needs-improvement", text: "Environment access took the first four days of the sprint" },
+
+  { id: "rn-sc1-w1", sprintId: "scada-s1", kind: "went-well", text: "Tag mapping was validated on site before build started" },
+  { id: "rn-sc1-i1", sprintId: "scada-s1", kind: "needs-improvement", text: "PLC downtime on the client side cost two days of testing" },
+
+  { id: "rn-kb1-w1", sprintId: "kb-s1", kind: "went-well", text: "Document ingestion pipeline handled the sample corpus first try" },
+  { id: "rn-kb1-i1", sprintId: "kb-s1", kind: "needs-improvement", text: "Retrieval quality was not measurable until late in the sprint" },
+];
+
+/** Retro actions, per sprint. Owners are member ids, not free text. */
+export const retroActions: RetroAction[] = [
+  { id: "ra-03-1", sprintId: "sprint-03", action: "Add client confirmation checklist into Definition of Ready", ownerId: "risya", due: "2026-07-14", status: "open" },
+  { id: "ra-03-2", sprintId: "sprint-03", action: "Introduce Data Readiness Gate in sprint planning", ownerId: "fahmi", due: "2026-07-13", status: "open" },
+  { id: "ra-03-3", sprintId: "sprint-03", action: "Rebalance backend allocation for Sprint 04", ownerId: "fahmi", due: "2026-07-11", status: "done" },
+
+  { id: "ra-02-1", sprintId: "sprint-02", action: "Require acceptance criteria before an item can be selected", ownerId: "risya", due: "2026-06-26", status: "done" },
+  { id: "ra-01-1", sprintId: "sprint-01", action: "Request environment access at kickoff, not at sprint start", ownerId: "fahmi", due: "2026-06-12", status: "done" },
+  { id: "ra-sc1-1", sprintId: "scada-s1", action: "Book PLC test windows with the plant a sprint ahead", ownerId: "reyza", due: "2026-06-30", status: "open" },
+  { id: "ra-kb1-1", sprintId: "kb-s1", action: "Define a retrieval quality metric during planning", ownerId: "aditiya", due: "2026-07-03", status: "done" },
+];
+
+/**
+ * The AI blocks on the retro page.
+ *
+ * Deliberately not per sprint: the text is explicitly about a pattern across
+ * Sprints 01 to 03, which makes it a module-level observation. Copying it onto
+ * each sprint would make it false.
+ */
+export const retroInsights = {
   rootCause: {
     insight: "Requirement blocker appeared in 3 consecutive sprints.",
     reason:

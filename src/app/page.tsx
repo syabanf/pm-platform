@@ -12,7 +12,6 @@ import {
   modulePath,
   modulePathById,
   projectPath,
-  retroData,
   sprintPath,
   velocityInsight,
 } from "@/lib/data";
@@ -65,6 +64,7 @@ export default function HomePage() {
     tasks,
     members,
     decisions,
+    retroActions,
     recentPaths,
     reportQueue,
   } = usePrototype();
@@ -105,15 +105,23 @@ export default function HomePage() {
         href: `${sprintPath(sprint)}/board`,
       });
     });
-  retroData.actions
+  retroActions
     .filter((a) => a.status === "open" && a.due < TODAY)
     .forEach((action) => {
+      // Its own sprint, resolved the way the blocked-task block above does.
+      // This used to be a hardcoded link to Sprint 03's retro, so an overdue
+      // action from any sprint sent you to the wrong one — and, before retro
+      // actions could be closed at all, sent you somewhere you could do
+      // nothing about it.
+      const sprint = sprints.find((s) => s.id === action.sprintId);
+      if (!sprint) return;
+      const owner = members.find((m) => m.id === action.ownerId);
       triage.push({
         severity: 80,
         kind: "Overdue action",
         title: action.action,
-        detail: `${action.owner} · due ${action.due}`,
-        href: `${modulePathById("oee-intelligence")}/sprints/sprint-03/retro`,
+        detail: `${owner?.name ?? "Unassigned"} · due ${action.due}`,
+        href: `${sprintPath(sprint)}/retro`,
       });
     });
   members

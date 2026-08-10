@@ -12,6 +12,8 @@ import type {
   BacklogItem,
   BoardColumn,
   Client,
+  ClientFeedback,
+  DemoItem,
   Decision,
   GeneratedReport,
   Member,
@@ -19,12 +21,16 @@ import type {
   Project,
   QueuedReport,
   ReportConfig,
+  RetroAction,
+  RetroNote,
   Sprint,
   Task,
 } from "./types";
 import {
   backlog as seedBacklog,
+  clientFeedback as seedClientFeedback,
   clients as seedClients,
+  demoItems as seedDemoItems,
   decisions as seedDecisions,
   defaultDodTemplate,
   masterLists,
@@ -33,6 +39,8 @@ import {
   projects as seedProjects,
   reportQueueSeed,
   reportTemplateMaster,
+  retroActions as seedRetroActions,
+  retroNotes as seedRetroNotes,
   roleMatrix,
   sprints as seedSprints,
   tasks as seedTasks,
@@ -118,6 +126,10 @@ interface PrototypeState {
   sprints: Sprint[];
   tasks: Task[];
   decisions: Decision[];
+  retroNotes: RetroNote[];
+  retroActions: RetroAction[];
+  demoItems: DemoItem[];
+  clientFeedback: ClientFeedback[];
   clientsCrud: Crud<Client>;
   projectsCrud: Crud<Project>;
   modulesCrud: Crud<Module>;
@@ -126,6 +138,10 @@ interface PrototypeState {
   sprintsCrud: Crud<Sprint>;
   tasksCrud: Crud<Task>;
   decisionsCrud: Crud<Decision>;
+  retroNotesCrud: Crud<RetroNote>;
+  retroActionsCrud: Crud<RetroAction>;
+  demoItemsCrud: Crud<DemoItem>;
+  clientFeedbackCrud: Crud<ClientFeedback>;
   // Each returns an undo: the whole snapshotted subtree goes back on call.
   removeClientCascade: (clientId: string) => () => void;
   removeProjectCascade: (projectId: string) => () => void;
@@ -225,6 +241,14 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const [tasks, tasksCrud, setTasks] = useCollection<Task>(seedTasks);
   const [decisions, decisionsCrud] = useCollection<Decision>(seedDecisions);
+  // Retro and review records, keyed by sprint. Same idiom as every other
+  // collection here — a retro action is edited the way a decision is.
+  const [retroNotes, retroNotesCrud] = useCollection<RetroNote>(seedRetroNotes);
+  const [retroActions, retroActionsCrud] =
+    useCollection<RetroAction>(seedRetroActions);
+  const [demoItems, demoItemsCrud] = useCollection<DemoItem>(seedDemoItems);
+  const [clientFeedback, clientFeedbackCrud] =
+    useCollection<ClientFeedback>(seedClientFeedback);
 
   const [workspaceConf, setWorkspaceConf] =
     useState<WorkspaceConf>(workspaceDefaults);
@@ -673,6 +697,14 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         sprintsCrud,
         tasksCrud,
         decisionsCrud,
+        retroNotes,
+        retroActions,
+        demoItems,
+        clientFeedback,
+        retroNotesCrud,
+        retroActionsCrud,
+        demoItemsCrud,
+        clientFeedbackCrud,
         removeClientCascade,
         removeProjectCascade,
         removeModuleCascade,
