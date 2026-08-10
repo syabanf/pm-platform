@@ -301,7 +301,11 @@ function Brand() {
   );
 }
 
-const LG_BREAKPOINT = "(min-width: 1024px)";
+// Tailwind v4 emits `lg:` as `min-width: 64rem`, not px, and rem in a media
+// query resolves against the browser's default font size. A px mirror agrees
+// only at the default 16px: at 12px the CSS says desktop while this said
+// mobile, leaving the whole sidebar visible and entirely inert.
+const LG_BREAKPOINT = "(min-width: 64rem)";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

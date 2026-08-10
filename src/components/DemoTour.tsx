@@ -204,12 +204,21 @@ export function DemoTour({
               `a[href="${CSS.escape(href)}"]`
             ),
           ].find((el) => {
+            // Skip anything inside a closed drawer: the sidebar's client
+            // branch now links to the same hrefs the tour targets, and the
+            // <aside> comes before <main>, so on a phone the first match was
+            // an off-screen anchor at x:-227 and the highlight flew off the
+            // left edge while the caption narrated the in-page element.
+            if (el.closest("[inert]")) return false;
             const r = el.getBoundingClientRect();
             return (
               r.width > 0 &&
               r.height > 0 &&
               r.bottom > 0 &&
-              r.top < window.innerHeight
+              r.top < window.innerHeight &&
+              // Horizontal bounds too — the original test had none.
+              r.right > 0 &&
+              r.left < window.innerWidth
             );
           }) ?? null
         );

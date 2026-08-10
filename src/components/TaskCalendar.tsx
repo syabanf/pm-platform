@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { isInFlight } from "@/lib/boardColumns";
+import { columnLabel, isInFlight } from "@/lib/boardColumns";
 import Link from "next/link";
 import type { Task } from "@/lib/types";
 import { usePrototype } from "@/lib/store";
@@ -288,7 +288,7 @@ function DayDetail({
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 pl-3.5 text-[11px] text-muted">
                 <span>{memberName(task.assigneeId)}</span>
                 <span className="tabular-nums">{task.estimate} pts</span>
-                <span className="capitalize">{task.column.replace("-", " ")}</span>
+                <span>{columnLabel(task.column)}</span>
                 <span className="capitalize">{task.priority} priority</span>
               </div>
               {task.blockers.map((b) => (

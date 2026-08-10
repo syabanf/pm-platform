@@ -30,6 +30,7 @@ export default function ReportTemplatesPage() {
     reportTemplates,
     reportTemplatesCrud,
     renameReportTemplate,
+    removeReportTemplate,
     masters,
     showToast,
   } = usePrototype();
@@ -56,8 +57,20 @@ export default function ReportTemplatesPage() {
   };
 
   const save = () => {
-    if (!draft.name.trim()) {
+    const name = draft.name.trim();
+    if (!name) {
       showToast("Template name is required.", "warning");
+      return;
+    }
+    // Reports store their template by name and resolve it with a find(), so a
+    // duplicate makes the second template unreachable and lets a rename of
+    // either one repoint the other's already-generated reports.
+    if (
+      reportTemplates.some(
+        (t) => t.id !== editingId && t.name.trim().toLowerCase() === name.toLowerCase()
+      )
+    ) {
+      showToast(`A template called "${name}" already exists.`, "warning");
       return;
     }
     const sections = draft.sections;
@@ -204,8 +217,12 @@ export default function ReportTemplatesPage() {
               </Button>
               <ConfirmButton
                 onConfirm={() => {
-                  reportTemplatesCrud.remove(tpl.id);
-                  showToast("Template removed.", "info");
+                  const undo = removeReportTemplate(tpl.id);
+                  showToast(
+                    `${tpl.name} removed. Reports generated from it will not render until it is back.`,
+                    "info",
+                    { label: "Undo", run: undo }
+                  );
                 }}
               />
             </div>

@@ -154,11 +154,18 @@ interface PrototypeState {
   reportTemplatesCrud: Crud<ReportTemplateDef>;
   /** Renames a template and repoints every report that referenced it. */
   renameReportTemplate: (templateId: string, newName: string) => void;
+  /** Deletes a template, returning an undo — reports name templates by string. */
+  removeReportTemplate: (templateId: string) => () => void;
   dodTemplate: string[];
   setDodTemplate: (items: string[]) => void;
   masters: Masters;
   addMasterValue: (key: MasterListKey, value: string) => boolean;
-  renameMasterValue: (key: MasterListKey, oldValue: string, newValue: string) => void;
+  /** False when the rename was refused — empty, unchanged, or a duplicate. */
+  renameMasterValue: (
+    key: MasterListKey,
+    oldValue: string,
+    newValue: string
+  ) => boolean;
   removeMasterValue: (key: MasterListKey, value: string) => void;
   viewPrefs: ViewPrefs;
   setViewPref: <K extends keyof ViewPrefs>(key: K, value: ViewPrefs[K]) => void;
@@ -295,13 +302,20 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
   );
 
   const renameMasterValue = useCallback(
-    (key: MasterListKey, oldValue: string, newValue: string) => {
+    (key: MasterListKey, oldValue: string, newValue: string): boolean => {
       const v = newValue.trim();
-      if (!v || v === oldValue) return;
+      if (!v || v === oldValue) return false;
       // Renaming onto a value that already exists would leave two identical
       // rows, and the list editor keys on the value — so Edit and Delete would
       // both act on the pair. Adding already refuses duplicates; so does this.
-      if (masters[key].some((x) => x.toLowerCase() === v.toLowerCase())) return;
+      // Excluding the row being renamed — otherwise it collides with itself
+      // and a case-only rename ("qa" to "QA") can never succeed.
+      if (
+        masters[key].some(
+          (x) => x !== oldValue && x.toLowerCase() === v.toLowerCase()
+        )
+      )
+        return false;
       setMasters((prev) => ({
         ...prev,
         [key]: prev[key].map((x) => (x === oldValue ? v : x)),
@@ -355,6 +369,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
           }))
         );
       }
+      return true;
     },
     [masters, setClients, setBacklog, setTasks, setMembers, setReportTemplates]
   );
@@ -440,6 +455,24 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       );
     },
     [reportTemplates, setReportQueue]
+  );
+
+  /**
+   * Delete a template, and give back an undo.
+   *
+   * Reports name their template by string, so a plain delete left every report
+   * generated from it rendering a header and the line "this template has no
+   * sections switched on" — advice pointing at a Settings page where the
+   * template no longer exists. Nothing was recoverable. This snapshots the
+   * template the same way the client/project/module cascades snapshot theirs.
+   */
+  const removeReportTemplate = useCallback(
+    (templateId: string) => {
+      const snapshot = reportTemplates.filter((t) => t.id === templateId);
+      setReportTemplates((prev) => prev.filter((t) => t.id !== templateId));
+      return () => setReportTemplates(restoreById(snapshot));
+    },
+    [reportTemplates, setReportTemplates]
   );
 
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -715,6 +748,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         reportTemplates,
         reportTemplatesCrud,
         renameReportTemplate,
+        removeReportTemplate,
         dodTemplate,
         setDodTemplate,
         masters,

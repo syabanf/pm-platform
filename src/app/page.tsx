@@ -106,7 +106,9 @@ export default function HomePage() {
       });
     });
   retroActions
-    .filter((a) => a.status === "open" && a.due < TODAY)
+    // `a.due &&` because "" sorts before every date — a missing deadline is
+    // not an overdue one.
+    .filter((a) => a.status === "open" && a.due && a.due < TODAY)
     .forEach((action) => {
       // Its own sprint, resolved the way the blocked-task block above does.
       // This used to be a hardcoded link to Sprint 03's retro, so an overdue

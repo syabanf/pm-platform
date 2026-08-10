@@ -7,7 +7,7 @@ import {
   type ReportBlockProps,
 } from "@/components/ReportBlocks";
 import type { BacklogItem, Module, ReportConfig, Sprint } from "@/lib/types";
-import { burndownInsight, getClient, getProject } from "@/lib/data";
+import { burndownInsight } from "@/lib/data";
 import { isInFlight } from "@/lib/boardColumns";
 import { renderTokens, type ReportContext } from "@/lib/reportTokens";
 import { usePrototype } from "@/lib/store";
@@ -45,13 +45,22 @@ function Section({
  */
 function Narrative({ text }: { text: string }) {
   const runs: { bulleted: boolean; lines: string[] }[] = [];
+  // A blank line ends the current run as well as a change of bullet-ness, so
+  // two prose paragraphs stay two paragraphs. Merely skipping blanks joined
+  // them with a space — which is what the seeded Executive Summary splits on
+  // purpose to avoid.
+  let broken = true;
   for (const raw of text.split("\n")) {
     const line = raw.trim();
-    if (!line) continue;
+    if (!line) {
+      broken = true;
+      continue;
+    }
     const bulleted = /^[-*•]\s*/.test(line);
     const last = runs[runs.length - 1];
-    if (last && last.bulleted === bulleted) last.lines.push(line);
+    if (!broken && last && last.bulleted === bulleted) last.lines.push(line);
     else runs.push({ bulleted, lines: [line] });
+    broken = false;
   }
 
   return (
@@ -75,7 +84,9 @@ function Narrative({ text }: { text: string }) {
 
 /**
  * Reads live store data so reports reflect this-session board moves and
- * runtime-created sprints, not the frozen seed.
+ * runtime-created sprints, not the frozen seed. Including the client: the
+ * header used to resolve it against the seed array, so a renamed client showed
+ * its new name in the sidebar and its old one in the report on the same screen.
  */
 function useReportData(mod: Module, sprint: Sprint): ReportBlockProps {
   const {
@@ -83,12 +94,13 @@ function useReportData(mod: Module, sprint: Sprint): ReportBlockProps {
     backlog,
     decisions,
     members,
+    clients,
   } = usePrototype();
   const tasks = allTasks.filter((t) => t.sprintId === sprint.id);
   return {
     module: mod,
     sprint,
-    client: getClient(mod.clientId),
+    client: clients.find((c) => c.id === mod.clientId),
     members,
     tasks,
     backlogItems: sprint.backlogItemIds
@@ -126,9 +138,9 @@ export function ReportPreview({
   sprint: Sprint;
   config: ReportConfig;
 }) {
-  const { reportTemplates } = usePrototype();
+  const { reportTemplates, projects } = usePrototype();
   const data = useReportData(mod, sprint);
-  const project = getProject(mod.projectId);
+  const project = projects.find((p) => p.id === mod.projectId);
   const templateDef = reportTemplates.find((t) => t.name === config.template);
 
   const ctx: ReportContext = {

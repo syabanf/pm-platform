@@ -116,7 +116,11 @@ export function Combobox({
   // look filled in, so it becomes the placeholder instead — while staying in
   // the list, where it is how you clear a selection.
   const prompt = options.find((o) => o.value === "");
-  const text = query ?? (value === "" ? "" : (selected?.label ?? ""));
+  // Falling back to the raw value, not to blank: removing a master value
+  // deliberately leaves existing records holding it, and a field that shows
+  // nothing invites you to pick something else and silently reclassify the
+  // record.
+  const text = query ?? (value === "" ? "" : (selected?.label ?? value));
   const matches =
     query === null || query === ""
       ? options
@@ -131,6 +135,11 @@ export function Combobox({
     if (option.disabled) return;
     onChange(option.value);
     close();
+    // Leave the committed label selected. The keydown interception below only
+    // covers printable keys, so paste, IME commits and Android soft keyboards
+    // would otherwise append to it — "Retail" + a pasted "Banking" filtered for
+    // "RetailBanking" and found nothing.
+    requestAnimationFrame(() => inputRef.current?.select());
   };
 
   // Clicking away is a cancel, not a commit: the field falls back to whatever
@@ -145,8 +154,21 @@ export function Combobox({
       if (listRef.current?.contains(target)) return;
       close();
     };
+    // focusin as well as mousedown: ⌘K opens the command palette and focuses
+    // it without ever pressing a mouse button, which left this list floating
+    // over the page with no field behind it — and clicking it still committed.
+    const onFocusIn = (e: FocusEvent) => {
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      close();
+    };
     document.addEventListener("mousedown", onDocDown);
-    return () => document.removeEventListener("mousedown", onDocDown);
+    document.addEventListener("focusin", onFocusIn);
+    return () => {
+      document.removeEventListener("mousedown", onDocDown);
+      document.removeEventListener("focusin", onFocusIn);
+    };
   }, [open]);
 
   // Keep the highlighted row in view when arrowing past the visible window.
@@ -207,13 +229,16 @@ export function Combobox({
     // than extend it — selecting the text on focus is not enough, because focus
     // never leaves after picking an option, so the next keystroke would land in
     // the middle of "Banking" and filter for something that cannot match.
-    if (e.key === "Home" || e.key === "End") {
-      if (!open) return;
-      e.preventDefault();
-      setActive(e.key === "Home" ? 0 : Math.max(0, matches.length - 1));
-      return;
-    }
     if (query === null && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      // Home/End move through the list only while the field shows a committed
+      // label. Once the user is typing they belong to the caret, and taking
+      // them made a mis-typed query impossible to jump back and correct.
+      if (e.key === "Home" || e.key === "End") {
+        if (!open) return;
+        e.preventDefault();
+        setActive(e.key === "Home" ? 0 : Math.max(0, matches.length - 1));
+        return;
+      }
       // Space opens the list the way it does on a <select>, instead of
       // starting a search for a space character.
       if (e.key === " ") {
@@ -284,7 +309,20 @@ export function Combobox({
         value={text}
         placeholder={prompt?.label ?? placeholder}
         onChange={(e) => {
-          setQuery(e.target.value);
+          const next = e.target.value;
+          // While the field still shows a committed label, every insertion
+          // path that produces no printable keydown — paste, IME commit,
+          // Android soft keyboard, dictation — arrives here with that label
+          // still in front of what was inserted. Strip it, so all of them
+          // replace the selection the way typing does. Relying on the text
+          // staying selected is not enough: the selection does not survive
+          // every one of those paths.
+          const label = selected?.label ?? "";
+          setQuery(
+            query === null && label && next.startsWith(label)
+              ? next.slice(label.length)
+              : next
+          );
           setOpen(true);
           setActive(0);
         }}
@@ -296,7 +334,10 @@ export function Combobox({
         // Focus does not fire on a field that already has it, and picking an
         // option leaves focus in place — so without this, clicking the field
         // again to change your mind does nothing at all.
-        onClick={() => {
+        onClick={(e) => {
+          // Same reason as in commit: an insertion that produces no printable
+          // keydown must still replace the label rather than extend it.
+          if (query === null) e.currentTarget.select();
           if (!open) openWith(options.findIndex((o) => o.value === value));
         }}
         onKeyDown={onKeyDown}

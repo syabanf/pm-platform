@@ -98,3 +98,32 @@ test("a ticked demo item stays ticked", async ({ page }) => {
     page.getByRole("checkbox").and(page.locator('input[type="checkbox"]')).last()
   ).toBeChecked();
 });
+
+test("an action cannot be saved without a due date", async ({ page }) => {
+  await page.goto(RETRO_03);
+
+  await page.getByRole("textbox", { name: "New retro action" }).fill("Pilot the handover checklist");
+  await page.getByLabel("Action due date").fill("");
+  await page.getByRole("button", { name: "Add Action" }).click();
+
+  // An emptied date input reports "", and "" sorts before every real date — so
+  // this used to save and land on Home as overdue the moment it was created.
+  await expect(page.getByRole("status")).toContainText("due date");
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "Pilot the handover checklist" })
+  ).toHaveCount(0);
+});
+
+test("a retro note's delete control is visible, not just hoverable", async ({ page }) => {
+  await page.goto(RETRO_03);
+  const row = page
+    .getByRole("listitem")
+    .filter({ hasText: "QA scenarios were ready before development finished" });
+
+  // The reveal compiles inside @media (hover: hover), so an opacity-0 wrapper
+  // stays invisible forever on a touch device while remaining tappable.
+  const opacity = await row
+    .getByRole("button", { name: "Delete" })
+    .evaluate((el) => getComputedStyle(el.parentElement!).opacity);
+  expect(Number(opacity)).toBeGreaterThan(0);
+});

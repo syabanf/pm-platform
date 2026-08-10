@@ -63,11 +63,13 @@ test("a role with nobody assigned still appears in the member filter", async ({
   ).toBeVisible();
 });
 
-test("renaming a value onto one that already exists is refused", async ({ page }) => {
+test("renaming a value onto one that already exists is refused, and says so", async ({
+  page,
+}) => {
   await page.goto("/settings/masters/industries");
   const rows = page.locator("#main-content li");
-  // Count only once the list has actually rendered — reading it straight after
-  // goto() captured zero and made the assertion below pass for the wrong reason.
+  // Count only once the list has rendered — reading it straight after goto()
+  // captured zero and made the assertion below pass for the wrong reason.
   await expect(rows.first()).toBeVisible();
   const before = await rows.count();
 
@@ -77,13 +79,33 @@ test("renaming a value onto one that already exists is refused", async ({ page }
   await field.fill("Manufacturing");
   await field.press("Enter");
 
-  // Two identical rows would behave as one: the editor keys on the value, so
-  // Edit and Delete would both act on the pair.
+  // Refused, and it says why rather than closing under a green toast — two
+  // identical rows would behave as one, because the editor keys on the value.
+  await expect(page.getByRole("status")).toContainText("already in this list");
+  await expect(field).toBeVisible();
   await expect(
     page.locator("#main-content").getByText("Manufacturing", { exact: true })
   ).toHaveCount(1);
   await expect(rows).toHaveCount(before);
+
+  // Cancelling leaves the original untouched.
+  await page.getByRole("button", { name: "Cancel" }).click();
   await expect(
     page.locator("#main-content").getByText("Banking", { exact: true })
   ).toHaveCount(1);
+});
+
+test("a case-only rename goes through", async ({ page }) => {
+  await page.goto("/settings/masters/priorities");
+  await expect(page.locator("#main-content").getByText("high", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Edit" }).first().click();
+  const field = page.getByRole("textbox", { name: /^Rename / });
+  await field.fill("High");
+  await field.press("Enter");
+
+  // The duplicate guard used to scan the row being renamed, so it collided
+  // with itself and "high" could never become "High".
+  await expect(page.getByRole("status")).toContainText("Renamed");
+  await expect(page.locator("#main-content").getByText("High", { exact: true })).toBeVisible();
 });

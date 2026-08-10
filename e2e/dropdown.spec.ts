@@ -74,3 +74,52 @@ test("the option list is not clipped by the board's scroller", async ({ page }) 
   expect(box!.y).toBeGreaterThanOrEqual(0);
   expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1);
 });
+
+test("pasting replaces the selection instead of appending to it", async ({ page }) => {
+  await page.goto("/clients");
+  await page.getByRole("button", { name: "Add Client" }).click();
+
+  const industry = page.getByRole("combobox", { name: "Industry" });
+  await industry.click();
+  await page.getByRole("option", { name: "Retail", exact: true }).click();
+  await expect(industry).toHaveValue("Retail");
+
+  // insertText is the path a paste, an IME commit and an Android soft keyboard
+  // all take — none of them produces a printable keydown, so the "typing
+  // replaces the label" rule never saw them and "Retail" + "b" filtered for
+  // "Retailb".
+  await industry.click();
+  await page.keyboard.insertText("bank");
+  await expect(industry).toHaveValue("bank");
+  await expect(page.getByRole("option", { name: "Banking" })).toBeVisible();
+});
+
+test("a value whose option is gone still shows in the field", async ({ page }) => {
+  // Removing a master value deliberately leaves records holding it. The field
+  // used to render blank, which reads as "nothing selected" and invites you to
+  // pick something else.
+  await page.goto("/settings/masters/industries");
+  const row = page.locator("#main-content li").filter({ hasText: "Manufacturing" });
+  await row.getByRole("button", { name: "Delete" }).click();
+  await row.getByRole("button", { name: "Confirm?" }).click();
+
+  await page.getByLabel("Primary").getByRole("link", { name: "Clients", exact: true }).click();
+  await page.waitForURL("**/clients");
+  await page.getByRole("row", { name: /UBS Gold/ }).getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("combobox", { name: "Industry" })).toHaveValue("Manufacturing");
+});
+
+test("the option list closes when focus leaves for the palette", async ({ page }) => {
+  await page.goto("/clients");
+  await page.getByRole("button", { name: "Add Client" }).click();
+  await page.getByRole("combobox", { name: "Industry" }).click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+
+  // ⌘K moves focus without a mousedown, which used to leave the portalled list
+  // floating over the page — still clickable, with no field behind it.
+  //
+  // Asserted on an industry option rather than on `listbox`, because the
+  // command palette renders a listbox of its own and would satisfy that.
+  await page.keyboard.press("ControlOrMeta+k");
+  await expect(page.getByRole("option", { name: "Banking", exact: true })).toHaveCount(0);
+});

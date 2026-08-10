@@ -61,7 +61,13 @@ function NoteColumn({
             <li key={note.id} className="group flex items-center gap-3 py-3">
               <span className={`h-1.5 w-1.5 shrink-0 ${tone.dot}`} />
               <span className="flex-1 text-sm text-ink">{note.text}</span>
-              <span className="opacity-0 transition-opacity group-hover:opacity-100">
+              {/*
+                opacity-60, not opacity-0: the hover reveal compiles inside
+                `@media (hover: hover)`, so on a touch device an opacity-0
+                control stays invisible forever while remaining tappable and in
+                the tab order. The action rows below already do it this way.
+              */}
+              <span className="opacity-60 transition-opacity group-hover:opacity-100">
                 <ConfirmButton
                   onConfirm={() => {
                     retroNotesCrud.remove(note.id);
@@ -111,6 +117,13 @@ export default function SprintRetroPage({
   const addAction = () => {
     if (!draft.action.trim()) {
       showToast("Describe the action first.", "warning");
+      return;
+    }
+    // An emptied date input reports "", and "" sorts before every real date —
+    // so an action saved without one was immediately overdue on Home, for a
+    // deadline nobody had set.
+    if (!draft.due) {
+      showToast("Give the action a due date.", "warning");
       return;
     }
     retroActionsCrud.add({

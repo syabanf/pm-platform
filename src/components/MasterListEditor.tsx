@@ -40,11 +40,20 @@ export function MasterListEditor({ listKey }: { listKey: MasterListKey }) {
   };
 
   const saveRename = (oldValue: string) => {
-    if (editValue.trim() && editValue.trim() !== oldValue) {
-      renameMasterValue(listKey, oldValue, editValue);
-      showToast("Renamed across every record using it.", "success");
+    const next = editValue.trim();
+    if (!next || next === oldValue) {
+      setEditing(null);
+      return;
     }
-    setEditing(null);
+    // The store refuses a rename onto a value that already exists. It used to
+    // say so by doing nothing, while this claimed success and closed — so the
+    // list sat there unchanged under a green toast.
+    if (renameMasterValue(listKey, oldValue, next)) {
+      showToast("Renamed across every record using it.", "success");
+      setEditing(null);
+    } else {
+      showToast(`"${next}" is already in this list.`, "warning");
+    }
   };
 
   return (
