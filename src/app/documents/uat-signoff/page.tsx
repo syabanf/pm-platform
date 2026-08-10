@@ -56,6 +56,18 @@ export default function UatSignoffPage() {
         ? "Accepted with notes"
         : "Not accepted";
 
+  const generate = () => {
+    if (!subject.module) {
+      showToast(
+        "Pick a project that has at least one module — this document is about a module.",
+        "warning"
+      );
+      return;
+    }
+    setGenerated(true);
+    showToast("UAT sign-off drafted.", "success");
+  };
+
   const setResult = (index: number, result: Result) =>
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, result } : it)));
   const setNote = (index: number, note: string) =>
@@ -105,10 +117,7 @@ export default function UatSignoffPage() {
             </ul>
           </Field>
           <GenerateButton
-            onClick={() => {
-              setGenerated(true);
-              showToast("UAT sign-off drafted.", "success");
-            }}
+            onClick={generate}
             label="Generate Sign-off"
           />
         </>

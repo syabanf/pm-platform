@@ -12,6 +12,7 @@ import { OnlineStatus } from "@/components/OnlineStatus";
 import { HowToWizard, useHowTo } from "@/components/HowToWizard";
 import { DemoTour } from "@/components/DemoTour";
 import { usePrototype } from "@/lib/store";
+import { masterListMeta } from "@/lib/data";
 
 interface NavChild {
   label: string;
@@ -213,6 +214,11 @@ const SEGMENT_LABELS: Record<string, string> = {
   dod: "Definition of Done",
   "report-templates": "Report Templates",
   masters: "Master Data",
+  // The per-list routes are keyed by MasterListKey, so the fallback would
+  // title them "JobRoles" and "WorkItemTypes" on the phone top bar.
+  ...Object.fromEntries(
+    Object.entries(masterListMeta).map(([key, meta]) => [key, meta.title])
+  ),
   roles: "Roles",
   burndown: "Charts",
 };

@@ -33,32 +33,41 @@ function Section({
 /**
  * Renders a section's narrative.
  *
- * Blank lines separate paragraphs, and a run of lines starting with "-" becomes
- * a bullet list — which is what lets the recommendation and mitigation lists
- * that used to be hardcoded in this file live in the template instead.
+ * A run of lines starting with "-" becomes a bullet list and everything else
+ * becomes a paragraph — which is what lets the recommendation and mitigation
+ * lists that used to be hardcoded in this file live in the template instead.
+ *
+ * Grouping runs, rather than classifying whole blank-line-separated blocks,
+ * is deliberate: an intro line above its bullets is the obvious way to write
+ * one, and treating the block as all-or-nothing turned that into a single
+ * run-on sentence with dashes in the middle of it.
  */
 function Narrative({ text }: { text: string }) {
-  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim());
+  const runs: { bulleted: boolean; lines: string[] }[] = [];
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    const bulleted = /^[-*•]\s*/.test(line);
+    const last = runs[runs.length - 1];
+    if (last && last.bulleted === bulleted) last.lines.push(line);
+    else runs.push({ bulleted, lines: [line] });
+  }
+
   return (
     <>
-      {paragraphs.map((paragraph, i) => {
-        const lines = paragraph.split("\n").map((l) => l.trim()).filter(Boolean);
-        const bulleted = lines.every((l) => l.startsWith("-"));
-        if (bulleted) {
-          return (
-            <ul key={i} className={`space-y-1 ${i > 0 ? "mt-3" : ""}`}>
-              {lines.map((line, j) => (
-                <li key={j}>— {line.replace(/^-\s*/, "")}</li>
-              ))}
-            </ul>
-          );
-        }
-        return (
+      {runs.map((run, i) =>
+        run.bulleted ? (
+          <ul key={i} className={`space-y-1 ${i > 0 ? "mt-3" : ""}`}>
+            {run.lines.map((line, j) => (
+              <li key={j}>— {line.replace(/^[-*•]\s*/, "")}</li>
+            ))}
+          </ul>
+        ) : (
           <p key={i} className={i > 0 ? "mt-3" : undefined}>
-            {lines.join(" ")}
+            {run.lines.join(" ")}
           </p>
-        );
-      })}
+        )
+      )}
     </>
   );
 }

@@ -51,6 +51,13 @@ export default function ChangeRequestPage() {
       showToast("Title and description are required.", "warning");
       return;
     }
+    if (!subject.module) {
+      showToast(
+        "Pick a project that has at least one module — this document is about a module.",
+        "warning"
+      );
+      return;
+    }
     setGenerated(true);
     showToast("Change request drafted. Review before sending for approval.", "success");
   };

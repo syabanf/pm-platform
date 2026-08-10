@@ -35,7 +35,14 @@ export default function ReportsPage({
   const sprints = allSprints.filter((s) => s.moduleId === moduleId);
 
   const [type, setType] = useState<ReportType>("Module Report");
-  const [template, setTemplate] = useState("Client Facing");
+  // Falls back to whatever templates actually exist: "Client Facing" can be
+  // renamed or deleted in Settings, and a name nobody has renders an empty
+  // report.
+  const [template, setTemplate] = useState(
+    () => reportTemplates.find((t) => t.name === "Client Facing")?.name ??
+      reportTemplates[0]?.name ??
+      ""
+  );
   const [period, setPeriod] = useState("Current Sprint");
   const [generated, setGenerated] = useState<ReportConfig | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);

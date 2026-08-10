@@ -62,3 +62,28 @@ test("a role with nobody assigned still appears in the member filter", async ({
     page.getByRole("button", { name: "Solution Architect", exact: true })
   ).toBeVisible();
 });
+
+test("renaming a value onto one that already exists is refused", async ({ page }) => {
+  await page.goto("/settings/masters/industries");
+  const rows = page.locator("#main-content li");
+  // Count only once the list has actually rendered — reading it straight after
+  // goto() captured zero and made the assertion below pass for the wrong reason.
+  await expect(rows.first()).toBeVisible();
+  const before = await rows.count();
+
+  // "Banking" is the second row; rename it onto the first.
+  await page.getByRole("button", { name: "Edit" }).nth(1).click();
+  const field = page.getByRole("textbox", { name: /^Rename / });
+  await field.fill("Manufacturing");
+  await field.press("Enter");
+
+  // Two identical rows would behave as one: the editor keys on the value, so
+  // Edit and Delete would both act on the pair.
+  await expect(
+    page.locator("#main-content").getByText("Manufacturing", { exact: true })
+  ).toHaveCount(1);
+  await expect(rows).toHaveCount(before);
+  await expect(
+    page.locator("#main-content").getByText("Banking", { exact: true })
+  ).toHaveCount(1);
+});

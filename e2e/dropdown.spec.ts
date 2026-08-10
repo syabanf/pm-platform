@@ -55,3 +55,22 @@ test("Escape cancels without changing the value", async ({ page }) => {
   await expect(page.getByRole("listbox")).toHaveCount(0);
   await expect(industry).toHaveValue("Banking");
 });
+
+test("the option list is not clipped by the board's scroller", async ({ page }) => {
+  await page.goto(
+    "/clients/ubs-gold/projects/ubs-mdt/modules/oee-intelligence/sprints/sprint-03/board"
+  );
+  const card = page.locator("div.p-3").filter({ hasText: "Create API mapping" });
+  await card.getByRole("button", { name: "Details" }).click();
+  await card.getByRole("combobox", { name: "Move task to column" }).click();
+
+  // Portalled to the body, so the board's overflow container cannot clip it…
+  const list = page.getByRole("listbox");
+  await expect(list).toBeVisible();
+  const box = await list.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box).not.toBeNull();
+  // …and it stays inside the window, flipping above the field if it must.
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1);
+});

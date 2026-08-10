@@ -1,6 +1,16 @@
 "use client";
 
-import { Children, isValidElement, useEffect, useId, useRef, useState } from "react";
+import {
+  Children,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 
 export type ComboboxOption = { value: string; label: string; disabled?: boolean };
 
@@ -33,6 +43,9 @@ export function optionsFromChildren(children: React.ReactNode): ComboboxOption[]
 
 const norm = (s: string) => s.toLowerCase().trim();
 
+/** Tallest the option list gets before it scrolls, in px. */
+const MAX_LIST_HEIGHT = 240;
+
 /**
  * A dropdown you can type into.
  *
@@ -48,10 +61,13 @@ const norm = (s: string) => s.toLowerCase().trim();
  * - The control is an `<input>`, not a button, so that `<Field>` — which is a
  *   real `<label>` wrapping its child — names it implicitly the same way it
  *   names every other input.
- * - Because the popup renders *inside* that label, a click on an option would
- *   otherwise be forwarded to the input as label activation and immediately
- *   reopen the list. The `preventDefault` on option mousedown/click is what
- *   stops that, and is not incidental styling.
+ * - The listbox is portalled to the body and positioned against the input's
+ *   rect. Rendering it in place put a `<ul>` inside that `<label>`, which is
+ *   invalid and folded every visible option into the field's accessible name;
+ *   and it made the popup a child of whatever scroll container it sat in, so
+ *   on the sprint board — whose columns scroll horizontally, which forces
+ *   `overflow-y` to `auto` — the options were clipped. A native `<select>`
+ *   popup is painted outside the document and has neither problem.
  */
 export function Combobox({
   value,
@@ -76,7 +92,19 @@ export function Combobox({
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
+  /**
+   * Where to draw the portalled listbox, in viewport coordinates. Exactly one
+   * of `top` / `bottom` is set — which one is the flip decision below.
+   */
+  const [rect, setRect] = useState<{
+    left: number;
+    width: number;
+    maxHeight: number;
+    top?: number;
+    bottom?: number;
+  } | null>(null);
   // `null` means "not typing" — the input shows the selected label. A string,
   // including "", means the user is filtering and owns the field's text.
   const [query, setQuery] = useState<string | null>(null);
@@ -110,7 +138,12 @@ export function Combobox({
   useEffect(() => {
     if (!open) return;
     const onDocDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      // The listbox is portalled, so it is not inside rootRef — clicking an
+      // option would otherwise read as clicking away.
+      if (rootRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      close();
     };
     document.addEventListener("mousedown", onDocDown);
     return () => document.removeEventListener("mousedown", onDocDown);
@@ -124,6 +157,45 @@ export function Combobox({
       ?.scrollIntoView({ block: "nearest" });
   }, [open, active, listId]);
 
+  const measure = useCallback(() => {
+    const box = inputRef.current?.getBoundingClientRect();
+    if (!box) return;
+    // A fixed-position popup cannot be scrolled into view, so a field near the
+    // bottom of the window would open off-screen and be unreachable. Open
+    // upwards when there is more room there, and never ask for more height
+    // than the side actually has.
+    const GAP = 4;
+    const below = window.innerHeight - box.bottom - GAP;
+    const above = box.top - GAP;
+    const flip = below < Math.min(MAX_LIST_HEIGHT, 160) && above > below;
+    setRect({
+      left: box.left,
+      width: box.width,
+      maxHeight: Math.max(80, Math.min(MAX_LIST_HEIGHT, flip ? above : below)),
+      ...(flip
+        ? { bottom: window.innerHeight - box.top + GAP }
+        : { top: box.bottom + GAP }),
+    });
+  }, []);
+
+  // Before paint, so the list never shows up at the previous field's position.
+  useLayoutEffect(() => {
+    if (open) measure();
+  }, [open, measure]);
+
+  // Any ancestor scrolling moves the field out from under the popup, and
+  // `capture` is what makes a scroll inside the board's column container count
+  // — scroll events do not bubble.
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("scroll", measure, true);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("resize", measure);
+    };
+  }, [open, measure]);
+
   const openWith = (index: number) => {
     setOpen(true);
     setActive(Math.max(0, index));
@@ -135,7 +207,20 @@ export function Combobox({
     // than extend it — selecting the text on focus is not enough, because focus
     // never leaves after picking an option, so the next keystroke would land in
     // the middle of "Banking" and filter for something that cannot match.
+    if (e.key === "Home" || e.key === "End") {
+      if (!open) return;
+      e.preventDefault();
+      setActive(e.key === "Home" ? 0 : Math.max(0, matches.length - 1));
+      return;
+    }
     if (query === null && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      // Space opens the list the way it does on a <select>, instead of
+      // starting a search for a space character.
+      if (e.key === " ") {
+        e.preventDefault();
+        if (!open) openWith(options.findIndex((o) => o.value === value));
+        return;
+      }
       if (e.key.length === 1) {
         e.preventDefault();
         setQuery(e.key);
@@ -180,13 +265,15 @@ export function Combobox({
   };
 
   return (
-    <div ref={rootRef} className={`relative ${className ?? ""}`}>
+    <div ref={rootRef} className="relative">
       <input
         ref={inputRef}
         id={id}
         role="combobox"
         aria-expanded={open}
-        aria-controls={listId}
+        // Only while it exists. The listbox is unmounted when closed, so
+        // advertising it the rest of the time is a dangling reference.
+        aria-controls={open ? listId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={
           open && matches[active] ? `${listId}-opt-${active}` : undefined
@@ -213,7 +300,7 @@ export function Combobox({
           if (!open) openWith(options.findIndex((o) => o.value === value));
         }}
         onKeyDown={onKeyDown}
-        className="w-full cursor-default border border-line px-3 py-2 pr-8 text-sm text-ink transition-colors focus:border-black disabled:cursor-not-allowed disabled:text-muted"
+        className={`w-full min-h-11 cursor-default border border-line px-3 py-2 pr-8 text-sm text-ink transition-colors focus:border-black disabled:cursor-not-allowed disabled:text-muted md:min-h-0 ${className ?? ""}`}
       />
       <svg
         viewBox="0 0 16 16"
@@ -228,43 +315,53 @@ export function Combobox({
         <path d="M4 6l4 4 4-4" />
       </svg>
 
-      {open && (
-        <ul
-          id={listId}
-          role="listbox"
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-black bg-paper py-1 shadow-lg"
-        >
-          {matches.length === 0 && (
-            <li className="px-3 py-2 text-sm text-muted">No matches.</li>
-          )}
-          {matches.map((option, i) => (
-            <li
-              key={option.value}
-              id={`${listId}-opt-${i}`}
-              role="option"
-              aria-selected={option.value === value}
-              aria-disabled={option.disabled}
-              onMouseEnter={() => setActive(i)}
-              // Keeps focus in the input so the field never flickers…
-              onMouseDown={(e) => e.preventDefault()}
-              // …and stops the enclosing <label> from re-activating the input.
-              onClick={(e) => {
-                e.preventDefault();
-                commit(option);
-              }}
-              className={`cursor-pointer px-3 py-2 text-sm ${
-                option.disabled
-                  ? "cursor-not-allowed text-muted"
-                  : i === active
-                    ? "bg-soft text-ink"
-                    : "text-ink"
-              } ${option.value === value ? "font-medium" : ""}`}
-            >
-              {option.label}
-            </li>
-          ))}
-        </ul>
-      )}
+      {open &&
+        rect &&
+        createPortal(
+          <ul
+            ref={listRef}
+            id={listId}
+            role="listbox"
+            style={{
+              left: rect.left,
+              width: rect.width,
+              maxHeight: rect.maxHeight,
+              ...(rect.top !== undefined
+                ? { top: rect.top }
+                : { bottom: rect.bottom }),
+            }}
+            className="fixed z-50 overflow-y-auto border border-black bg-paper py-1 shadow-lg"
+          >
+            {matches.length === 0 && (
+              <li role="presentation" className="px-3 py-2 text-sm text-muted">
+                No matches.
+              </li>
+            )}
+            {matches.map((option, i) => (
+              <li
+                key={option.value}
+                id={`${listId}-opt-${i}`}
+                role="option"
+                aria-selected={option.value === value}
+                aria-disabled={option.disabled}
+                onMouseEnter={() => setActive(i)}
+                // Keeps focus in the input so the field never flickers.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => commit(option)}
+                className={`cursor-pointer px-3 py-2 text-sm ${
+                  option.disabled
+                    ? "cursor-not-allowed text-muted"
+                    : i === active
+                      ? "bg-soft text-ink"
+                      : "text-ink"
+                } ${option.value === value ? "font-medium" : ""}`}
+              >
+                {option.label}
+              </li>
+            ))}
+          </ul>,
+          document.body
+        )}
     </div>
   );
 }

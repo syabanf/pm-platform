@@ -39,6 +39,13 @@ export default function StatusUpdatePage() {
       showToast("Add a few notes first.", "warning");
       return;
     }
+    if (!subject.module) {
+      showToast(
+        "Pick a project that has at least one module — this document is about a module.",
+        "warning"
+      );
+      return;
+    }
     setParsed(parseStatusUpdate(bullets));
     showToast("Status update drafted.", "success");
   };
@@ -47,7 +54,7 @@ export default function StatusUpdatePage() {
     <DocPageShell
       label="Documents / Status Update"
       title="Status Update"
-      description="Turn quick notes into a structured weekly update: what's done, what's in flight, what's blocked, and what you need from the subject.client?."
+      description="Turn quick notes into a structured weekly update: what's done, what's in flight, what's blocked, and what you need from the client."
       form={
         <>
           <DocSubjectFields subject={subject} withModule />

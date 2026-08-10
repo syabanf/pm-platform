@@ -56,7 +56,10 @@ export async function choose(
   option: string | RegExp
 ) {
   await scope.getByRole("combobox", { name: field }).click();
-  await scope.getByRole("option", { name: option, exact: true }).click();
+  // The option list is portalled to the body so it is never clipped by a
+  // scroll container, which also means it is never inside `scope`.
+  const page = "page" in scope ? scope.page() : scope;
+  await page.getByRole("option", { name: option, exact: true }).click();
 }
 
 /** The seeded board every deep-link test drives. */

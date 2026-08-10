@@ -134,5 +134,3 @@ export const REPORT_BLOCKS: ReportBlockMeta[] = [
     describe: "What the next sprint is expected to cover.",
   },
 ];
-
-export const reportBlockKeys = new Set(REPORT_BLOCKS.map((b) => b.key));

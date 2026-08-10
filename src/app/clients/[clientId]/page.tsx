@@ -77,19 +77,19 @@ export default function ClientDetailPage({
     (a, b) => b.localeCompare(a)
   );
 
-  // Only the newest year opens on arrival. Seeding from the data rather than
-  // from the clock keeps server and client renders identical — and it still
-  // lands on something when a client's latest project predates this year.
-  const [openYears, setOpenYears] = useState<Set<string>>(
-    () => new Set(byYear.slice(0, 1).map(([year]) => year))
-  );
+  // The newest year is open unless the user closed it — recomputed every
+  // render, not seeded once. A set frozen at mount could not know about a year
+  // that appears later, so creating the first project of a new year filed it
+  // into a folder that was already shut and looked like it had not saved.
+  //
+  // Storing only what the user actually toggled is what keeps the default
+  // free to move. Reading it from the clock instead would fold everything shut
+  // on a client whose latest project predates this year.
+  const newestYear = byYear[0]?.[0];
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const isYearOpen = (year: string) => toggled[year] ?? year === newestYear;
   const toggleYear = (year: string) =>
-    setOpenYears((prev) => {
-      const next = new Set(prev);
-      if (next.has(year)) next.delete(year);
-      else next.add(year);
-      return next;
-    });
+    setToggled((prev) => ({ ...prev, [year]: !isYearOpen(year) }));
 
   const client = clients.find((c) => c.id === clientId);
   if (!client) {
@@ -290,7 +290,7 @@ export default function ClientDetailPage({
                     key={year}
                     label={year}
                     count={group.length}
-                    open={openYears.has(year)}
+                    open={isYearOpen(year)}
                     onToggle={() => toggleYear(year)}
                   >
                   <DataTable

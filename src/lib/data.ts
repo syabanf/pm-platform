@@ -207,7 +207,12 @@ The team completed {{metrics.completed}} of {{metrics.committed}} committed poin
     visibility: "internal",
     formats: ["Markdown"],
     sections: [
-      sec("Delivery Risks", "timelineRisk"),
+      sec(
+        "Delivery Risks",
+        "timelineRisk",
+        `- Client-side data readiness delays core validation work.
+- Downtime category ownership unassigned on the client side.`
+      ),
       sec("Blockers & Aging", "blockers"),
       sec("Client Actions Required", "clientActions"),
       sec(
@@ -358,10 +363,11 @@ export const masterListMeta: Record<
 /**
  * The report types.
  *
- * Deliberately NOT a master list: each type is rendered by its own body in
- * ReportPreview, so a type added here without a matching body would produce an
- * empty report. It is exported instead of being re-typed at each call site,
- * which is what let the copy on the reports queue drift out of the union.
+ * A type names the document; the template decides what is in it. Types are not
+ * a master list because they are a closed set the union enforces, and because
+ * a user-added one would have no template behind it. Exported rather than
+ * re-typed at each call site, which is what let the copy on the reports queue
+ * drift out of the union.
  */
 export const reportTypes: ReportType[] = [
   "Sprint Report",

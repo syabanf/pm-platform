@@ -136,6 +136,8 @@ interface PrototypeState {
   togglePermission: (roleId: string, capability: string) => void;
   reportTemplates: ReportTemplateDef[];
   reportTemplatesCrud: Crud<ReportTemplateDef>;
+  /** Renames a template and repoints every report that referenced it. */
+  renameReportTemplate: (templateId: string, newName: string) => void;
   dodTemplate: string[];
   setDodTemplate: (items: string[]) => void;
   masters: Masters;
@@ -272,6 +274,10 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     (key: MasterListKey, oldValue: string, newValue: string) => {
       const v = newValue.trim();
       if (!v || v === oldValue) return;
+      // Renaming onto a value that already exists would leave two identical
+      // rows, and the list editor keys on the value — so Edit and Delete would
+      // both act on the pair. Adding already refuses duplicates; so does this.
+      if (masters[key].some((x) => x.toLowerCase() === v.toLowerCase())) return;
       setMasters((prev) => ({
         ...prev,
         [key]: prev[key].map((x) => (x === oldValue ? v : x)),
@@ -326,7 +332,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         );
       }
     },
-    [setClients, setBacklog, setTasks, setMembers, setReportTemplates]
+    [masters, setClients, setBacklog, setTasks, setMembers, setReportTemplates]
   );
 
   const removeMasterValue = useCallback((key: MasterListKey, value: string) => {
@@ -357,7 +363,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const [reportQueue, reportQueueCrud] =
+  const [reportQueue, reportQueueCrud, setReportQueue] =
     useCollection<QueuedReport>(reportQueueSeed);
   const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>(
     []
@@ -383,6 +389,33 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [generatedReports, reportQueue, reportQueueCrud]
+  );
+
+  /**
+   * Rename a report template, and rewrite everything that named it.
+   *
+   * Reports store their template by name, so a plain rename orphaned every
+   * report already generated from it: the lookup missed, the body came back
+   * empty, and the page blamed the user for a template with "no sections
+   * switched on". A rename is a rewrite here, the same as it is for a master
+   * list value.
+   */
+  const renameReportTemplate = useCallback(
+    (templateId: string, newName: string) => {
+      const from = reportTemplates.find((t) => t.id === templateId)?.name;
+      if (!from || from === newName) return;
+      setGeneratedReports((prev) =>
+        prev.map((r) =>
+          r.config.template === from
+            ? { ...r, config: { ...r.config, template: newName } }
+            : r
+        )
+      );
+      setReportQueue((prev) =>
+        prev.map((q) => (q.template === from ? { ...q, template: newName } : q))
+      );
+    },
+    [reportTemplates, setReportQueue]
   );
 
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -649,6 +682,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         togglePermission,
         reportTemplates,
         reportTemplatesCrud,
+        renameReportTemplate,
         dodTemplate,
         setDodTemplate,
         masters,

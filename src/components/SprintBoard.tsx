@@ -180,7 +180,6 @@ function TaskCardView({
             <Select
               value={task.column}
               onChange={(value) => moveTask(task.id, value as BoardColumn)}
-              className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
             >
               {columns.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -381,7 +380,6 @@ function AddTaskForm({
           <Select
             value={itemId}
             onChange={(value) => setItemId(value)}
-            className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
           >
             {choices.map((c) => (
               <option key={c.id} value={c.id}>
@@ -394,7 +392,6 @@ function AddTaskForm({
       <Select
         value={assigneeId}
         onChange={(value) => setAssigneeId(value)}
-        className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
       >
         {members.map((m) => (
           <option key={m.id} value={m.id}>
@@ -623,7 +620,6 @@ function AddBlocker({ task }: { task: Task }) {
         <Select
           value={category}
           onChange={(value) => setCategory(value)}
-          className="w-full border border-line bg-paper px-2 py-1 text-xs text-ink"
         >
           {categories.map((c) => (
             <option key={c} value={c}>

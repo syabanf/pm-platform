@@ -47,8 +47,9 @@ test("a blocker category added in Settings appears in the board's form", async (
   await card.getByRole("button", { name: "Details" }).click();
   // The dropdown is a combobox, so its options exist only while it is open.
   await card.getByRole("combobox", { name: "Blocker category" }).click();
+  // Portalled to the body, so page-level rather than inside the card.
   await expect(
-    card.getByRole("option", { name: "Legal review", exact: true })
+    page.getByRole("option", { name: "Legal review", exact: true })
   ).toHaveCount(1);
 });
 

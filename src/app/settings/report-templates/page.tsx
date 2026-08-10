@@ -26,8 +26,13 @@ const emptyDraft = {
 };
 
 export default function ReportTemplatesPage() {
-  const { reportTemplates, reportTemplatesCrud, masters, showToast } =
-    usePrototype();
+  const {
+    reportTemplates,
+    reportTemplatesCrud,
+    renameReportTemplate,
+    masters,
+    showToast,
+  } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState(emptyDraft);
@@ -57,6 +62,8 @@ export default function ReportTemplatesPage() {
     }
     const sections = draft.sections;
     if (editingId) {
+      // Before the update, so it can still read the old name off the record.
+      renameReportTemplate(editingId, draft.name.trim());
       reportTemplatesCrud.update(editingId, {
         name: draft.name.trim(),
         audience: draft.audience.trim(),
