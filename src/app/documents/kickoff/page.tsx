@@ -13,8 +13,7 @@ import {
   GenerateButton,
   inputClass,
 } from "@/components/Document";
-import { ToggleButton } from "@/components/ui";
-import { clients } from "@/lib/data";
+import { DocSubjectFields, useDocSubject } from "@/components/DocSubject";
 import { usePrototype } from "@/lib/store";
 
 const toLines = (raw: string) =>
@@ -25,7 +24,7 @@ const toLines = (raw: string) =>
 
 export default function KickoffCharterPage() {
   const { showToast } = usePrototype();
-  const [clientId, setClientId] = useState(clients[0].id);
+  const subject = useDocSubject();
   const [title, setTitle] = useState("CMMS Integration — Project Kickoff");
   const [objective, setObjective] = useState(
     "Connect maintenance work orders with machine downtime data so maintenance planning is driven by actual machine behavior."
@@ -51,7 +50,6 @@ export default function KickoffCharterPage() {
   );
   const [generated, setGenerated] = useState(false);
 
-  const client = clients.find((c) => c.id === clientId);
 
   return (
     <DocPageShell
@@ -60,21 +58,8 @@ export default function KickoffCharterPage() {
       description="One page that aligns everyone before work starts: objective, what's in and out of scope, team, timeline, and how success is measured."
       form={
         <>
-          <Field label="Client">
-            <div className="flex flex-wrap gap-1.5">
-              {clients.map((c) => (
-                <ToggleButton
-                  key={c.id}
-                  active={clientId === c.id}
-                  size="md"
-                  onClick={() => setClientId(c.id)}
-                >
-                  {c.name}
-                </ToggleButton>
-              ))}
-            </div>
-          </Field>
-          <Field label="Project / Module Title">
+          <DocSubjectFields subject={subject} />
+          <Field label="Charter Title">
             <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
           </Field>
           <Field label="Objective">
@@ -118,7 +103,8 @@ export default function KickoffCharterPage() {
               date="2026-07-08"
               title={title}
               meta={[
-                { label: "Client", value: client?.name ?? "—" },
+                { label: "Client", value: subject.client?.name ?? "—" },
+                { label: "Project", value: subject.project?.name ?? "—" },
                 { label: "Timeline", value: timeline },
                 { label: "Prepared by", value: "Fahmi" },
               ]}

@@ -13,8 +13,7 @@ import {
   GenerateButton,
   inputClass,
 } from "@/components/Document";
-import { ToggleButton } from "@/components/ui";
-import { getClient, modules } from "@/lib/data";
+import { DocSubjectFields, useDocSubject } from "@/components/DocSubject";
 import { usePrototype } from "@/lib/store";
 
 type Result = "pass" | "fail" | "pending";
@@ -41,13 +40,11 @@ const resultStyle: Record<Result, string> = {
 
 export default function UatSignoffPage() {
   const { showToast } = usePrototype();
-  const [moduleId, setModuleId] = useState(modules[0].id);
+  const subject = useDocSubject();
   const [period, setPeriod] = useState("Sprint 03 — 29 June to 10 July 2026");
   const [items, setItems] = useState<UatItem[]>(initialItems);
   const [generated, setGenerated] = useState(false);
 
-  const mod = modules.find((p) => p.id === moduleId);
-  const client = mod ? getClient(mod.clientId) : undefined;
 
   const passed = items.filter((i) => i.result === "pass").length;
   const failed = items.filter((i) => i.result === "fail").length;
@@ -71,20 +68,7 @@ export default function UatSignoffPage() {
       description="Record acceptance test results per scope item and produce the sign-off document — the acceptance record for the sprint increment."
       form={
         <>
-          <Field label="Module">
-            <div className="flex flex-wrap gap-1.5">
-              {modules.map((p) => (
-                <ToggleButton
-                  key={p.id}
-                  active={moduleId === p.id}
-                  size="md"
-                  onClick={() => setModuleId(p.id)}
-                >
-                  {p.name}
-                </ToggleButton>
-              ))}
-            </div>
-          </Field>
+          <DocSubjectFields subject={subject} withModule />
           <Field label="Test Period">
             <input value={period} onChange={(e) => setPeriod(e.target.value)} className={inputClass} />
           </Field>
@@ -130,14 +114,16 @@ export default function UatSignoffPage() {
         </>
       }
       document={
-        generated && mod ? (
+        generated && subject.module ? (
           <DocumentArticle>
             <DocHeader
               docType="UAT Sign-off"
               date="2026-07-08"
-              title={`${mod.name} — User Acceptance Test`}
+              title={`${subject.module.name} — User Acceptance Test`}
               meta={[
-                { label: "Client", value: client?.name ?? "—" },
+                { label: "Client", value: subject.client?.name ?? "—" },
+                { label: "Project", value: subject.project?.name ?? "—" },
+                { label: "Module", value: subject.module.name },
                 { label: "Period", value: period },
                 { label: "Prepared by", value: "Fahmi" },
                 { label: "Overall Result", value: overall },
@@ -189,7 +175,7 @@ export default function UatSignoffPage() {
 
             <DocSection number={3} title="Acceptance Statement">
               <p>
-                By signing below, {client?.name} confirms the scope items marked
+                By signing below, {subject.client?.name} confirms the scope items marked
                 as passed are accepted as working increment.
                 {failed > 0 &&
                   " Failed items will be fixed and re-tested in the next sprint."}
@@ -201,7 +187,7 @@ export default function UatSignoffPage() {
             <DocSection number={4} title="Sign-off">
               <div className="grid gap-6 md:grid-cols-2">
                 {[
-                  { role: "Client PIC", name: client?.clientPic ?? "—" },
+                  { role: "Client PIC", name: subject.client?.clientPic ?? "—" },
                   { role: "WIT QA Engineer", name: "Christian" },
                 ].map((signer) => (
                   <div key={signer.role} className="border border-line p-4">

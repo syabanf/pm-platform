@@ -14,13 +14,13 @@ import {
   inputClass,
 } from "@/components/Document";
 import { ToggleButton } from "@/components/ui";
-import { getClient, modules } from "@/lib/data";
+import { DocSubjectFields, useDocSubject } from "@/components/DocSubject";
 import { usePrototype } from "@/lib/store";
 
 export default function ChangeRequestPage() {
   const { masters, showToast } = usePrototype();
   const impactAreas = masters.impactAreas;
-  const [moduleId, setModuleId] = useState(modules[0].id);
+  const subject = useDocSubject();
   const [title, setTitle] = useState("Add shift filter to OEE dashboard");
   const [requestedBy, setRequestedBy] = useState("Pak Hendra (Client PIC)");
   const [description, setDescription] = useState(
@@ -40,8 +40,6 @@ export default function ChangeRequestPage() {
   );
   const [generated, setGenerated] = useState(false);
 
-  const mod = modules.find((p) => p.id === moduleId);
-  const client = mod ? getClient(mod.clientId) : undefined;
 
   const toggleImpact = (area: string) =>
     setImpacts((prev) =>
@@ -64,20 +62,7 @@ export default function ChangeRequestPage() {
       description="Log a scope change with its business reason and impact — the scope-change log the spec requires, in client-approvable form."
       form={
         <>
-          <Field label="Module">
-            <div className="flex flex-wrap gap-1.5">
-              {modules.map((p) => (
-                <ToggleButton
-                  key={p.id}
-                  active={moduleId === p.id}
-                  size="md"
-                  onClick={() => setModuleId(p.id)}
-                >
-                  {p.name}
-                </ToggleButton>
-              ))}
-            </div>
-          </Field>
+          <DocSubjectFields subject={subject} withModule />
           <Field label="Change Title">
             <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
           </Field>
@@ -116,15 +101,16 @@ export default function ChangeRequestPage() {
         </>
       }
       document={
-        generated && mod ? (
+        generated && subject.module ? (
           <DocumentArticle>
             <DocHeader
               docType="Change Request — CR-2026-007"
               date="2026-07-08"
               title={title}
               meta={[
-                { label: "Client", value: client?.name ?? "—" },
-                { label: "Module", value: mod.name },
+                { label: "Client", value: subject.client?.name ?? "—" },
+                { label: "Project", value: subject.project?.name ?? "—" },
+                { label: "Module", value: subject.module.name },
                 { label: "Requested by", value: requestedBy },
                 { label: "Prepared by", value: "Fahmi" },
                 { label: "Status", value: "Awaiting approval" },
@@ -169,7 +155,7 @@ export default function ChangeRequestPage() {
             <DocSection number={5} title="Approval">
               <div className="grid gap-6 md:grid-cols-2">
                 {[
-                  { role: "Client PIC", name: client?.clientPic ?? "—" },
+                  { role: "Client PIC", name: subject.client?.clientPic ?? "—" },
                   { role: "WIT Delivery Lead", name: "Fahmi" },
                 ].map((signer) => (
                   <div key={signer.role} className="border border-line p-4">

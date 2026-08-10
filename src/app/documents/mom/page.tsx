@@ -13,8 +13,7 @@ import {
   GenerateButton,
   inputClass,
 } from "@/components/Document";
-import { ToggleButton } from "@/components/ui";
-import { clients } from "@/lib/data";
+import { DocSubjectFields, useDocSubject } from "@/components/DocSubject";
 import { parseMomBullets, type ParsedMom } from "@/lib/parsers";
 import { usePrototype } from "@/lib/store";
 
@@ -29,7 +28,7 @@ const SAMPLE_BULLETS = `- Reviewed OEE dashboard progress with Pak Hendra
 
 export default function MomGeneratorPage() {
   const { showToast } = usePrototype();
-  const [clientId, setClientId] = useState(clients[0].id);
+  const subject = useDocSubject();
   const [title, setTitle] = useState("Sprint 03 Progress Review with UBS Gold");
   const [date, setDate] = useState("2026-07-08");
   const [attendeesRaw, setAttendeesRaw] = useState(
@@ -42,7 +41,6 @@ export default function MomGeneratorPage() {
     .split(",")
     .map((a) => a.trim())
     .filter(Boolean);
-  const client = clients.find((c) => c.id === clientId);
 
   const generate = () => {
     if (!bullets.trim()) {
@@ -60,20 +58,7 @@ export default function MomGeneratorPage() {
       description="Paste raw bullet points from a meeting. They are sorted into discussion notes, decisions, action items with owners, and open questions — ready to share with the client."
       form={
         <>
-          <Field label="Client">
-            <div className="flex flex-wrap gap-1.5">
-              {clients.map((c) => (
-                <ToggleButton
-                  key={c.id}
-                  active={clientId === c.id}
-                  size="md"
-                  onClick={() => setClientId(c.id)}
-                >
-                  {c.name}
-                </ToggleButton>
-              ))}
-            </div>
-          </Field>
+          <DocSubjectFields subject={subject} />
           <Field label="Meeting Title">
             <input
               value={title}
@@ -123,7 +108,8 @@ export default function MomGeneratorPage() {
               date={date}
               title={title}
               meta={[
-                { label: "Client", value: client?.name ?? "—" },
+                { label: "Client", value: subject.client?.name ?? "—" },
+                { label: "Project", value: subject.project?.name ?? "—" },
                 { label: "Prepared by", value: "Fahmi" },
               ]}
             />

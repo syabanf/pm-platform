@@ -13,8 +13,7 @@ import {
   GenerateButton,
   inputClass,
 } from "@/components/Document";
-import { ToggleButton } from "@/components/ui";
-import { getClient, modules } from "@/lib/data";
+import { DocSubjectFields, useDocSubject } from "@/components/DocSubject";
 import { parseStatusUpdate, type ParsedUpdate } from "@/lib/parsers";
 import { usePrototype } from "@/lib/store";
 
@@ -29,13 +28,11 @@ const SAMPLE_BULLETS = `- Finished machine data preview table, QA passed
 
 export default function StatusUpdatePage() {
   const { showToast } = usePrototype();
-  const [moduleId, setModuleId] = useState(modules[0].id);
+  const subject = useDocSubject();
   const [period, setPeriod] = useState("Week of 6–10 July 2026");
   const [bullets, setBullets] = useState(SAMPLE_BULLETS);
   const [parsed, setParsed] = useState<ParsedUpdate | null>(null);
 
-  const mod = modules.find((p) => p.id === moduleId);
-  const client = mod ? getClient(mod.clientId) : undefined;
 
   const generate = () => {
     if (!bullets.trim()) {
@@ -50,23 +47,10 @@ export default function StatusUpdatePage() {
     <DocPageShell
       label="Documents / Status Update"
       title="Status Update"
-      description="Turn quick notes into a structured weekly update: what's done, what's in flight, what's blocked, and what you need from the client."
+      description="Turn quick notes into a structured weekly update: what's done, what's in flight, what's blocked, and what you need from the subject.client?."
       form={
         <>
-          <Field label="Module">
-            <div className="flex flex-wrap gap-1.5">
-              {modules.map((p) => (
-                <ToggleButton
-                  key={p.id}
-                  active={moduleId === p.id}
-                  size="md"
-                  onClick={() => setModuleId(p.id)}
-                >
-                  {p.name}
-                </ToggleButton>
-              ))}
-            </div>
-          </Field>
+          <DocSubjectFields subject={subject} withModule />
           <Field label="Period">
             <input
               value={period}
@@ -92,14 +76,16 @@ export default function StatusUpdatePage() {
         </>
       }
       document={
-        parsed ? (
+        parsed && subject.module ? (
           <DocumentArticle>
             <DocHeader
               docType="Status Update"
               date="2026-07-08"
-              title={`${mod?.name} — Status Update`}
+              title={`${subject.module.name} — Status Update`}
               meta={[
-                { label: "Client", value: client?.name ?? "—" },
+                { label: "Client", value: subject.client?.name ?? "—" },
+                { label: "Project", value: subject.project?.name ?? "—" },
+                { label: "Module", value: subject.module.name },
                 { label: "Period", value: period },
                 { label: "Prepared by", value: "Fahmi" },
               ]}

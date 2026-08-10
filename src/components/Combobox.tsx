@@ -202,11 +202,15 @@ export function Combobox({
           setActive(0);
         }}
         onFocus={(e) => {
-          // Select the current label so the first keystroke replaces it. Without
-          // this, typing appends to the selection — "Banking" + "man" filters
-          // for "Bankingman" and finds nothing.
+          // Select the current label so it is visibly about to be replaced.
           e.target.select();
           openWith(options.findIndex((o) => o.value === value));
+        }}
+        // Focus does not fire on a field that already has it, and picking an
+        // option leaves focus in place — so without this, clicking the field
+        // again to change your mind does nothing at all.
+        onClick={() => {
+          if (!open) openWith(options.findIndex((o) => o.value === value));
         }}
         onKeyDown={onKeyDown}
         className="w-full cursor-default border border-line px-3 py-2 pr-8 text-sm text-ink transition-colors focus:border-black disabled:cursor-not-allowed disabled:text-muted"
