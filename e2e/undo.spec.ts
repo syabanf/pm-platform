@@ -35,8 +35,10 @@ test("undo restores the client's projects too, not just the row", async ({ page 
 
   await page.getByRole("row", { name: /UBS Gold/ }).getByRole("link").first().click();
   await page.waitForURL("**/clients/ubs-gold");
-  // The project list under the client rendered — the subtree survived the round trip.
+  // The project list under the client rendered — the subtree survived the round
+  // trip. Scoped to main: the sidebar branch names the project too, and this
+  // claim is about the table.
   await expect(
-    page.getByText(/Manufacturing Digital Transformation/)
+    page.getByRole("main").getByText(/Manufacturing Digital Transformation/)
   ).toBeVisible();
 });

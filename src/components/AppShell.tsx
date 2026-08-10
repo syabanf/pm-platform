@@ -13,6 +13,7 @@ import { HowToWizard, useHowTo } from "@/components/HowToWizard";
 import { DemoTour } from "@/components/DemoTour";
 import { usePrototype } from "@/lib/store";
 import { masterListMeta } from "@/lib/data";
+import { ClientBranch } from "@/components/ClientBranch";
 
 interface NavChild {
   label: string;
@@ -23,6 +24,8 @@ interface NavItem {
   label: string;
   href: string;
   children?: NavChild[];
+  /** Renders the hierarchy branch for the current URL beneath this item. */
+  branch?: boolean;
 }
 
 const staticNavTop: NavItem[] = [
@@ -122,14 +125,13 @@ function SidebarNav() {
     getTypeParam,
     () => null
   );
-  // Clients is a plain link, not an expandable list of every client. The
-  // sidebar used to render one child per client, which is fine at three and
-  // unusable at fifty — and it has to be the same height on every screen. The
-  // /clients page is the directory now; browsing belongs there, and ⌘K reaches
-  // any client by name from anywhere.
+  // Clients carries the branch you are standing in — see ClientBranch. Not a
+  // child per client: that was fine at three and unusable at fifty, which is
+  // why it was removed. The branch is bounded instead of listed, so it is the
+  // same handful of rows at any size, and off the client routes it is nothing.
   const nav: NavItem[] = [
     ...staticNavTop,
-    { label: "Clients", href: "/clients" },
+    { label: "Clients", href: "/clients", branch: true },
     ...staticNavBottom,
   ];
 
@@ -154,7 +156,7 @@ function SidebarNav() {
 
 
   return (
-    <nav className="flex-1 overflow-y-auto px-3" aria-label="Primary">
+    <nav className="flex-1 overflow-y-auto px-3 pb-4" aria-label="Primary">
       {nav.map((item) => {
         const active = isParentActive(item.href);
         return (
@@ -195,6 +197,7 @@ function SidebarNav() {
                 })}
               </div>
             )}
+            {item.branch && <ClientBranch pathname={pathname} />}
           </div>
         );
       })}
@@ -300,10 +303,33 @@ function Brand() {
   );
 }
 
+const LG_BREAKPOINT = "(min-width: 1024px)";
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Tailwind's lg: breakpoint, mirrored in JS because `inert` has no
+  // media-query form and this one <aside> is both the mobile drawer and the
+  // desktop rail. Without it, a closed drawer keeps every sidebar link in the
+  // tab order and the accessibility tree while sitting off-screen — the same
+  // bug `inert` fixes for a collapsed Folder.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(LG_BREAKPOINT);
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    // `resize` as well as the media query: getting this wrong strands the whole
+    // sidebar behind `inert` with no way back, so it is worth not depending on
+    // a single event firing.
+    window.addEventListener("resize", sync);
+    return () => {
+      mq.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, []);
 
   // Drawer gestures: swipe in from the left edge to open, swipe left to close.
   const swipe = useRef<{ x: number; y: number } | null>(null);
@@ -462,6 +488,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <aside
+        inert={!isDesktop && !drawerOpen}
         onTouchStart={onDrawerTouchStart}
         onTouchEnd={(e) => drawerSwipe(e, false)}
         className={`print-hide fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-line bg-paper transition-transform duration-200 ease-out lg:z-30 lg:w-56 lg:translate-x-0 ${

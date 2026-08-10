@@ -49,6 +49,9 @@ test("a client created in the app shows up in the generators", async ({ page }) 
   // Client-side, because the store is in memory: the generators used to import
   // the seed arrays straight from @/lib/data, so this client was invisible to
   // them however you navigated.
+  // The sidebar's Documents child, reachable from /clients only because the
+  // static nav children render unconditionally. If the static nav is ever made
+  // section-scoped, navigate to /documents first and scope this to main.
   await page.getByRole("link", { name: "MoM", exact: true }).click();
   await page.waitForURL("**/documents/mom");
   await page.getByRole("combobox", { name: "Client" }).click();
