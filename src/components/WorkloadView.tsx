@@ -1,9 +1,8 @@
 "use client";
 
 import { usePrototype } from "@/lib/store";
-
-const TODO_COLUMNS = ["selected", "ready", "blocked"];
-const FLIGHT_COLUMNS = ["in-progress", "in-review", "qa"];
+import { IN_FLIGHT_COLUMNS, TODO_COLUMNS } from "@/lib/boardColumns";
+import type { BoardColumn } from "@/lib/types";
 
 /** Points per sprint member across the three broad states — who carries how much. */
 export function WorkloadView({ sprintId }: { sprintId: string }) {
@@ -19,7 +18,7 @@ export function WorkloadView({ sprintId }: { sprintId: string }) {
     .map((memberId) => {
       const member = members.find((m) => m.id === memberId);
       const mine = sprintTasks.filter((t) => t.assigneeId === memberId);
-      const sum = (cols: string[]) =>
+      const sum = (cols: BoardColumn[]) =>
         mine
           .filter((t) => cols.includes(t.column))
           .reduce((s, t) => s + t.estimate, 0);
@@ -28,7 +27,7 @@ export function WorkloadView({ sprintId }: { sprintId: string }) {
         name: member?.name ?? memberId,
         roleLabel: member?.roleLabel ?? "",
         todo: sum(TODO_COLUMNS),
-        inFlight: sum(FLIGHT_COLUMNS),
+        inFlight: sum(IN_FLIGHT_COLUMNS),
         done: sum(["done"]),
         blocked: mine.some((t) => t.column === "blocked"),
       };

@@ -8,6 +8,7 @@ import {
 } from "@/components/ReportBlocks";
 import type { BacklogItem, Module, ReportConfig, Sprint } from "@/lib/types";
 import { burndownInsight, getClient, getProject } from "@/lib/data";
+import { isInFlight } from "@/lib/boardColumns";
 import { renderTokens, type ReportContext } from "@/lib/reportTokens";
 import { usePrototype } from "@/lib/store";
 
@@ -94,9 +95,7 @@ function useReportData(mod: Module, sprint: Sprint): ReportBlockProps {
       .map((id) => backlog.find((b) => b.id === id))
       .filter((b): b is BacklogItem => !!b),
     completed: tasks.filter((t) => t.column === "done"),
-    inProgress: tasks.filter((t) =>
-      ["in-progress", "in-review", "qa"].includes(t.column)
-    ),
+    inProgress: tasks.filter((t) => isInFlight(t.column)),
     blocked: tasks.filter((t) => t.column === "blocked"),
     completionRate:
       sprint.committed > 0

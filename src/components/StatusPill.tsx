@@ -22,6 +22,17 @@ const toneMap: Record<string, string> = {
   development: "text-ink border-line",
   maintenance: "text-muted border-line",
   release: "text-success border-success/30",
+  // Reachable and previously silent: "On Hold" is in the project status
+  // dropdown, and selected / in-review / qa are board columns the Technical
+  // Team report renders per task. All four fell through to plain grey with no
+  // tooltip, next to siblings that were coloured.
+  "on-hold": "text-warning border-warning/30",
+  selected: "text-muted border-line",
+  "in-review": "text-ink border-line",
+  qa: "text-ink border-line",
+  inactive: "text-muted border-line",
+  temporary: "text-ink border-line",
+  prospect: "text-ink border-line",
 };
 
 // Plain-language meaning shown on hover/long-press — a lightweight status legend.
@@ -49,7 +60,17 @@ const titleMap: Record<string, string> = {
   development: "In development",
   maintenance: "In maintenance",
   release: "Released",
+  "on-hold": "On hold — paused, not cancelled",
+  selected: "Selected — committed to this sprint",
+  "in-review": "In review — awaiting code review",
+  qa: "In QA",
+  inactive: "Inactive — not on delivery",
+  temporary: "Temporary — short-term assignment",
+  prospect: "Prospect — not yet a client",
 };
+
+export const statusTones = toneMap;
+export const statusTitles = titleMap;
 
 export function StatusPill({ status, label }: { status: string; label?: string }) {
   const tone = toneMap[status] ?? "text-muted border-line";

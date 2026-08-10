@@ -16,16 +16,8 @@ import type { BacklogItem, BoardColumn, Task } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { blockerSeverity, newId, usePrototype } from "@/lib/store";
 import { Select } from "@/components/ui";
+import { BOARD_COLUMNS as columns } from "@/lib/boardColumns";
 
-const columns: { id: BoardColumn; label: string }[] = [
-  { id: "selected", label: "Selected" },
-  { id: "ready", label: "Ready" },
-  { id: "in-progress", label: "In Progress" },
-  { id: "in-review", label: "In Review" },
-  { id: "qa", label: "QA" },
-  { id: "done", label: "Done" },
-  { id: "blocked", label: "Blocked" },
-];
 
 const LANE_W = "w-64";
 const CELL_W = "w-48";

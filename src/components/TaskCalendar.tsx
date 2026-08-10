@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { isInFlight } from "@/lib/boardColumns";
 import Link from "next/link";
 import type { Task } from "@/lib/types";
 import { usePrototype } from "@/lib/store";
@@ -31,7 +32,7 @@ function ColumnDot({ column }: { column: Task["column"] }) {
       ? "bg-success"
       : column === "blocked"
         ? "bg-danger"
-        : column === "in-progress" || column === "in-review" || column === "qa"
+        : isInFlight(column)
           ? "bg-ink"
           : "bg-line";
   return <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone}`} aria-hidden />;
