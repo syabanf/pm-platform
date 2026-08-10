@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { documentGenerators, documentHref } from "@/lib/documents";
 import { useRouter } from "next/navigation";
 import {
   clientPath,
@@ -16,6 +17,8 @@ interface PaletteEntry {
   hint: string;
   group: string;
   path: string;
+  /** Matched by the search but never shown — abbreviations, mostly. */
+  keywords?: string;
 }
 
 export function useCommandPalette() {
@@ -137,14 +140,16 @@ export function CommandPalette({
         path: "/settings/members",
       })
     );
-    [
-      { label: "MoM Generator", path: "/documents/mom" },
-      { label: "Status Update", path: "/documents/status-update" },
-      { label: "Change Request", path: "/documents/change-request" },
-      { label: "UAT Sign-off", path: "/documents/uat-signoff" },
-      { label: "Kickoff Charter", path: "/documents/kickoff" },
-    ].forEach((d) =>
-      list.push({ ...d, id: d.path, hint: "Generate document", group: "Documents" })
+    documentGenerators.forEach((d) =>
+      list.push({
+        id: documentHref(d),
+        path: documentHref(d),
+        label: d.title,
+        // So "mom" still finds Minutes of Meeting.
+        keywords: d.navLabel,
+        hint: "Generate document",
+        group: "Documents",
+      })
     );
     [
       { label: "Report Queue", path: "/reports" },
@@ -165,7 +170,9 @@ export function CommandPalette({
     return entries
       .filter(
         (e) =>
-          e.label.toLowerCase().includes(q) || e.hint.toLowerCase().includes(q)
+          e.label.toLowerCase().includes(q) ||
+          e.hint.toLowerCase().includes(q) ||
+          (e.keywords?.toLowerCase().includes(q) ?? false)
       )
       .slice(0, 10);
   }, [entries, query]);

@@ -102,3 +102,15 @@ test("⌘K finds a person by name", async ({ page }) => {
   await option.click();
   await page.waitForURL("**/settings/members");
 });
+
+test("⌘K finds the MoM generator by its abbreviation", async ({ page }) => {
+  await page.goto("/");
+  const palette = await openPalette(page);
+  // The palette shows the document's real name, but the short form is what
+  // people type — the catalogue carries both and the search matches either.
+  await palette.fill("mom");
+  const option = page.getByRole("option", { name: /Minutes of Meeting/ });
+  await expect(option).toBeVisible();
+  await option.click();
+  await page.waitForURL("**/documents/mom");
+});

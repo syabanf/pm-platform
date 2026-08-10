@@ -13,6 +13,7 @@ import { HowToWizard, useHowTo } from "@/components/HowToWizard";
 import { DemoTour } from "@/components/DemoTour";
 import { usePrototype } from "@/lib/store";
 import { masterListMeta } from "@/lib/data";
+import { documentGenerators, documentHref } from "@/lib/documents";
 import { ClientBranch } from "@/components/ClientBranch";
 
 interface NavChild {
@@ -62,13 +63,10 @@ const staticNavBottom: NavItem[] = [
   {
     label: "Documents",
     href: "/documents",
-    children: [
-      { label: "MoM", href: "/documents/mom" },
-      { label: "Status Update", href: "/documents/status-update" },
-      { label: "Change Request", href: "/documents/change-request" },
-      { label: "UAT Sign-off", href: "/documents/uat-signoff" },
-      { label: "Kickoff Charter", href: "/documents/kickoff" },
-    ],
+    children: documentGenerators.map((d) => ({
+      label: d.navLabel,
+      href: documentHref(d),
+    })),
   },
   {
     label: "Settings",
@@ -209,11 +207,6 @@ const TAB_ROOTS = ["/", "/clients", "/reports", "/documents", "/ai-coach", "/set
 
 const SEGMENT_LABELS: Record<string, string> = {
   components: "Components",
-  mom: "MoM",
-  "status-update": "Status Update",
-  "change-request": "Change Request",
-  "uat-signoff": "UAT Sign-off",
-  kickoff: "Kickoff Charter",
   dod: "Definition of Done",
   "report-templates": "Report Templates",
   masters: "Master Data",
@@ -221,6 +214,11 @@ const SEGMENT_LABELS: Record<string, string> = {
   // title them "JobRoles" and "WorkItemTypes" on the phone top bar.
   ...Object.fromEntries(
     Object.entries(masterListMeta).map(([key, meta]) => [key, meta.title])
+  ),
+  // The short form, not the title: "UAT Sign-off" fits a breadcrumb where
+  // "Minutes of Meeting" does not.
+  ...Object.fromEntries(
+    documentGenerators.map((d) => [d.slug, d.navLabel])
   ),
   roles: "Roles",
   burndown: "Charts",
