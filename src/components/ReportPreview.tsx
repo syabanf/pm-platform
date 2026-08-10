@@ -1,34 +1,15 @@
 "use client";
 
 import { AIBadge } from "@/components/AICoachPanel";
-import { StatusPill } from "@/components/StatusPill";
 import { Wordmark } from "@/components/ui";
-import type {
-  BacklogItem,
-  Module,
-  ReportConfig,
-  Sprint,
-  Task,
-} from "@/lib/types";
 import {
-  burndownInsight,
-  dailyUpdates,
-  getClient,
-  getMember,
-  getProject,
-  members,
-  reportExtras,
-  velocity,
-} from "@/lib/data";
+  reportBlockRenderers,
+  type ReportBlockProps,
+} from "@/components/ReportBlocks";
+import type { BacklogItem, Module, ReportConfig, Sprint } from "@/lib/types";
+import { burndownInsight, getClient, getProject } from "@/lib/data";
+import { renderTokens, type ReportContext } from "@/lib/reportTokens";
 import { usePrototype } from "@/lib/store";
-
-/** Every reason a task is stuck, in one line a client can read. */
-const blockerSummary = (t: { blockers: { text: string }[] }) =>
-  t.blockers.map((b) => b.text).join("; ") || "Blocked";
-
-/** How long the task has really been stuck: its oldest blocker. */
-const oldestBlocker = (t: { blockers: { days?: number }[] }) =>
-  t.blockers.reduce((max, b) => Math.max(max, b.days ?? 0), 0);
 
 function Section({
   number,
@@ -49,45 +30,63 @@ function Section({
   );
 }
 
-function MetricRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <tr>
-      <td className="py-1.5 text-muted">{label}</td>
-      <td className="py-1.5 text-right tabular-nums">{value}</td>
-    </tr>
-  );
-}
-
-function Sections({ items }: { items: [string, React.ReactNode][] }) {
+/**
+ * Renders a section's narrative.
+ *
+ * Blank lines separate paragraphs, and a run of lines starting with "-" becomes
+ * a bullet list — which is what lets the recommendation and mitigation lists
+ * that used to be hardcoded in this file live in the template instead.
+ */
+function Narrative({ text }: { text: string }) {
+  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim());
   return (
     <>
-      {items.map(([title, body], i) => (
-        <Section key={title} number={i + 1} title={title}>
-          {body}
-        </Section>
-      ))}
+      {paragraphs.map((paragraph, i) => {
+        const lines = paragraph.split("\n").map((l) => l.trim()).filter(Boolean);
+        const bulleted = lines.every((l) => l.startsWith("-"));
+        if (bulleted) {
+          return (
+            <ul key={i} className={`space-y-1 ${i > 0 ? "mt-3" : ""}`}>
+              {lines.map((line, j) => (
+                <li key={j}>— {line.replace(/^-\s*/, "")}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={i} className={i > 0 ? "mt-3" : undefined}>
+            {lines.join(" ")}
+          </p>
+        );
+      })}
     </>
   );
 }
 
-// Reads live store data so reports reflect this-session board moves and
-// runtime-created sprints (not the frozen seed). Safe as a hook: every body
-// is a component and calls it unconditionally at the top.
-function useReportData(mod: Module, sprint: Sprint) {
-  const { tasks: allTasks, backlog, decisions } = usePrototype();
+/**
+ * Reads live store data so reports reflect this-session board moves and
+ * runtime-created sprints, not the frozen seed.
+ */
+function useReportData(mod: Module, sprint: Sprint): ReportBlockProps {
+  const {
+    tasks: allTasks,
+    backlog,
+    decisions,
+    members,
+  } = usePrototype();
   const tasks = allTasks.filter((t) => t.sprintId === sprint.id);
-  const backlogItems = sprint.backlogItemIds
-    .map((id) => backlog.find((b) => b.id === id))
-    .filter((b): b is BacklogItem => !!b);
   return {
+    module: mod,
+    sprint,
+    client: getClient(mod.clientId),
+    members,
     tasks,
-    backlogItems,
+    backlogItems: sprint.backlogItemIds
+      .map((id) => backlog.find((b) => b.id === id))
+      .filter((b): b is BacklogItem => !!b),
     completed: tasks.filter((t) => t.column === "done"),
     inProgress: tasks.filter((t) =>
       ["in-progress", "in-review", "qa"].includes(t.column)
-    ),
-    notCompleted: tasks.filter((t) =>
-      ["selected", "ready", "blocked"].includes(t.column)
     ),
     blocked: tasks.filter((t) => t.column === "blocked"),
     completionRate:
@@ -100,520 +99,16 @@ function useReportData(mod: Module, sprint: Sprint) {
   };
 }
 
-function TaskList({ tasks }: { tasks: Task[] }) {
-  return (
-    <ul className="space-y-1 text-xs">
-      {tasks.length === 0 && <li className="text-muted">—</li>}
-      {tasks.map((t) => (
-        <li key={t.id}>— {t.title}</li>
-      ))}
-    </ul>
-  );
-}
-
-/* ---------- 1. Internal PM: sprint health, workload, risk, capacity ---------- */
-function InternalPmBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
-  const d = useReportData(mod, sprint);
-  const capacity = sprint.members.reduce((s, m) => s + m.capacityDays, 0);
-  return (
-    <Sections
-      items={[
-        [
-          "Sprint Health",
-          <table key="t" className="w-full max-w-md text-sm">
-            <tbody className="divide-y divide-line">
-              <MetricRow label="Sprint Goal" value={<span className="text-left">{sprint.goal}</span>} />
-              <MetricRow label="Progress" value={`${d.completionRate}%`} />
-              <MetricRow label="Days Left" value={sprint.daysLeft} />
-              <MetricRow label="Risk" value={sprint.risk} />
-              <MetricRow label="Blocked Items" value={d.blocked.length} />
-            </tbody>
-          </table>,
-        ],
-        [
-          "Capacity vs Commitment",
-          <p key="p">
-            Sprint capacity is {capacity} mandays across {sprint.members.length}{" "}
-            active members. Committed work is {sprint.committed} points with{" "}
-            {sprint.committed - sprint.completed} remaining. Watch backend
-            capacity — Aditiya is over 100% workload.
-          </p>,
-        ],
-        [
-          "Member Workload",
-          <table key="t" className="w-full text-xs">
-            <tbody className="divide-y divide-line">
-              {members.map((m) => (
-                <tr key={m.id}>
-                  <td className="py-1.5 font-medium">{m.name}</td>
-                  <td className="py-1.5 text-muted">{m.roleLabel}</td>
-                  <td className="py-1.5 tabular-nums">{m.allocation}%</td>
-                  <td
-                    className={`py-1.5 text-right tabular-nums ${m.workload > 100 ? "font-semibold text-danger" : ""}`}
-                  >
-                    {m.workload}% load
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>,
-        ],
-        [
-          "Blockers & Aging",
-          <ul key="u" className="space-y-1">
-            {d.blocked.map((t) => (
-              <li key={t.id}>
-                — {t.title}: {blockerSummary(t)}{" "}
-                  {oldestBlocker(t) > 0 && (
-                    <span className="text-danger">
-                      (open {oldestBlocker(t)} days)
-                    </span>
-                  )}
-              </li>
-            ))}
-          </ul>,
-        ],
-        [
-          "Velocity",
-          <p key="p">
-            Last {velocity.length} sprints:{" "}
-            {velocity.map((v) => v.completed).join(", ")} points. Recommended
-            next commitment: 32–38 points.
-          </p>,
-        ],
-        [
-          "Delivery Recommendation",
-          <ul key="u" className="space-y-1">
-            <li>— Escalate sample data blocker to client PIC today.</li>
-            <li>— Move one backend task to Sprint 04 to relieve overload.</li>
-            <li>— Add a Data Readiness Gate to the next planning session.</li>
-          </ul>,
-        ],
-      ]}
-    />
-  );
-}
-
-/* ---------- 2. Client Facing: summary, scope, demo, decisions, client actions ---------- */
-function ClientFacingBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
-  const d = useReportData(mod, sprint);
-  const client = getClient(mod.clientId);
-  return (
-    <Sections
-      items={[
-        [
-          "Executive Summary",
-          <p key="p">
-            Sprint {String(sprint.number).padStart(2, "0")} focused on{" "}
-            {sprint.goal.toLowerCase()} The team completed {sprint.completed} of{" "}
-            {sprint.committed} committed points ({d.completionRate}%). Client
-            confirmation on downtime categories and sample machine data will
-            unblock the remaining validation work.
-          </p>,
-        ],
-        [
-          "Completed Scope",
-          <TaskList key="l" tasks={d.completed} />,
-        ],
-        [
-          "Demo Result",
-          <ul key="u" className="space-y-1">
-            {reportExtras.demoItems.map((item) => (
-              <li key={item.title}>
-                — {item.title}:{" "}
-                <span className="text-success">{item.result}</span>
-              </li>
-            ))}
-          </ul>,
-        ],
-        [
-          "Pending Decisions",
-          <ul key="u" className="space-y-1">
-            {d.openDecisions.map((dec) => (
-              <li key={dec.id}>
-                — {dec.title} <span className="text-muted">({dec.owner})</span>
-              </li>
-            ))}
-          </ul>,
-        ],
-        [
-          "Risks Requiring Client Action",
-          <ul key="u" className="space-y-1">
-            {(client?.actionNeeded ?? []).map((action) => (
-              <li key={action}>— {action}</li>
-            ))}
-          </ul>,
-        ],
-        [
-          "Next Sprint Plan",
-          <ul key="u" className="space-y-1">
-            {reportExtras.nextSprintPlan.map((item) => (
-              <li key={item}>— {item}</li>
-            ))}
-          </ul>,
-        ],
-      ]}
-    />
-  );
-}
-
-/* ---------- 3. Technical Team: backlog detail, blockers, QA, deploy, debt ---------- */
-function TechnicalBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
-  const d = useReportData(mod, sprint);
-  const items = d.backlogItems;
-  const qa = reportExtras.qaSummary;
-  return (
-    <Sections
-      items={[
-        [
-          "Sprint Backlog Detail",
-          <div key="d" className="space-y-4">
-            {items.map((item) => {
-              const itemTasks = d.tasks.filter(
-                (t) => t.backlogItemId === item.id
-              );
-              return (
-                <div key={item.id}>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-ink">
-                    {item.title}
-                    <span className="font-normal text-muted">
-                      {item.estimate} pts
-                    </span>
-                  </div>
-                  <ul className="mt-1 space-y-0.5 text-xs">
-                    {itemTasks.map((t) => (
-                      <li key={t.id} className="flex items-center gap-2">
-                        <span className="w-24 shrink-0">
-                          <StatusPill status={t.column} />
-                        </span>
-                        {t.title}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>,
-        ],
-        [
-          "Technical Blockers",
-          <ul key="u" className="space-y-1">
-            {d.blocked.map((t) => (
-              <li key={t.id}>
-                — {t.title}: {blockerSummary(t)}
-              </li>
-            ))}
-          </ul>,
-        ],
-        [
-          "QA Result",
-          <table key="t" className="w-full max-w-md text-sm">
-            <tbody className="divide-y divide-line">
-              <MetricRow label="QA Passed" value={qa.passed} />
-              <MetricRow label="Reopened" value={qa.reopened} />
-              <MetricRow label="Pending Verification" value={qa.pendingVerification} />
-            </tbody>
-          </table>,
-        ],
-        [
-          "Bug / Reopen Notes",
-          <p key="p">{qa.reopenReason}</p>,
-        ],
-        [
-          "Deployment Status",
-          <p key="p">
-            {reportExtras.deployment.environment} —{" "}
-            {reportExtras.deployment.status} (last deploy{" "}
-            {reportExtras.deployment.lastDeploy}).{" "}
-            {reportExtras.deployment.note}
-          </p>,
-        ],
-        [
-          "Technical Debt",
-          <ul key="u" className="space-y-1">
-            {reportExtras.techDebt.map((debt) => (
-              <li key={debt}>— {debt}</li>
-            ))}
-          </ul>,
-        ],
-      ]}
-    />
-  );
-}
-
-/* ---------- 4. Management: health, timeline risk, utilization, confidence ---------- */
-function ManagementBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
-  const d = useReportData(mod, sprint);
-  const avgUtilization = Math.round(
-    members.reduce((s, m) => s + m.workload, 0) / members.length
-  );
-  return (
-    <Sections
-      items={[
-        [
-          "Module Health",
-          <table key="t" className="w-full max-w-md text-sm">
-            <tbody className="divide-y divide-line">
-              <MetricRow label="Health Score" value={`${mod.health}%`} />
-              <MetricRow label="Delivery Risk" value={mod.risk} />
-              <MetricRow label="Sprint Completion" value={`${d.completionRate}%`} />
-              <MetricRow
-                label="Velocity Trend"
-                value={velocity.map((v) => v.completed).join(" → ")}
-              />
-            </tbody>
-          </table>,
-        ],
-        [
-          "Timeline Risk",
-          <p key="p">{reportExtras.timelineRisk}</p>,
-        ],
-        [
-          "Resource Utilization",
-          <p key="p">
-            Average team utilization is {avgUtilization}% across{" "}
-            {members.length} members. One backend resource is over capacity
-            (110%); documentation capacity has headroom (40%).
-          </p>,
-        ],
-        [
-          "Delivery Confidence",
-          <p key="p">
-            <span className="font-semibold">
-              {reportExtras.deliveryConfidence.level}.
-            </span>{" "}
-            {reportExtras.deliveryConfidence.reason}
-          </p>,
-        ],
-        [
-          "Strategic Recommendation",
-          <ul key="u" className="space-y-1">
-            <li>
-              — Hold new scope until client data readiness is resolved; it is
-              the single biggest delivery risk.
-            </li>
-            <li>
-              — Consider a shared data-readiness checklist across all UBS Gold
-              modules.
-            </li>
-          </ul>,
-        ],
-      ]}
-    />
-  );
-}
-
-/* ---------- type-override bodies ---------- */
-
-function MemberPerformanceBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
-  const d = useReportData(mod, sprint);
-  return (
-    <Sections
-      items={[
-        [
-          "Member Workload",
-          <table key="t" className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-black text-left">
-                <th className="label py-2 pr-4 font-medium">Member</th>
-                <th className="label py-2 pr-4 font-medium">Role</th>
-                <th className="label py-2 pr-4 font-medium">Allocation</th>
-                <th className="label py-2 font-medium">Workload</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {members.map((m) => (
-                <tr key={m.id}>
-                  <td className="py-2 pr-4 font-medium">{m.name}</td>
-                  <td className="py-2 pr-4 text-muted">{m.roleLabel}</td>
-                  <td className="py-2 pr-4 tabular-nums">{m.allocation}%</td>
-                  <td className={`py-2 tabular-nums ${m.workload > 100 ? "font-semibold text-danger" : ""}`}>
-                    {m.workload}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>,
-        ],
-        [
-          "Daily Update Consistency",
-          <table key="t" className="w-full max-w-md text-xs">
-            <tbody className="divide-y divide-line">
-              {sprint.members.map((sm) => {
-                const member = getMember(sm.memberId);
-                const updated = dailyUpdates.some((u) => u.memberId === sm.memberId);
-                return (
-                  <tr key={sm.memberId}>
-                    <td className="py-1.5 font-medium">{member?.name}</td>
-                    <td className={`py-1.5 text-right ${updated ? "text-success" : "text-warning"}`}>
-                      {updated ? "Consistent" : "Missing updates"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>,
-        ],
-        [
-          "Contribution Notes",
-          <ul key="u" className="space-y-1">
-            <li>— Reyza carries the largest share of in-flight work ({d.inProgress.length} items in flight overall).</li>
-            <li>— Aditiya is over capacity; blocked items skew his numbers, not effort.</li>
-            <li>— Use this report for workload balancing, not individual scoring (spec §11.3).</li>
-          </ul>,
-        ],
-      ]}
-    />
-  );
-}
-
-function RiskBody({ mod, sprint }: { mod: Module; sprint: Sprint }) {
-  const d = useReportData(mod, sprint);
-  const client = getClient(mod.clientId);
-  return (
-    <Sections
-      items={[
-        [
-          "Delivery Risks",
-          <ul key="u" className="space-y-1">
-            <li>— Client-side data readiness delays core validation work.</li>
-            <li>— Downtime category ownership unassigned on client side.</li>
-            <li>— {reportExtras.timelineRisk}</li>
-          </ul>,
-        ],
-        [
-          "Blockers & Aging",
-          <ul key="u" className="space-y-1">
-            {d.blocked.length === 0 && <li className="text-muted">No open blockers.</li>}
-            {d.blocked.map((t) => (
-              <li key={t.id}>
-                — {t.title}: {blockerSummary(t)}{" "}
-                {oldestBlocker(t) > 0 && (
-                    <span className="text-danger">
-                      (open {oldestBlocker(t)} days)
-                    </span>
-                  )}
-              </li>
-            ))}
-          </ul>,
-        ],
-        [
-          "Client Actions Required",
-          <ul key="u" className="space-y-1">
-            {(client?.actionNeeded ?? []).map((a) => (
-              <li key={a}>— {a}</li>
-            ))}
-          </ul>,
-        ],
-        [
-          "Mitigations",
-          <ul key="u" className="space-y-1">
-            <li>— Escalate sample data request to client PIC with a named deadline.</li>
-            <li>— Add a Data Readiness Gate to sprint planning.</li>
-            <li>— Time-box blocked items: move to next sprint after 3 blocked days.</li>
-          </ul>,
-        ],
-      ]}
-    />
-  );
-}
-
-/* ---------- generic body driven by the Template Master's sections ---------- */
-
-function GenericTemplateBody({
-  mod,
-  sprint,
-  sections,
-}: {
-  mod: Module;
-  sprint: Sprint;
-  sections: string[];
-}) {
-  const d = useReportData(mod, sprint);
-  const known: Record<string, React.ReactNode> = {
-    "executive summary": (
-      <p>
-        Sprint {String(sprint.number).padStart(2, "0")} focused on{" "}
-        {sprint.goal.toLowerCase()} The team completed {sprint.completed} of{" "}
-        {sprint.committed} committed points ({d.completionRate}%).
-      </p>
-    ),
-    velocity: (
-      <p>
-        Last {velocity.length} sprints: {velocity.map((v) => v.completed).join(", ")}{" "}
-        points. Recommended next commitment: 32–38 points.
-      </p>
-    ),
-    "member workload": (
-      <table className="w-full max-w-md text-xs">
-        <tbody className="divide-y divide-line">
-          {members.map((m) => (
-            <tr key={m.id}>
-              <td className="py-1.5 font-medium">{m.name}</td>
-              <td className="py-1.5 text-muted">{m.roleLabel}</td>
-              <td className={`py-1.5 text-right tabular-nums ${m.workload > 100 ? "text-danger" : ""}`}>
-                {m.workload}%
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    ),
-    "completed scope": <TaskList tasks={d.completed} />,
-    "blockers & aging": (
-      <ul className="space-y-1">
-        {d.blocked.map((t) => (
-          <li key={t.id}>— {t.title}: {blockerSummary(t)}</li>
-        ))}
-      </ul>
-    ),
-    risks: (
-      <ul className="space-y-1">
-        <li>— Client-side data readiness delays core validation work.</li>
-        <li>— {reportExtras.timelineRisk}</li>
-      </ul>
-    ),
-    milestones: (
-      <p>
-        Sprint {String(sprint.number).padStart(2, "0")} ({sprint.startDate} →{" "}
-        {sprint.endDate}): {sprint.goal}
-      </p>
-    ),
-  };
-
-  return (
-    <Sections
-      items={sections.map((title) => [
-        title,
-        known[title.toLowerCase()] ?? (
-          <p className="italic text-muted">
-            To be completed before sending — no automatic content for this
-            section yet.
-          </p>
-        ),
-      ])}
-    />
-  );
-}
-
-const builtinBodies: Record<
-  string,
-  (props: { mod: Module; sprint: Sprint }) => React.ReactNode
-> = {
-  "Internal PM": InternalPmBody,
-  "Client Facing": ClientFacingBody,
-  "Technical Team": TechnicalBody,
-  Management: ManagementBody,
-};
-
-const typeBodies: Record<
-  string,
-  (props: { mod: Module; sprint: Sprint }) => React.ReactNode
-> = {
-  "Member Performance Report": MemberPerformanceBody,
-  "Risk Report": RiskBody,
-};
-
+/**
+ * A report, rendered from its template.
+ *
+ * The template decides everything below the header: which sections there are,
+ * in what order, and for each one whether it carries an automatic block, a
+ * narrative with tokens in it, or both. There used to be a component per
+ * template here — four of them, plus two more keyed by report type — which
+ * meant that editing a template's sections in Settings changed the headings
+ * and nothing under them.
+ */
 export function ReportPreview({
   mod,
   sprint,
@@ -624,14 +119,29 @@ export function ReportPreview({
   config: ReportConfig;
 }) {
   const { reportTemplates } = usePrototype();
-  const client = getClient(mod.clientId);
+  const data = useReportData(mod, sprint);
   const project = getProject(mod.projectId);
   const templateDef = reportTemplates.find((t) => t.name === config.template);
 
-  // Resolution order: report type override → built-in template body →
-  // generic body rendered from the Template Master's sections.
-  const TypeBody = typeBodies[config.type];
-  const BuiltinBody = builtinBodies[config.template];
+  const ctx: ReportContext = {
+    client: data.client,
+    project,
+    module: mod,
+    sprint,
+    metrics: {
+      committed: sprint.committed,
+      completed: sprint.completed,
+      completionRate: data.completionRate,
+      inProgress: data.inProgress.length,
+      blocked: data.blocked.length,
+      notCompleted: data.tasks.length - data.completed.length,
+      openDecisions: data.openDecisions.length,
+      velocity: mod.velocity,
+    },
+    preparedBy: "Fahmi",
+  };
+
+  const sections = (templateDef?.sections ?? []).filter((s) => s.enabled);
   const audienceLine = templateDef
     ? `${templateDef.visibility === "client-facing" ? "External" : "Internal"} — ${templateDef.audience}`
     : "—";
@@ -652,26 +162,42 @@ export function ReportPreview({
           {config.type}
         </h2>
         <div className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-muted md:grid-cols-3">
-          <div>Client: <span className="text-ink">{client?.name}</span></div>
+          <div>Client: <span className="text-ink">{data.client?.name}</span></div>
           <div>Project: <span className="text-ink">{project?.name}</span></div>
           <div>Component: <span className="text-ink">{mod.name}</span></div>
           <div>Sprint: <span className="text-ink">Sprint {String(sprint.number).padStart(2, "0")}</span></div>
           <div>Period: <span className="text-ink">{sprint.startDate} → {sprint.endDate}</span></div>
-          <div>Prepared by: <span className="text-ink">Fahmi</span></div>
+          <div>Prepared by: <span className="text-ink">{ctx.preparedBy}</span></div>
         </div>
       </header>
 
-      {TypeBody ? (
-        <TypeBody mod={mod} sprint={sprint} />
-      ) : BuiltinBody ? (
-        <BuiltinBody mod={mod} sprint={sprint} />
-      ) : (
-        <GenericTemplateBody
-          mod={mod}
-          sprint={sprint}
-          sections={templateDef?.sections ?? ["Executive Summary"]}
-        />
+      {sections.length === 0 && (
+        <p className="mt-8 text-sm italic text-muted">
+          The {config.template} template has no sections switched on — add some
+          in Settings → Report Templates.
+        </p>
       )}
+
+      {sections.map((section, i) => {
+        const Block = reportBlockRenderers[section.autoBlock];
+        const body = section.body.trim();
+        return (
+          <Section key={section.id} number={i + 1} title={section.title}>
+            {Block && <Block {...data} />}
+            {body && (
+              <div className={Block ? "mt-3" : undefined}>
+                <Narrative text={renderTokens(body, ctx)} />
+              </div>
+            )}
+            {!Block && !body && (
+              <p className="italic text-muted">
+                To be completed before sending — this section has no automatic
+                content and no narrative yet.
+              </p>
+            )}
+          </Section>
+        );
+      })}
 
       <section className="mt-8 border border-line border-l-2 border-l-ai p-5">
         <div className="flex items-center justify-between">

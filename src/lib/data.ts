@@ -7,6 +7,7 @@ import type {
   Member,
   Module,
   Project,
+  ReportSection,
   ReportType,
   Sprint,
   Task,
@@ -65,9 +66,33 @@ export interface ReportTemplateDef {
   frequency: string;
   visibility: "internal" | "client-facing";
   formats: string[];
-  sections: string[];
+  sections: ReportSection[];
 }
 
+/**
+ * Builds a template section. Ids are derived from the template-local title so
+ * the seed has no ordering-dependent magic strings in it.
+ */
+const sec = (
+  title: string,
+  autoBlock: string,
+  body = ""
+): ReportSection => ({
+  id: title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+  title,
+  enabled: true,
+  body,
+  autoBlock,
+});
+
+/**
+ * The seeded report templates.
+ *
+ * Each section says what it is: an `autoBlock` for content that has to be
+ * computed from live sprint data, a `body` of prose with `{{tokens}}` in it, or
+ * both. The prose here is what used to be hardcoded inside ReportPreview — it
+ * is editable now, which was the whole point.
+ */
 export const reportTemplateMaster: ReportTemplateDef[] = [
   {
     id: "tpl-internal-pm",
@@ -77,12 +102,18 @@ export const reportTemplateMaster: ReportTemplateDef[] = [
     visibility: "internal",
     formats: ["Markdown", "PDF"],
     sections: [
-      "Sprint Health",
-      "Capacity vs Commitment",
-      "Member Workload",
-      "Blockers & Aging",
-      "Velocity",
-      "Delivery Recommendation",
+      sec("Sprint Health", "sprintHealth"),
+      sec("Capacity vs Commitment", "capacityCommitment"),
+      sec("Member Workload", "memberWorkload"),
+      sec("Blockers & Aging", "blockers"),
+      sec("Velocity", "velocity"),
+      sec(
+        "Delivery Recommendation",
+        "",
+        `- Escalate the sample data blocker to the client PIC today.
+- Move one backend task to the next sprint to relieve overload.
+- Add a Data Readiness Gate to the next planning session.`
+      ),
     ],
   },
   {
@@ -93,12 +124,21 @@ export const reportTemplateMaster: ReportTemplateDef[] = [
     visibility: "client-facing",
     formats: ["Markdown", "PDF"],
     sections: [
-      "Executive Summary",
-      "Completed Scope",
-      "Demo Result",
-      "Pending Decisions",
-      "Risks Requiring Client Action",
-      "Next Sprint Plan",
+      // Two paragraphs rather than one sentence running into the goal: the
+      // original read "focused on {goal} The team completed…" and only
+      // scanned correctly because the seeded goal happened to end in a period.
+      sec(
+        "Executive Summary",
+        "",
+        `Sprint {{sprint.number}} goal: {{sprint.goal}}
+
+The team completed {{metrics.completed}} of {{metrics.committed}} committed points ({{metrics.completionRate}}). Client confirmation on the open items below will unblock the remaining validation work.`
+      ),
+      sec("Completed Scope", "completedScope"),
+      sec("Demo Result", "demoResult"),
+      sec("Pending Decisions", "pendingDecisions"),
+      sec("Risks Requiring Client Action", "clientActions"),
+      sec("Next Sprint Plan", "nextSprintPlan"),
     ],
   },
   {
@@ -109,12 +149,12 @@ export const reportTemplateMaster: ReportTemplateDef[] = [
     visibility: "internal",
     formats: ["Markdown"],
     sections: [
-      "Sprint Backlog Detail",
-      "Technical Blockers",
-      "QA Result",
-      "Bug / Reopen Notes",
-      "Deployment Status",
-      "Technical Debt",
+      sec("Sprint Backlog Detail", "backlogDetail"),
+      sec("Technical Blockers", "blockers"),
+      sec("QA Result", "qaResult"),
+      sec("Bug / Reopen Notes", "qaReopenNotes"),
+      sec("Deployment Status", "deploymentStatus"),
+      sec("Technical Debt", "techDebt"),
     ],
   },
   {
@@ -125,11 +165,58 @@ export const reportTemplateMaster: ReportTemplateDef[] = [
     visibility: "internal",
     formats: ["Markdown", "PDF"],
     sections: [
-      "Module Health",
-      "Timeline Risk",
-      "Resource Utilization",
-      "Delivery Confidence",
-      "Strategic Recommendation",
+      sec("Module Health", "moduleHealth"),
+      sec("Timeline Risk", "timelineRisk"),
+      sec("Resource Utilization", "resourceUtilization"),
+      sec("Delivery Confidence", "deliveryConfidence"),
+      sec(
+        "Strategic Recommendation",
+        "",
+        `- Hold new scope until client data readiness is resolved; it is the single biggest delivery risk.
+- Consider a shared data-readiness checklist across all {{client.name}} modules.`
+      ),
+    ],
+  },
+  // These two used to be components keyed by report *type*, which meant they
+  // overrode whatever template you picked. They are templates now, so the type
+  // names the document and the template decides what is in it.
+  {
+    id: "tpl-member-performance",
+    name: "Member Performance",
+    audience: "Delivery lead",
+    frequency: "Sprint-end",
+    visibility: "internal",
+    formats: ["Markdown"],
+    sections: [
+      sec("Member Workload", "memberWorkload"),
+      sec("Daily Update Consistency", "dailyUpdateConsistency"),
+      sec(
+        "Contribution Notes",
+        "",
+        `- {{metrics.inProgress}} items are in flight across the team this sprint.
+- Blocked items skew the numbers of whoever owns them; they are not a measure of effort.
+- Use this report for workload balancing, not individual scoring.`
+      ),
+    ],
+  },
+  {
+    id: "tpl-risk-review",
+    name: "Risk Review",
+    audience: "Delivery lead and client PIC",
+    frequency: "Sprint-end",
+    visibility: "internal",
+    formats: ["Markdown"],
+    sections: [
+      sec("Delivery Risks", "timelineRisk"),
+      sec("Blockers & Aging", "blockers"),
+      sec("Client Actions Required", "clientActions"),
+      sec(
+        "Mitigations",
+        "",
+        `- Escalate the sample data request to the client PIC with a named deadline.
+- Add a Data Readiness Gate to sprint planning.
+- Time-box blocked items: move to the next sprint after 3 blocked days.`
+      ),
     ],
   },
 ];

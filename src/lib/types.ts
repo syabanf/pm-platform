@@ -212,6 +212,32 @@ export type ReportType =
 // Template names come from the Report Template Master (custom values allowed).
 export type ReportTemplate = string;
 
+/**
+ * One numbered section of a report, as configured on its template.
+ *
+ * Sections used to be bare title strings, and the content under each title came
+ * from a component hardcoded per template — so editing "Internal PM" in
+ * Settings changed the headings and nothing underneath them.
+ *
+ * A section now carries its own content, from either or both of:
+ *
+ * - `autoBlock`, a key into the report block registry, for the parts that have
+ *   to be computed — a task list, a workload table, a burndown.
+ * - `body`, free prose that may contain `{{tokens}}` (see lib/reportTokens).
+ *
+ * Both empty is a section the author has yet to write, and says so in the
+ * preview rather than rendering an empty heading.
+ */
+export interface ReportSection {
+  id: string;
+  title: string;
+  /** Unchecked sections stay on the template but are left out of the report. */
+  enabled: boolean;
+  body: string;
+  /** "" for a prose-only section. */
+  autoBlock: string;
+}
+
 export interface ReportConfig {
   type: ReportType;
   template: ReportTemplate;

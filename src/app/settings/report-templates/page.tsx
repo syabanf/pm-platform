@@ -11,15 +11,18 @@ import {
   ToggleButton,
   Select,
 } from "@/components/ui";
+import { ReportSectionsEditor } from "@/components/ReportSectionsEditor";
 import { newId, usePrototype } from "@/lib/store";
 import type { ReportTemplateDef } from "@/lib/data";
+import { REPORT_BLOCKS } from "@/lib/reportBlocks";
+import type { ReportSection } from "@/lib/types";
 
 const emptyDraft = {
   name: "",
   audience: "",
   frequency: "Sprint-end",
   visibility: "internal" as ReportTemplateDef["visibility"],
-  sections: "",
+  sections: [] as ReportSection[],
 };
 
 export default function ReportTemplatesPage() {
@@ -42,7 +45,7 @@ export default function ReportTemplatesPage() {
       audience: tpl.audience,
       frequency: tpl.frequency,
       visibility: tpl.visibility,
-      sections: tpl.sections.join("\n"),
+      sections: tpl.sections,
     });
     setPanelOpen(true);
   };
@@ -52,10 +55,7 @@ export default function ReportTemplatesPage() {
       showToast("Template name is required.", "warning");
       return;
     }
-    const sections = draft.sections
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const sections = draft.sections;
     if (editingId) {
       reportTemplatesCrud.update(editingId, {
         name: draft.name.trim(),
@@ -139,15 +139,20 @@ export default function ReportTemplatesPage() {
                 </Field>
               </div>
             </div>
-            <Field label="Sections (one per line)">
-              <textarea
-                value={draft.sections}
-                onChange={(e) => setDraft({ ...draft, sections: e.target.value })}
-                rows={8}
-                className={`${inputClass} font-mono text-xs`}
-                placeholder={"Executive Summary\nProgress\nRisks"}
+            <div>
+              <span className="label mb-2 block">Sections</span>
+              <p className="mb-3 max-w-2xl text-xs text-muted">
+                Each section is a heading, optional automatic content computed
+                from the sprint, and optional narrative. Narrative may contain
+                tokens like {"{{sprint.goal}}"}, replaced when the report is
+                generated.
+              </p>
+              <ReportSectionsEditor
+                sections={draft.sections}
+                onChange={(sections) => setDraft({ ...draft, sections })}
+                blocks={REPORT_BLOCKS}
               />
-            </Field>
+            </div>
           </div>
           <div className="mt-4 flex gap-2">
             <Button onClick={save}>
@@ -177,9 +182,12 @@ export default function ReportTemplatesPage() {
             </div>
             <ol className="mt-3 space-y-0.5 border-t border-line pt-3">
               {tpl.sections.map((section, i) => (
-                <li key={section} className="flex gap-2 text-xs text-ink">
+                <li
+                  key={section.id}
+                  className={`flex gap-2 text-xs ${section.enabled ? "text-ink" : "text-muted line-through"}`}
+                >
                   <span className="tabular-nums text-muted">{i + 1}.</span>
-                  {section}
+                  {section.title}
                 </li>
               ))}
             </ol>
