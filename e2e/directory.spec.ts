@@ -111,3 +111,36 @@ test("stepping up to the client swaps modules for projects", async ({ page }) =>
     sidebar.getByRole("link", { name: "OEE Intelligence Platform" })
   ).toHaveCount(0);
 });
+
+test("the active nav item stays in view on a deep route", async ({ page }) => {
+  // The branch used to scroll its current row into view, which pushed the
+  // "Clients" nav item — the one carrying the active state for the whole
+  // section — off the top of the scrollable nav. The state was correct and
+  // invisible, which reads as no active menu at all.
+  await page.goto(
+    "/clients/ubs-gold/projects/ubs-mdt/modules/oee-intelligence/sprints/sprint-03/board"
+  );
+  const sidebar = page.getByLabel("Primary");
+  await expect(sidebar.getByRole("link", { name: "OEE Intelligence Platform" })).toBeVisible();
+
+  const seen = await sidebar.evaluate((nav) => {
+    const box = nav.getBoundingClientRect();
+    const inside = (el: Element) => {
+      const b = el.getBoundingClientRect();
+      return b.top >= box.top - 1 && b.bottom <= box.bottom + 1;
+    };
+    const parent = [...nav.querySelectorAll(":scope > div > a")].find((a) =>
+      a.getAttribute("aria-current")
+    );
+    const deepest = [...nav.querySelectorAll("a[aria-current]")].pop();
+    return {
+      parent: parent?.textContent?.trim() ?? null,
+      parentVisible: parent ? inside(parent) : false,
+      deepestVisible: deepest ? inside(deepest) : false,
+    };
+  });
+
+  expect(seen.parent).toBe("Clients");
+  expect(seen.parentVisible, "the active section is scrolled out of sight").toBe(true);
+  expect(seen.deepestVisible, "the row you are standing on is out of sight").toBe(true);
+});

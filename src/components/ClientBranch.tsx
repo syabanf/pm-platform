@@ -97,17 +97,26 @@ function Overflow({ list, depth }: { list: BranchList; depth: 0 | 1 | 2 }) {
 export function ClientBranch({ pathname }: { pathname: string }) {
   const { clients, projects, modules } = usePrototype();
   const currentRef = useRef<HTMLAnchorElement>(null);
+  /** This branch's own root. Its parent is the nav group holding "Clients". */
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const branch = useMemo(
     () => resolveBranch({ clients, projects, modules }, pathname),
     [clients, projects, modules, pathname]
   );
 
+  // Scroll the whole Clients group into view, not the current row.
+  //
   // The static nav above this is taller than the nav's scroll viewport on a
-  // laptop, so arriving from ⌘K can land with the branch below the fold.
-  // `block: "nearest"` is a no-op when it is already visible.
+  // laptop, so arriving from a deep link can land with the branch below the
+  // fold. Scrolling the row itself fixed that and caused something worse: it
+  // pushed the "Clients" nav item — the one carrying the active state for this
+  // whole section — off the top, so the sidebar showed no active menu at all.
+  // The group's first child is that item, and `block: "nearest"` aligns the
+  // top when the group is taller than the viewport, so both stay visible.
   useEffect(() => {
-    currentRef.current?.scrollIntoView({ block: "nearest" });
+    const group = rootRef.current?.parentElement;
+    group?.scrollIntoView({ block: "nearest" });
   }, [branch?.currentKey]);
 
   if (!branch) return null;
@@ -115,7 +124,7 @@ export function ClientBranch({ pathname }: { pathname: string }) {
   const isCurrent = (row: BranchRow) => row.href === branch.currentKey;
 
   return (
-    <div className="ml-4 border-l border-line">
+    <div ref={rootRef} className="ml-4 border-l border-line">
       {/*
         Nested <ul>s, each labelled, are what carry the hierarchy to a screen
         reader — the visible depth is padding, which no assistive technology
