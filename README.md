@@ -1,4 +1,4 @@
-# WIT Sprint OS
+# projectOS
 
 Delivery management for an agency that runs several clients at once: what needs
 attention this morning, which module is slipping, and what to tell the client on

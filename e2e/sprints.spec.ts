@@ -10,10 +10,14 @@ test("creating a sprint from the Sprints tab, dates and all", async ({ page }) =
   await page.getByLabel("Name").fill("Alarm Rules Hardening");
   await page.getByLabel("Component").selectOption({ label: "PLC Connectivity" });
 
-  // The default fortnight counts 10 working days; stretching the end date
-  // must move the counter live — this is the feedback that replaced making
-  // people count weekends by hand.
+  // The form opens on a fortnight from today, which is always 10 working days.
   await expect(page.getByText(/10 working days/)).toBeVisible();
+
+  // Then pin BOTH ends before asserting a count. Setting only the end date
+  // leaves the start at "today", so the expected number would drift with the
+  // calendar — this test passed on a Friday and failed the next Monday.
+  // 2026-08-07 (Fri) → 2026-09-04 (Fri) is 21 working days on any day it runs.
+  await page.getByLabel("Starts").fill("2026-08-07");
   await page.getByLabel("Ends").fill("2026-09-04");
   await expect(page.getByText(/21 working days/)).toBeVisible();
 

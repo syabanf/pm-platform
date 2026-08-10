@@ -1,4 +1,4 @@
-// Command api serves the WIT Sprint OS REST API.
+// Command api serves the projectOS REST API.
 package main
 
 import (

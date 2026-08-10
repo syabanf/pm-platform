@@ -4,13 +4,58 @@ import { forwardRef } from "react";
 import { KpiCard } from "@/components/KpiCard";
 
 /* ============================================================================
- * WIT Sprint OS — standardized UI primitives.
+ * projectOS — standardized UI primitives.
  * One source of truth for buttons, form controls, page/section layout,
  * panels, and empty states. Keeps the Swiss language; snaps outliers to it.
  * ==========================================================================*/
 
 const cx = (...parts: (string | false | null | undefined)[]) =>
   parts.filter(Boolean).join(" ");
+
+/* --------------------------------- Wordmark -------------------------------- */
+
+/**
+ * The product lockup, for the surfaces a client sees: exported documents and
+ * report previews, and the login screen.
+ *
+ * It lives here because the same two lines were written out by hand in three
+ * places, so a rename meant finding all three — and one of them is what a
+ * client receives as a PDF.
+ *
+ * `normal-case` is not decoration: the `.label` class uppercases, which would
+ * render "PROJECTOS" and flatten the capital that carries the name.
+ */
+export function Wordmark({
+  inline = false,
+  className,
+}: {
+  /** Login uses a single row; documents stack the two lines. */
+  inline?: boolean;
+  className?: string;
+}) {
+  const name = (
+    <span className="text-lg font-bold tracking-tight text-black">
+      projectOS
+    </span>
+  );
+  const company = (
+    <span className={cx("label normal-case", inline ? "ml-1" : "mt-0.5 block")}>
+      WIT ID
+    </span>
+  );
+  return inline ? (
+    <span className={cx("flex items-center gap-2", className)}>
+      {name}
+      <span className="h-2.5 w-2.5 rounded-full bg-brand" aria-hidden />
+      {company}
+    </span>
+  ) : (
+    <div className={className}>
+      {name}
+      {company}
+    </div>
+  );
+}
 
 /* ---------------------------------- Button --------------------------------- */
 

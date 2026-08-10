@@ -192,7 +192,7 @@ export function HowToWizard({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="How to use WIT Sprint OS"
+        aria-label="How to use projectOS"
         className="animate-in flex w-full max-w-lg flex-col border border-black bg-paper"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {

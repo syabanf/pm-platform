@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { members, workspaceDefaults } from "@/lib/data";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Wordmark } from "@/components/ui";
 import { usePrototype } from "@/lib/store";
 
 const DEMO_IDS = ["admin", "fahmi", "risya", "reyza"];
@@ -37,11 +37,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Brand panel */}
       <div className="flex flex-col justify-between border-b border-line bg-soft px-6 py-8 md:w-1/2 md:border-b-0 md:border-r md:px-14 md:py-14">
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-bold tracking-tight text-ink">WIT</span>
-          <span className="h-2.5 w-2.5 rounded-full bg-brand" aria-hidden />
-          <span className="label ml-1">Sprint OS</span>
-        </div>
+        <Wordmark inline />
         <div className="hidden md:block">
           <h1 className="max-w-sm text-4xl font-semibold leading-tight tracking-tight text-ink">
             From client request to sprint delivery.

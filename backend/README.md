@@ -1,6 +1,6 @@
-# WIT Sprint OS — Backend API
+# projectOS — Backend API
 
-Go + Echo + PostgreSQL REST API for the WIT Sprint OS delivery hierarchy.
+Go + Echo + PostgreSQL REST API for the projectOS delivery hierarchy.
 
 > **Status: not wired.** This service is intentionally standalone — the Next.js
 > app in `../src` still runs entirely off its in-memory prototype store and does

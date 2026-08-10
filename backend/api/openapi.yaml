@@ -1,13 +1,13 @@
 openapi: 3.1.0
 
 info:
-  title: WIT Sprint OS API
+  title: projectOS API
   version: "1.0.0"
   license:
     name: Proprietary
     identifier: LicenseRef-Proprietary
   description: |
-    REST API for the WIT Sprint OS delivery hierarchy.
+    REST API for the projectOS delivery hierarchy.
 
     ## Naming
 

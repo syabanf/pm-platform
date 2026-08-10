@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "WIT Sprint OS",
-    short_name: "Sprint OS",
+    name: "projectOS",
+    short_name: "projectOS",
     description:
       "AI-native Agile delivery platform for multi-client consulting teams.",
     start_url: "/",

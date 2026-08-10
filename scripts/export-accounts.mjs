@@ -61,7 +61,7 @@ const rows = people.map((m) => ({
 }));
 
 // ------------------------------------------------------------------ markdown ---
-const md = `# WIT Sprint OS — Akun untuk Sosialisasi
+const md = `# projectOS — Akun untuk Sosialisasi
 
 _Dibuat otomatis dari seed aplikasi pada ${generated}. Jangan diedit manual —
 jalankan \`npm run export:accounts\` untuk memperbarui._

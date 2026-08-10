@@ -12,13 +12,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "WIT Sprint OS",
+  title: "projectOS",
   description:
     "AI-native Agile delivery platform for multi-client consulting teams.",
-  applicationName: "WIT Sprint OS",
+  applicationName: "projectOS",
   appleWebApp: {
     capable: true,
-    title: "Sprint OS",
+    title: "projectOS",
     statusBarStyle: "default",
   },
   icons: {

@@ -1,7 +1,7 @@
 "use client";
 
 import { AIBadge } from "@/components/AICoachPanel";
-import { Button, EmptyState, Field, inputClass } from "@/components/ui";
+import { Button, EmptyState, Field, Wordmark, inputClass } from "@/components/ui";
 import { articleToMarkdown, downloadFile, slugify } from "@/lib/export";
 import { usePrototype } from "@/lib/store";
 
@@ -26,10 +26,7 @@ export function DocHeader({
   return (
     <header className="border-b-2 border-black pb-6">
       <div className="flex items-start justify-between">
-        <div>
-          <div className="text-lg font-bold tracking-tight text-black">WIT</div>
-          <div className="label mt-0.5">Sprint OS</div>
-        </div>
+        <Wordmark />
         <div className="text-right text-xs text-muted">
           <div className="font-medium text-ink">{docType}</div>
           <div className="mt-0.5">{date}</div>

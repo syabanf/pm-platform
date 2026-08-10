@@ -1,6 +1,6 @@
-# WIT Sprint OS — Akun untuk Sosialisasi
+# projectOS — Akun untuk Sosialisasi
 
-_Dibuat otomatis dari seed aplikasi pada 2026-07-27. Jangan diedit manual —
+_Dibuat otomatis dari seed aplikasi pada 2026-08-10. Jangan diedit manual —
 jalankan `npm run export:accounts` untuk memperbarui._
 
 ## Cara masuk

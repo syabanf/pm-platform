@@ -2,6 +2,7 @@
 
 import { AIBadge } from "@/components/AICoachPanel";
 import { StatusPill } from "@/components/StatusPill";
+import { Wordmark } from "@/components/ui";
 import type {
   BacklogItem,
   Module,
@@ -640,10 +641,7 @@ export function ReportPreview({
       {/* Document header */}
       <header className="border-b-2 border-black pb-6">
         <div className="flex items-start justify-between">
-          <div>
-            <div className="text-lg font-bold tracking-tight text-black">WIT</div>
-            <div className="label mt-0.5">Sprint OS</div>
-          </div>
+          <Wordmark />
           <div className="text-right text-xs text-muted">
             <div className="font-medium text-ink">{config.template} Template</div>
             <div className="mt-0.5">{audienceLine}</div>

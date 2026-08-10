@@ -6,7 +6,7 @@
 -- behind a fresh row of defaults.
 DELETE FROM workspace_settings
 WHERE id = TRUE
-  AND name = 'WIT Sprint OS'
+  AND name = 'projectOS'
   AND settings = '{}'::jsonb
   AND dod_template = '{}';
 

@@ -1,4 +1,4 @@
--- WIT Sprint OS — initial schema
+-- projectOS — initial schema
 --
 -- Hierarchy: client -> project -> module -> component -> sprint
 -- NOTE ON NAMING: table names follow the frontend's code identifiers, so the
@@ -279,7 +279,7 @@ CREATE TABLE master_lists (
 -- Single-row workspace config + the Definition of Done template.
 CREATE TABLE workspace_settings (
     id           BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
-    name         TEXT        NOT NULL DEFAULT 'WIT Sprint OS',
+    name         TEXT        NOT NULL DEFAULT 'projectOS',
     settings     JSONB       NOT NULL DEFAULT '{}'::jsonb,
     dod_template TEXT[]      NOT NULL DEFAULT '{}',
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()

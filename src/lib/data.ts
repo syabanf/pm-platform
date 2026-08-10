@@ -12,15 +12,10 @@ import type {
   VelocityEntry,
 } from "./types";
 
-export const workspace = {
-  name: "WIT Sprint OS",
-  user: "Fahmi",
-};
-
 // ---------- master data seeds (Settings) ----------
 
 export const workspaceDefaults = {
-  name: "WIT Sprint OS",
+  name: "projectOS",
   company: "WIT ID",
   brandColor: "#ED1C24",
   sprintLengthDays: 10,

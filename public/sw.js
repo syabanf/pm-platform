@@ -1,6 +1,6 @@
-// WIT Sprint OS — service worker
+// projectOS — service worker
 // Network-first with cache fallback: pages keep working offline after first visit.
-const CACHE = "wit-sprint-os-v2";
+const CACHE = "projectos-v1";
 const PRECACHE = ["/", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon.svg"];
 
 self.addEventListener("install", (event) => {

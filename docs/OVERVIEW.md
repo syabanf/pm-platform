@@ -1,4 +1,4 @@
-# WIT Sprint OS — Ringkasan
+# projectOS — Ringkasan
 
 Satu halaman untuk memahami seluruh sistem: apa yang dibangun, cara
 menjalankannya, dan di mana detailnya berada. Ditulis untuk orang yang baru
