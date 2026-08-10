@@ -121,18 +121,14 @@ function SidebarNav() {
     getTypeParam,
     () => null
   );
-  const { clients } = usePrototype();
-
+  // Clients is a plain link, not an expandable list of every client. The
+  // sidebar used to render one child per client, which is fine at three and
+  // unusable at fifty — and it has to be the same height on every screen. The
+  // /clients page is the directory now; browsing belongs there, and ⌘K reaches
+  // any client by name from anywhere.
   const nav: NavItem[] = [
     ...staticNavTop,
-    {
-      label: "Clients",
-      href: "/clients",
-      children: clients.map((c) => ({
-        label: c.name,
-        href: `/clients/${c.id}`,
-      })),
-    },
+    { label: "Clients", href: "/clients" },
     ...staticNavBottom,
   ];
 
