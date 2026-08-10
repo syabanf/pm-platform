@@ -248,6 +248,7 @@ export const projects: Project[] = [
     clientId: "ubs-gold",
     name: "Manufacturing Digital Transformation",
     objective: "Digitalize production monitoring and quality control.",
+    startDate: "2026-01-12",
     status: "active",
   },
   {
@@ -255,6 +256,7 @@ export const projects: Project[] = [
     clientId: "bsm",
     name: "Rental Operations Digitalization",
     objective: "Digitalize rental, service, and invoicing operations.",
+    startDate: "2025-03-03",
     status: "active",
   },
   {
@@ -262,6 +264,7 @@ export const projects: Project[] = [
     clientId: "bni",
     name: "Internal Knowledge Platform",
     objective: "Centralize internal knowledge with AI search.",
+    startDate: "2024-09-16",
     status: "active",
   },
 ];

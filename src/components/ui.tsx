@@ -2,6 +2,7 @@
 
 import { forwardRef } from "react";
 import { KpiCard } from "@/components/KpiCard";
+import { Combobox, optionsFromChildren } from "@/components/Combobox";
 
 /* ============================================================================
  * projectOS — standardized UI primitives.
@@ -137,12 +138,39 @@ export const Input = forwardRef<
   return <input ref={ref} className={cx(inputClass, className)} {...rest} />;
 });
 
-export const Select = forwardRef<
-  HTMLSelectElement,
-  React.SelectHTMLAttributes<HTMLSelectElement>
->(function Select({ className, ...rest }, ref) {
-  return <select ref={ref} className={cx(inputClass, className)} {...rest} />;
-});
+/**
+ * The app's dropdown. Searchable by default — see `Combobox`.
+ *
+ * It still takes `<option>` children so call sites keep rendering their choices
+ * the way they always have, but `onChange` hands over the chosen value directly
+ * instead of a change event: there is no `<select>` element underneath for an
+ * `e.target` to point at, and a fake one would be a lie the types would carry
+ * everywhere.
+ */
+export function Select({
+  value,
+  onChange,
+  children,
+  ...rest
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  id?: string;
+  "aria-label"?: string;
+}) {
+  return (
+    <Combobox
+      value={value}
+      onChange={onChange}
+      options={optionsFromChildren(children)}
+      {...rest}
+    />
+  );
+}
 
 export const Textarea = forwardRef<
   HTMLTextAreaElement,

@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Locator, type Page } from "@playwright/test";
 
 /**
  * Signed-in test. The prototype's session is a member id in localStorage, so
@@ -40,6 +40,23 @@ export async function openPalette(page: Page) {
   }
   await expect(input).toBeVisible();
   return input;
+}
+
+/**
+ * Pick a value from one of the app's dropdowns.
+ *
+ * They are comboboxes, not `<select>` elements, so `selectOption` does not
+ * apply: open the field, then click the option by its visible text. `scope` is
+ * a page or any locator, because several of these live inside a task card that
+ * the assertions are already scoped to.
+ */
+export async function choose(
+  scope: Page | Locator,
+  field: string | RegExp,
+  option: string | RegExp
+) {
+  await scope.getByRole("combobox", { name: field }).click();
+  await scope.getByRole("option", { name: option, exact: true }).click();
 }
 
 /** The seeded board every deep-link test drives. */

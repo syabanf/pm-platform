@@ -21,6 +21,12 @@ export interface Project {
   clientId: string;
   name: string;
   objective: string;
+  /**
+   * When delivery starts, ISO yyyy-mm-dd. Its year is the folder a project
+   * files under, which is why it is required rather than optional — an
+   * undated project would sit in a limbo bucket nobody maintains.
+   */
+  startDate: string;
   status: "discovery" | "active" | "done" | "on-hold";
 }
 

@@ -137,7 +137,7 @@ export function MembersMaster({
             <Field label="Role">
               <Select
                 value={draft.roleLabel}
-                onChange={(e) => setDraft({ ...draft, roleLabel: e.target.value })}
+                onChange={(value) => setDraft({ ...draft, roleLabel: value })}
               >
                 {masters.jobRoles.map((role) => (
                   <option key={role} value={role}>

@@ -15,6 +15,7 @@ import {
 import type { BacklogItem, BoardColumn, Task } from "@/lib/types";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { blockerSeverity, newId, usePrototype } from "@/lib/store";
+import { Select } from "@/components/ui";
 
 const columns: { id: BoardColumn; label: string }[] = [
   { id: "selected", label: "Selected" },
@@ -176,9 +177,9 @@ function TaskCardView({
           <div className="label pt-1">Column</div>
           <label className="block">
             <span className="sr-only">Move task to column</span>
-            <select
+            <Select
               value={task.column}
-              onChange={(e) => moveTask(task.id, e.target.value as BoardColumn)}
+              onChange={(value) => moveTask(task.id, value as BoardColumn)}
               className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
             >
               {columns.map((c) => (
@@ -186,7 +187,7 @@ function TaskCardView({
                   {c.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <div className="label pt-1">Edit task</div>
@@ -203,10 +204,10 @@ function TaskCardView({
           <div className="flex gap-1.5">
             <label className="min-w-0 flex-1">
               <span className="sr-only">Assignee</span>
-              <select
+              <Select
                 value={task.assigneeId}
-                onChange={(e) =>
-                  tasksCrud.update(task.id, { assigneeId: e.target.value })
+                onChange={(value) =>
+                  tasksCrud.update(task.id, { assigneeId: value })
                 }
                 className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
               >
@@ -215,7 +216,7 @@ function TaskCardView({
                     {m.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="shrink-0">
               <span className="sr-only">Estimate in points</span>
@@ -377,9 +378,9 @@ function AddTaskForm({
       {!item && (
         <label className="block">
           <span className="sr-only">Backlog item this task belongs to</span>
-          <select
+          <Select
             value={itemId}
-            onChange={(e) => setItemId(e.target.value)}
+            onChange={(value) => setItemId(value)}
             className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
           >
             {choices.map((c) => (
@@ -387,12 +388,12 @@ function AddTaskForm({
                 {c.title}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       )}
-      <select
+      <Select
         value={assigneeId}
-        onChange={(e) => setAssigneeId(e.target.value)}
+        onChange={(value) => setAssigneeId(value)}
         className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
       >
         {members.map((m) => (
@@ -400,7 +401,7 @@ function AddTaskForm({
             {m.name}
           </option>
         ))}
-      </select>
+      </Select>
       <div className="flex gap-1.5">
         <button
           onClick={create}
@@ -619,9 +620,9 @@ function AddBlocker({ task }: { task: Task }) {
     <div className="space-y-1.5">
       <label className="block">
         <span className="sr-only">Blocker category</span>
-        <select
+        <Select
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(value) => setCategory(value)}
           className="w-full border border-line bg-paper px-2 py-1 text-xs text-ink"
         >
           {categories.map((c) => (
@@ -629,7 +630,7 @@ function AddBlocker({ task }: { task: Task }) {
               {c}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <div className="flex gap-1.5">
         <label className="min-w-0 flex-1">

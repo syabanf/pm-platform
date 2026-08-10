@@ -7,6 +7,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
 import { AIBadge } from "@/components/AICoachPanel";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { Folder, groupBy } from "@/components/Folder";
 import { Field, inputClass } from "@/components/Document";
 import {
   PageContainer,
@@ -23,11 +24,14 @@ import { projectPath } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
 import type { Project } from "@/lib/types";
 
-const emptyDraft = {
+const today = () => new Date().toISOString().slice(0, 10);
+
+const emptyDraft = () => ({
   name: "",
   objective: "",
+  startDate: today(),
   status: "discovery" as Project["status"],
-};
+});
 
 const projectStatuses: { value: Project["status"]; label: string }[] = [
   { value: "discovery", label: "Discovery" },
@@ -53,8 +57,39 @@ export default function ClientDetailPage({
   } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState(emptyDraft);
+  const [draft, setDraft] = useState(emptyDraft());
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // Derived before the not-found return below, because the fold state is a hook
+  // and hooks cannot sit behind a conditional return. Filtering on `clientId`
+  // rather than `client.id` is what lets it move up here.
+  const clientProjects = projects.filter((p) => p.clientId === clientId);
+  const filteredProjects = clientProjects.filter(
+    (p) => statusFilter === "all" || p.status === statusFilter
+  );
+
+  // Projects file by delivery year, newest first — the folder you want is
+  // almost always the newest, and older years stay one click away instead of
+  // padding the table forever.
+  const byYear = groupBy(
+    filteredProjects,
+    (p) => p.startDate.slice(0, 4),
+    (a, b) => b.localeCompare(a)
+  );
+
+  // Only the newest year opens on arrival. Seeding from the data rather than
+  // from the clock keeps server and client renders identical — and it still
+  // lands on something when a client's latest project predates this year.
+  const [openYears, setOpenYears] = useState<Set<string>>(
+    () => new Set(byYear.slice(0, 1).map(([year]) => year))
+  );
+  const toggleYear = (year: string) =>
+    setOpenYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(year)) next.delete(year);
+      else next.add(year);
+      return next;
+    });
 
   const client = clients.find((c) => c.id === clientId);
   if (!client) {
@@ -68,10 +103,6 @@ export default function ClientDetailPage({
     );
   }
 
-  const clientProjects = projects.filter((p) => p.clientId === client.id);
-  const filteredProjects = clientProjects.filter(
-    (p) => statusFilter === "all" || p.status === statusFilter
-  );
   const clientModules = modules.filter((p) => p.clientId === client.id);
   const atRisk = clientModules.filter((p) => p.risk !== "low").length;
   const activeSprints = clientModules.filter((p) => p.currentSprintId).length;
@@ -82,7 +113,7 @@ export default function ClientDetailPage({
 
   const openCreate = () => {
     setEditingId(null);
-    setDraft(emptyDraft);
+    setDraft(emptyDraft());
     setPanelOpen(true);
   };
 
@@ -91,6 +122,7 @@ export default function ClientDetailPage({
     setDraft({
       name: project.name,
       objective: project.objective,
+      startDate: project.startDate,
       status: project.status,
     });
     setPanelOpen(true);
@@ -105,6 +137,7 @@ export default function ClientDetailPage({
       projectsCrud.update(editingId, {
         name: draft.name.trim(),
         objective: draft.objective.trim() || "Objective to be defined.",
+        startDate: draft.startDate,
         status: draft.status,
       });
       showToast("Project updated.", "success");
@@ -114,11 +147,12 @@ export default function ClientDetailPage({
         clientId: client.id,
         name: draft.name.trim(),
         objective: draft.objective.trim() || "Objective to be defined.",
+        startDate: draft.startDate,
         status: draft.status,
       });
       showToast("Project created. Add a module to start delivery.", "success");
     }
-    setDraft(emptyDraft);
+    setDraft(emptyDraft());
     setPanelOpen(false);
   };
 
@@ -183,13 +217,23 @@ export default function ClientDetailPage({
                   className={inputClass}
                 />
               </Field>
+              <Field label="Start Date">
+                <input
+                  type="date"
+                  value={draft.startDate}
+                  onChange={(e) =>
+                    setDraft({ ...draft, startDate: e.target.value })
+                  }
+                  className={inputClass}
+                />
+              </Field>
               <Field label="Status">
                 <Select
                   value={draft.status}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setDraft({
                       ...draft,
-                      status: e.target.value as Project["status"],
+                      status: value as Project["status"],
                     })
                   }
                 >
@@ -240,11 +284,19 @@ export default function ClientDetailPage({
                   No projects match the filters.
                 </EmptyState>
               ) : (
-                <div className="mt-4">
+                <div className="mt-4 space-y-3">
+                  {byYear.map(([year, group]) => (
+                  <Folder
+                    key={year}
+                    label={year}
+                    count={group.length}
+                    open={openYears.has(year)}
+                    onToggle={() => toggleYear(year)}
+                  >
                   <DataTable
                     headers={["Project", "Status", "Modules", "At Risk", ""]}
                   >
-                    {filteredProjects.map((project) => {
+                    {group.map((project) => {
                       const projModules = modules.filter(
                         (p) => p.projectId === project.id
                       );
@@ -299,6 +351,8 @@ export default function ClientDetailPage({
                       );
                     })}
                   </DataTable>
+                  </Folder>
+                  ))}
                 </div>
               )}
             </>

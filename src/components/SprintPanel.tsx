@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Panel, inputClass } from "@/components/ui";
+import { Button, Field, Panel, Select, inputClass } from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
 import type { Sprint } from "@/lib/types";
 
@@ -178,10 +178,9 @@ export function SprintPanel({
 
         {!lockedComponentId && (
           <Field label="Component">
-            <select
-              className={inputClass}
+            <Select
               value={draft.componentId}
-              onChange={(e) => set("componentId", e.target.value)}
+              onChange={(value) => set("componentId", value)}
             >
               <option value="">Choose a component…</option>
               {components.map((c) => (
@@ -189,7 +188,7 @@ export function SprintPanel({
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         )}
 
@@ -203,16 +202,15 @@ export function SprintPanel({
         </Field>
 
         <Field label="Status">
-          <select
-            className={inputClass}
+          <Select
             value={draft.status}
-            onChange={(e) => set("status", e.target.value as Sprint["status"])}
+            onChange={(value) => set("status", value as Sprint["status"])}
           >
             <option value="planning">Planning</option>
             <option value="active">Active</option>
             <option value="review">Review</option>
             <option value="done">Done</option>
-          </select>
+          </Select>
         </Field>
 
         <Field label="Starts">

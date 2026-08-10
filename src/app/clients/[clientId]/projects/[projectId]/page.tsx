@@ -19,6 +19,7 @@ import {
   KpiStrip,
   FilterBar,
   allOf,
+  Select,
 } from "@/components/ui";
 import { clientPath, modulePath } from "@/lib/data";
 import { blockedCountFor, newId, usePrototype } from "@/lib/store";
@@ -281,22 +282,21 @@ export default function ProjectDetailPage({
                     />
                   </Field>
                   <Field label="Status">
-                    <select
+                    <Select
                       value={draft.status}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setDraft({
                           ...draft,
-                          status: e.target.value as Module["status"],
+                          status: value as Module["status"],
                         })
                       }
-                      className={inputClass}
                     >
                       {statusOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </Field>
                 </>
               )}

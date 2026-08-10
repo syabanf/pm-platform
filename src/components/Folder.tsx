@@ -71,7 +71,13 @@ export function Folder({
         inert={!open}
       >
         <div>
-          <div className="border-t border-line">{children}</div>
+          {/*
+            Horizontal padding here, not on the caller: a table dropped into a
+            folder has no page container to inset it, so without this its first
+            and last columns sit flush against the folder border. `border-t`
+            still spans the full width — padding is inside the border box.
+          */}
+          <div className="border-t border-line px-5 pb-2">{children}</div>
         </div>
       </div>
     </div>

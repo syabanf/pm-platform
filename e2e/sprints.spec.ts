@@ -1,4 +1,4 @@
-import { test, expect, SPRINTS_TAB } from "./helpers";
+import { test, expect, choose, SPRINTS_TAB } from "./helpers";
 
 // The Sprints tab owns sprint CRUD since the panel moved here — these pin the
 // whole loop: create with live working-days feedback, edit, delete.
@@ -8,7 +8,7 @@ test("creating a sprint from the Sprints tab, dates and all", async ({ page }) =
   await page.getByRole("button", { name: "Add Sprint", exact: true }).click();
 
   await page.getByLabel("Name").fill("Alarm Rules Hardening");
-  await page.getByLabel("Component").selectOption({ label: "PLC Connectivity" });
+  await choose(page, "Component", "PLC Connectivity");
 
   // The form opens on a fortnight from today, which is always 10 working days.
   await expect(page.getByText(/10 working days/)).toBeVisible();

@@ -47,8 +47,10 @@ test("a blocker category added in Settings appears in the board's form", async (
   await page.waitForURL("**/sprints/sprint-03/**");
   const card = page.locator("div.p-3").filter({ hasText: "Draft alert threshold" });
   await card.getByRole("button", { name: "Details" }).click();
+  // The dropdown is a combobox, so its options exist only while it is open.
+  await card.getByRole("combobox", { name: "Blocker category" }).click();
   await expect(
-    card.getByLabel("Blocker category").locator("option", { hasText: "Legal review" })
+    card.getByRole("option", { name: "Legal review", exact: true })
   ).toHaveCount(1);
 });
 

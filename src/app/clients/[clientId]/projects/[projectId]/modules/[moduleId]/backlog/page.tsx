@@ -7,7 +7,13 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field, inputClass } from "@/components/Document";
 import { newId, usePrototype } from "@/lib/store";
 import type { BacklogItem, Priority, Readiness } from "@/lib/types";
-import { allOf, Button, FilterBar, SectionHeader } from "@/components/ui";
+import {
+  allOf,
+  Button,
+  FilterBar,
+  SectionHeader,
+  Select,
+} from "@/components/ui";
 
 const readinessLabel: Record<Readiness, string> = {
   ready: "Ready",
@@ -248,37 +254,34 @@ export default function BacklogPage({
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Component">
-                    <select
+                    <Select
                       value={draft.componentId}
-                      onChange={(e) => setDraft({ ...draft, componentId: e.target.value })}
-                      className={inputClass}
+                      onChange={(value) => setDraft({ ...draft, componentId: value })}
                     >
                       {mod.components.map((m) => (
                         <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
-                    </select>
+                    </Select>
                   </Field>
                   <Field label="Type">
-                    <select
+                    <Select
                       value={draft.type}
-                      onChange={(e) => setDraft({ ...draft, type: e.target.value })}
-                      className={inputClass}
+                      onChange={(value) => setDraft({ ...draft, type: value })}
                     >
                       {masters.workItemTypes.map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
-                    </select>
+                    </Select>
                   </Field>
                   <Field label="Priority">
-                    <select
+                    <Select
                       value={draft.priority}
-                      onChange={(e) => setDraft({ ...draft, priority: e.target.value as Priority })}
-                      className={inputClass}
+                      onChange={(value) => setDraft({ ...draft, priority: value as Priority })}
                     >
                       {masters.priorities.map((p) => (
                         <option key={p} value={p}>{p}</option>
                       ))}
-                    </select>
+                    </Select>
                   </Field>
                   <Field label="Estimate (pts)">
                     <input

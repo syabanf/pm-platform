@@ -1,4 +1,4 @@
-import { test, expect, BOARD } from "./helpers";
+import { test, expect, choose, BOARD } from "./helpers";
 
 // The board is where the "task simplify" work landed: a Details button that
 // says what it opens, a column select that replaced drag-only movement, and
@@ -21,7 +21,7 @@ test("Details opens the card's controls; a keyboard user can move it", async ({ 
   await expect(card.getByText("Definition of Done")).toBeVisible();
 
   // Moving by select is the drag path's equal — same moveTask, same gates.
-  await page.getByLabel("Move task to column").selectOption("in-review");
+  await choose(page, "Move task to column", "In Review");
   // The proof is the destination: the In Review column now holds the card.
   const inReview = page
     .locator("div.border-t-2")
@@ -56,7 +56,7 @@ test("blockers darken the card as they stack, and clear from the list @blockers"
   await expect(card).toHaveClass(/bg-danger\/5/);
 
   // And adding one puts it back.
-  await card.getByLabel("Blocker category").selectOption("Resourcing");
+  await choose(card, "Blocker category", "Resourcing");
   await card.getByPlaceholder(/what is it waiting on/i).fill("No QA free until next sprint");
   await card.getByRole("button", { name: /^Add$/ }).click();
   await expect(card.getByText("3 blockers")).toBeVisible();

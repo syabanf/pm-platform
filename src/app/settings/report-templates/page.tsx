@@ -4,7 +4,13 @@ import { useState } from "react";
 import { StatusPill } from "@/components/StatusPill";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field, inputClass } from "@/components/Document";
-import { Button, Panel, SectionHeader, ToggleButton } from "@/components/ui";
+import {
+  Button,
+  Panel,
+  SectionHeader,
+  ToggleButton,
+  Select,
+} from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
 import type { ReportTemplateDef } from "@/lib/data";
 
@@ -106,16 +112,15 @@ export default function ReportTemplatesPage() {
               </Field>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Frequency">
-                  <select
+                  <Select
                     value={draft.frequency}
-                    onChange={(e) => setDraft({ ...draft, frequency: e.target.value })}
-                    className={inputClass}
+                    onChange={(value) => setDraft({ ...draft, frequency: value })}
                   >
                     <option>Weekly</option>
                     <option>Sprint-end</option>
                     <option>Monthly</option>
                     <option>Sprint-end / Monthly</option>
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="Visibility">
                   <div className="flex gap-1.5">

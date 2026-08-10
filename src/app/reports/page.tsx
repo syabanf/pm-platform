@@ -15,6 +15,7 @@ import {
   PageContainer,
   PageHeader,
   Panel,
+  Select,
 } from "@/components/ui";
 import { modulePathById } from "@/lib/data";
 import { newId, usePrototype } from "@/lib/store";
@@ -103,37 +104,34 @@ export default function GlobalReportsPage({
         <Panel className="mt-6">
           <div className="grid gap-4 md:grid-cols-4">
             <Field label="Module">
-              <select
+              <Select
                 value={draft.moduleId}
-                onChange={(e) => setDraft({ ...draft, moduleId: e.target.value })}
-                className={inputClass}
+                onChange={(value) => setDraft({ ...draft, moduleId: value })}
               >
                 {modules.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Type">
-              <select
+              <Select
                 value={draft.type}
-                onChange={(e) => setDraft({ ...draft, type: e.target.value })}
-                className={inputClass}
+                onChange={(value) => setDraft({ ...draft, type: value })}
               >
                 {["Sprint Report", "Module Report", "Client Report", "Member Performance Report", "Risk Report"].map((t) => (
                   <option key={t}>{t}</option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Template">
-              <select
+              <Select
                 value={draft.template}
-                onChange={(e) => setDraft({ ...draft, template: e.target.value })}
-                className={inputClass}
+                onChange={(value) => setDraft({ ...draft, template: value })}
               >
                 {reportTemplates.map((t) => (
                   <option key={t.id} value={t.name}>{t.name}</option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Due">
               <input

@@ -16,6 +16,7 @@ import {
   FilterBar,
   EmptyState,
   allOf,
+  Select,
 } from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
 import type { Client } from "@/lib/types";
@@ -140,10 +141,9 @@ export default function ClientsPage() {
               />
             </Field>
             <Field label="Industry">
-              <select
+              <Select
                 value={draft.industry}
-                onChange={(e) => setDraft({ ...draft, industry: e.target.value })}
-                className={inputClass}
+                onChange={(value) => setDraft({ ...draft, industry: value })}
               >
                 <option value="">Select industry…</option>
                 {masters.industries.map((industry) => (
@@ -151,7 +151,7 @@ export default function ClientsPage() {
                     {industry}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
             <Field label="Client PIC">
               <input
