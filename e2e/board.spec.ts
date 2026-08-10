@@ -61,3 +61,66 @@ test("blockers darken the card as they stack, and clear from the list @blockers"
   await card.getByRole("button", { name: /^Add$/ }).click();
   await expect(card.getByText("3 blockers")).toBeVisible();
 });
+
+test("the Definition of Done gate refuses Done, then lets it through @dod", async ({
+  page,
+}) => {
+  await page.goto(BOARD);
+  const card = page.locator("div.p-3").filter({ hasText: "Draft alert threshold config screen" });
+  await card.getByRole("button", { name: "Details" }).click();
+
+  const column = card.getByRole("combobox", { name: "Move task to column" });
+  await choose(page, "Move task to column", "Done");
+
+  // Refused, and it says why. Scoped by aria-live: the board also renders
+  // dnd-kit's assertive live region, so a bare getByRole("status") is
+  // ambiguous on this page and on no other.
+  const toast = page.locator('[role="status"][aria-live="polite"]');
+  await expect(toast).toContainText("Definition of Done");
+  // The field snaps back, because it is controlled by task.column and the
+  // store never changed. A locally-stateful control would leave the UI
+  // claiming the card had moved while the board disagreed.
+  await expect(column).toHaveValue("Selected");
+  const selected = page
+    .locator("div.border-t-2")
+    .filter({ has: page.locator('span.label:text-is("Selected")') });
+  await expect(selected.getByText("Draft alert threshold config screen")).toBeVisible();
+
+  // Tick both boxes and the same move goes through.
+  for (const box of await card.locator('input[type="checkbox"]').all()) await box.check();
+  await expect(card.getByText("DoD 2/2")).toBeVisible();
+  await choose(page, "Move task to column", "Done");
+
+  const done = page
+    .locator("div.border-t-2")
+    .filter({ has: page.locator('span.label:text-is("Done")') });
+  await expect(done.getByText("Draft alert threshold config screen")).toBeVisible();
+});
+
+test("blocking a task moves it out of its column and onto Home @blockers", async ({
+  page,
+}) => {
+  await page.goto(BOARD);
+  // A Selected task, not a already-blocked one. board.spec's other blocker
+  // test uses a card seeded as blocked, so the auto-move branch never runs
+  // there — two tests that look like they cover this and neither does.
+  const card = page.locator("div.p-3").filter({ hasText: "Draft alert threshold config screen" });
+  await card.getByRole("button", { name: "Details" }).click();
+
+  await choose(card, "Blocker category", "Resourcing");
+  await card.getByPlaceholder(/what is it waiting on/i).fill("Waiting on the alerting spec");
+  await card.getByRole("button", { name: /^Add$/ }).click();
+
+  const blocked = page
+    .locator("div.border-t-2")
+    .filter({ has: page.locator('span.label:text-is("Blocked")') });
+  await expect(blocked.getByText("Draft alert threshold config screen")).toBeVisible();
+
+  // And the consequence a PM actually sees: Home's triage reads the same
+  // blocked tasks, so this is what makes the auto-move worth having.
+  await page.getByLabel("Primary").getByRole("link", { name: "Home", exact: true }).click();
+  await page.waitForURL(/\/$/);
+  await expect(
+    page.getByRole("main").getByText("Draft alert threshold config screen")
+  ).toBeVisible();
+});

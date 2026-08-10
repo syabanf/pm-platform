@@ -11,6 +11,19 @@ test("the backend probe signs in and lists live clients", async ({ page }) => {
   const health = await page.request.get("/api/healthz").catch(() => null);
   test.skip(!health || !health.ok(), "no backend behind the proxy");
 
+  // And is it *this* tree's backend? /healthz answers on every version ever
+  // built, so a stale binary left running from before routes moved under
+  // /api/v1 passes the check above and then fails here with a message about
+  // sign-in, which is not what went wrong. A 404 on the versioned surface
+  // means the process is older than this checkout; say so and skip.
+  const versioned = await page.request
+    .post("/api/v1/auth/login", { data: {}, failOnStatusCode: false })
+    .catch(() => null);
+  test.skip(
+    !versioned || versioned.status() === 404,
+    "backend is reachable but does not serve /api/v1 — stale process, restart it"
+  );
+
   await page.goto("/backend");
   await page.getByRole("button", { name: "Sign in to backend" }).click();
   await expect(page.getByText(/signed in as .+@.+/)).toBeVisible();
