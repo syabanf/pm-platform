@@ -131,7 +131,17 @@ export default function ClientsPage() {
         eyebrow="Clients"
         title="All Clients"
         description={`${clients.length} active clients across the portfolio.`}
-        actions={<Button onClick={openCreate}>Add Client</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Link
+              href="/projects/new"
+              className="border border-line px-4 py-2 text-sm font-medium text-ink hover:border-black"
+            >
+              New Project
+            </Link>
+            <Button onClick={openCreate}>Add Client</Button>
+          </div>
+        }
       />
 
       {panelOpen && (

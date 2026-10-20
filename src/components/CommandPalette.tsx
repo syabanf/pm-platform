@@ -159,6 +159,7 @@ export function CommandPalette({
     );
     [
       { label: "Report Queue", path: "/reports" },
+      { label: "New Project", path: "/projects/new" },
       { label: "New Client", path: "/clients" },
       { label: "AI Coach", path: "/ai-coach" },
       { label: "Workspace Settings", path: "/settings" },

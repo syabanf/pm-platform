@@ -210,6 +210,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   dod: "Definition of Done",
   "report-templates": "Report Templates",
   masters: "Master Data",
+  new: "New Project",
   // The per-list routes are keyed by MasterListKey, so the fallback would
   // title them "JobRoles" and "WorkItemTypes" on the phone top bar.
   ...Object.fromEntries(

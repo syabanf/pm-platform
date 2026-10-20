@@ -21,7 +21,7 @@ import {
   allOf,
 } from "@/components/ui";
 import { projectPath } from "@/lib/data";
-import { newId, usePrototype } from "@/lib/store";
+import { usePrototype } from "@/lib/store";
 import type { Project } from "@/lib/types";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -111,12 +111,6 @@ export default function ClientDetailPage({
     (d) => d.status === "open" && clientModuleIds.has(d.moduleId)
   ).length;
 
-  const openCreate = () => {
-    setEditingId(null);
-    setDraft(emptyDraft());
-    setPanelOpen(true);
-  };
-
   const openEdit = (project: Project) => {
     setEditingId(project.id);
     setDraft({
@@ -129,30 +123,18 @@ export default function ClientDetailPage({
   };
 
   const save = () => {
+    if (!editingId) return;
     if (!draft.name.trim()) {
       showToast("Project name is required.", "warning");
       return;
     }
-    if (editingId) {
-      projectsCrud.update(editingId, {
-        name: draft.name.trim(),
-        objective: draft.objective.trim() || "Objective to be defined.",
-        startDate: draft.startDate,
-        status: draft.status,
-      });
-      showToast("Project updated.", "success");
-    } else {
-      projectsCrud.add({
-        id: newId("project"),
-        clientId: client.id,
-        name: draft.name.trim(),
-        objective: draft.objective.trim() || "Objective to be defined.",
-        startDate: draft.startDate,
-        status: draft.status,
-      });
-      showToast("Project created. Add a module to start delivery.", "success");
-    }
-    setDraft(emptyDraft());
+    projectsCrud.update(editingId, {
+      name: draft.name.trim(),
+      objective: draft.objective.trim() || "Objective to be defined.",
+      startDate: draft.startDate,
+      status: draft.status,
+    });
+    showToast("Project updated.", "success");
     setPanelOpen(false);
   };
 
@@ -192,13 +174,16 @@ export default function ClientDetailPage({
       <section className="mt-12">
         <div className="flex items-center justify-between">
           <h2 className="label">Projects — drill down</h2>
-          <Button size="sm" onClick={openCreate}>
+          <Link
+            href={`/projects/new?client=${client.id}`}
+            className="border border-black bg-black px-3 py-1.5 text-sm font-medium text-paper hover:bg-ink"
+          >
             Add Project
-          </Button>
+          </Link>
         </div>
 
         {panelOpen && (
-          <Panel title={editingId ? "Edit Project" : undefined} className="mt-4">
+          <Panel title="Edit Project" className="mt-4">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Project Name">
                 <input
@@ -247,7 +232,7 @@ export default function ClientDetailPage({
             </div>
             <div className="mt-4 flex gap-2">
               <Button onClick={save}>
-                {editingId ? "Save Changes" : "Create Project"}
+                Save Changes
               </Button>
               <Button variant="secondary" onClick={() => setPanelOpen(false)}>
                 Cancel
