@@ -14,6 +14,7 @@ import {
   PageHeader,
   Panel,
   Button,
+  buttonClass,
   Select,
   EmptyState,
   KpiStrip,
@@ -176,7 +177,7 @@ export default function ClientDetailPage({
           <h2 className="label">Projects — drill down</h2>
           <Link
             href={`/projects/new?client=${client.id}`}
-            className="border border-black bg-black px-3 py-1.5 text-sm font-medium text-paper hover:bg-ink"
+            className={buttonClass("primary", "sm")}
           >
             Add Project
           </Link>

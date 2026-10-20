@@ -1,37 +1,96 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #111111;
-  --color-black: #000000;
-  --color-paper: #ffffff;
-  --color-soft: #f7f7f4;
-  --color-line: #e6e6e1;
-  --color-muted: #737373;
-  --color-success: #18a058;
-  --color-warning: #f59e0b;
-  --color-danger: #d92d20;
-  --color-ai: #2d9cdb;
+  /* WIT UI style: a grey canvas, white cards floating on it, one ink surface
+     for emphasis and one accent for the most important thing on screen.
 
-  /* WIT brand — the red dot from the logo. Used for identity and the
-     navigation "active" accent, kept distinct from --color-danger (status). */
-  --color-brand: #ed1c24;
-  --color-brand-dark: #c8151c;
+     The names on the left of each pair are the ones the pages were written
+     against; they now carry the WIT values, so every existing class moves to
+     the new palette without the page being touched. New code uses the WIT
+     names (surface, card, border, accent, on-ink). */
 
-  --font-sans: var(--font-inter), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* --- accent: WIT red --- */
+  --color-accent: #ed1c24;
+  --color-accent-strong: #c9141b; /* solid fill behind small white text, AA */
+  --color-accent-dark: #a80f15;
+  --color-accent-soft: #fdeced;
+  --color-brand: var(--color-accent);
+  --color-brand-dark: var(--color-accent-strong);
+
+  /* the only second hue: in-progress, informational, AI */
+  --color-info: #2f6db5;
+  --color-info-soft: #eaf0f8;
+  --color-ai: var(--color-info);
+
+  /* --- ink: the one dark surface, and the title colour --- */
+  --color-ink: #101112;
+  --color-ink-2: #1b1c1e;
+  --color-ink-3: #26282b;
+  --color-on-ink: #ffffff;
+  --color-on-ink-muted: #b8b8b8;
+  --color-black: var(--color-ink);
+
+  /* --- neutral ladder --- */
+  --color-surface: #f1f0f1;
+  --color-surface-2: #f5f4f6;
+  --color-card: #ffffff;
+  --color-border: #e6e5e7;
+  --color-silver: #c0c0c0;
+  --color-muted: #686868;
+  --color-body: #333333;
+  --color-foreground: #101112;
+  --color-paper: var(--color-card);
+  --color-soft: var(--color-surface-2);
+  --color-line: var(--color-border);
+
+  /* --- status: soft tints on cards, solid on dots and bars --- */
+  --color-success: #047857;
+  --color-success-soft: #d1fae5;
+  --color-warning: #975000;
+  --color-warning-soft: #fef3c7;
+  --color-danger: var(--color-accent-strong);
+  --color-danger-soft: var(--color-accent-soft);
+  --color-chart-muted: #d4d3d6;
+
+  --radius-card: 1.5rem;
+  --radius-hero: 1.75rem;
+
+  --shadow-card: 0 1px 2px rgb(16 17 18 / 0.03), 0 8px 24px -12px rgb(16 17 18 / 0.12);
+  --shadow-float: 0 12px 40px -12px rgb(16 17 18 / 0.25);
+  --shadow-glow: 0 8px 20px -8px color-mix(in srgb, var(--color-accent) 60%, transparent);
+  --shadow-up: 0 -10px 30px -14px rgb(16 17 18 / 0.25);
+
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Tailwind's own `transition-*` utilities default to `ease` at 150ms, which
-     would override the base rule below on every element that uses them — i.e.
-     most interactive controls. Pointing the framework defaults at the same
-     curve keeps the whole app on one motion feel. */
+     would override the base rule below on every element that uses them. */
   --default-transition-duration: 160ms;
   --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-tap-highlight-color: transparent;
+}
+
+*,
+::after,
+::before {
+  border-color: var(--color-border);
+}
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
 body {
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--color-surface);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
-  font-feature-settings: "tnum";
   /* PWA: no rubber-band flash in standalone mode, stable text sizing */
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
@@ -51,7 +110,7 @@ body {
   outline: none;
 }
 :focus-visible {
-  outline: 2px solid var(--color-brand) !important;
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 40%, transparent) !important;
   outline-offset: 2px;
 }
 
@@ -269,11 +328,11 @@ tr {
   }
 }
 
-/* Swiss label: uppercase, tracked-out, small */
+/* Kicker: the small uppercase label above a title or a figure. */
 .label {
   font-size: 11px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-muted);
-  font-weight: 500;
+  font-weight: 600;
 }

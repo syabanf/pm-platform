@@ -162,17 +162,19 @@ function SidebarNav() {
             <Link
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`relative block px-3 py-2.5 text-sm transition-colors ${
-                active ? "font-semibold text-black" : "text-muted hover:text-ink"
+              className={`relative flex items-center rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                active
+                  ? "bg-white/10 font-semibold text-on-ink"
+                  : "text-on-ink-muted hover:bg-white/5 hover:text-on-ink"
               }`}
             >
               {active && (
-                <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 bg-brand" />
+                <span className="absolute left-0 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-accent" />
               )}
               {item.label}
             </Link>
             {item.children && (
-              <div className="ml-4 border-l border-line">
+              <div className="ml-4 mt-0.5 border-l border-white/10">
                 {item.children.map((child) => {
                   const childActive = isChildActive(child.href);
                   return (
@@ -182,12 +184,12 @@ function SidebarNav() {
                       aria-current={childActive ? "page" : undefined}
                       className={`relative block px-3 py-1.5 text-[13px] transition-colors ${
                         childActive
-                          ? "font-semibold text-black"
-                          : "text-muted hover:text-ink"
+                          ? "font-semibold text-on-ink"
+                          : "text-on-ink-muted hover:text-on-ink"
                       }`}
                     >
                       {childActive && (
-                        <span className="absolute -left-px top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-brand" />
+                        <span className="absolute -left-px top-1/2 h-3.5 w-0.5 -translate-y-1/2 bg-accent" />
                       )}
                       {child.label}
                     </Link>
@@ -288,7 +290,7 @@ function Brand() {
   return (
     <Link href="/" className="block">
       <div className="flex items-center gap-1.5">
-        <span className="text-lg font-bold tracking-tight text-ink">
+        <span className="text-lg font-bold tracking-tight text-on-ink">
           {first}
         </span>
         <span
@@ -297,7 +299,7 @@ function Brand() {
           aria-hidden
         />
       </div>
-      <div className="label mt-0.5">{rest.join(" ") || workspaceConf.company}</div>
+      <div className="label mt-0.5 !text-on-ink-muted">{rest.join(" ") || workspaceConf.company}</div>
     </Link>
   );
 }
@@ -379,7 +381,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Keyboard users: jump straight past the nav to page content. */}
       <a
         href="#main-content"
-        className="sr-only z-[100] border border-black bg-paper px-4 py-2 text-sm font-medium text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        className="sr-only z-[100] rounded-full bg-ink px-4 py-2 text-sm font-semibold text-on-ink shadow-float focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
       >
         Skip to content
       </a>
@@ -408,14 +410,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Mobile / tablet-portrait top bar */}
-      <header className="print-hide fixed inset-x-0 top-0 z-40 h-[calc(3.5rem+env(safe-area-inset-top))] border-b border-line bg-paper px-4 pt-[env(safe-area-inset-top)] lg:hidden">
+      <header className="print-hide fixed inset-x-0 top-0 z-40 h-[calc(3.5rem+env(safe-area-inset-top))] bg-surface px-4 pt-[env(safe-area-inset-top)] lg:hidden">
         {/* Phone, nested page: native back + title bar */}
         {!isTabRoot && (
           <div className="flex h-full items-center gap-2 md:hidden">
             <button
               onClick={() => router.back()}
               aria-label="Back"
-              className="flex h-10 w-10 shrink-0 items-center justify-center border border-line text-ink"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card text-ink shadow-card"
             >
               <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M12.5 4.5 7 10l5.5 5.5" />
@@ -429,7 +431,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => setPaletteOpen(true)}
               aria-label="Search"
-              className="flex h-10 w-10 shrink-0 items-center justify-center border border-line text-ink"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-card text-ink shadow-card"
             >
               <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <circle cx="9" cy="9" r="5.5" />
@@ -447,7 +449,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setDrawerOpen(!drawerOpen)}
             aria-label="Toggle navigation"
             aria-expanded={drawerOpen}
-            className="flex h-10 w-10 flex-col items-center justify-center gap-1 border border-line"
+            className="flex h-10 w-10 flex-col items-center justify-center gap-1 rounded-full bg-card shadow-card"
           >
             <span
               className={`h-0.5 w-4 bg-black transition-transform duration-200 ${drawerOpen ? "translate-y-1.5 rotate-45" : ""}`}
@@ -464,7 +466,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => setPaletteOpen(true)}
               aria-label="Search"
-              className="flex h-10 w-10 items-center justify-center border border-line text-ink"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-card text-ink shadow-card"
             >
               <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <circle cx="9" cy="9" r="5.5" />
@@ -474,7 +476,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/profile"
               aria-label="Profile"
-              className="flex h-8 w-8 items-center justify-center bg-black text-xs font-semibold text-paper"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-strong text-xs font-semibold text-on-ink"
             >
               {initial}
             </Link>
@@ -485,7 +487,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Backdrop for the drawer */}
       {drawerOpen && (
         <div
-          className="animate-fade fixed inset-0 z-40 bg-black/20 lg:hidden"
+          className="animate-fade fixed inset-0 z-40 bg-ink/30 lg:hidden"
           onClick={() => setDrawerOpen(false)}
         />
       )}
@@ -494,7 +496,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         inert={!isDesktop && !drawerOpen}
         onTouchStart={onDrawerTouchStart}
         onTouchEnd={(e) => drawerSwipe(e, false)}
-        className={`print-hide fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-line bg-paper transition-transform duration-200 ease-out lg:z-30 lg:w-56 lg:translate-x-0 ${
+        className={`print-hide fixed inset-y-0 left-0 z-50 flex w-64 flex-col rounded-r-hero bg-ink text-on-ink shadow-float transition-transform duration-200 ease-out lg:inset-y-4 lg:left-4 lg:z-30 lg:w-56 lg:translate-x-0 lg:rounded-hero ${
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -504,17 +506,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="px-4 pb-4">
           <button
             onClick={() => setPaletteOpen(true)}
-            className="flex w-full items-center justify-between border border-line px-3 py-2 text-xs text-muted hover:border-black hover:text-ink"
+            className="flex w-full items-center justify-between rounded-full bg-white/5 px-4 py-2.5 text-xs text-on-ink-muted transition-colors hover:bg-white/10 hover:text-on-ink"
           >
             <span>Search…</span>
-            <span className="border border-line px-1 py-0.5 text-[10px]">⌘K</span>
+            <span className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[10px]">⌘K</span>
           </button>
         </div>
         <SidebarNav />
         <div className="flex gap-2 px-4 pb-2">
           <button
             onClick={() => setHowToOpen(true)}
-            className="flex flex-1 items-center gap-2 border border-line px-3 py-2 text-xs text-muted hover:border-black hover:text-ink"
+            className="flex flex-1 items-center gap-2 rounded-full bg-white/5 px-3 py-2 text-xs text-on-ink-muted transition-colors hover:bg-white/10 hover:text-on-ink"
           >
             <span
               aria-hidden
@@ -527,7 +529,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={playDemo}
             title="Play a guided demo"
-            className="flex items-center gap-1.5 border border-line px-3 py-2 text-xs text-muted hover:border-black hover:text-ink"
+            className="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-2 text-xs text-on-ink-muted transition-colors hover:bg-white/10 hover:text-on-ink"
           >
             <span aria-hidden className="text-[9px] leading-none">
               ▶
@@ -535,19 +537,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Demo
           </button>
         </div>
-        <div className="border-t border-line px-3 py-4">
+        <div className="border-t border-white/10 px-3 py-4">
           <Link
             href="/profile"
-            className="mt-2 flex items-center gap-3 rounded-none px-3 py-1.5 transition-colors hover:bg-soft"
+            className="mt-2 flex items-center gap-3 rounded-2xl px-3 py-1.5 transition-colors hover:bg-white/5"
           >
-            <span className="flex h-8 w-8 items-center justify-center bg-black text-xs font-semibold text-paper">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-strong text-xs font-semibold text-on-ink">
               {initial}
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-xs font-medium text-ink">
+              <span className="block truncate text-xs font-medium text-on-ink">
                 {currentUser?.name ?? "Guest"}
               </span>
-              <span className="block truncate text-[11px] text-muted">
+              <span className="block truncate text-[11px] text-on-ink-muted">
                 {currentUser?.roleLabel ?? "Not signed in"}
               </span>
             </span>
@@ -562,7 +564,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         // min-width:auto and refuses to shrink below its widest content, so a
         // wide table would stretch the whole page and defeat the inner
         // overflow-x-auto containers. Without it the phone scrolls sideways.
-        className="min-h-screen min-w-0 flex-1 bg-paper pb-20 pt-[calc(3.5rem+env(safe-area-inset-top))] focus:outline-none lg:ml-56 lg:pb-0 lg:pt-0"
+        className="min-h-screen min-w-0 flex-1 bg-surface pb-20 pt-[calc(3.5rem+env(safe-area-inset-top))] focus:outline-none lg:ml-64 lg:pb-0 lg:pt-0"
       >
         {children}
       </main>

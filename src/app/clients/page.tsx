@@ -12,6 +12,7 @@ import {
   PageHeader,
   Panel,
   Button,
+  buttonClass,
   ToggleButton,
   FilterBar,
   EmptyState,
@@ -135,7 +136,7 @@ export default function ClientsPage() {
           <div className="flex gap-2">
             <Link
               href="/projects/new"
-              className="border border-line px-4 py-2 text-sm font-medium text-ink hover:border-black"
+              className={buttonClass("secondary")}
             >
               New Project
             </Link>

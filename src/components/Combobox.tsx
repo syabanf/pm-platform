@@ -341,12 +341,12 @@ export function Combobox({
           if (!open) openWith(options.findIndex((o) => o.value === value));
         }}
         onKeyDown={onKeyDown}
-        className={`w-full min-h-11 cursor-default border border-line px-3 py-2 pr-8 text-sm text-ink transition-colors focus:border-black disabled:cursor-not-allowed disabled:text-muted md:min-h-0 ${className ?? ""}`}
+        className={`w-full min-h-11 cursor-default rounded-2xl border border-border bg-card px-4 py-2.5 pr-9 text-base text-ink transition-colors placeholder:text-silver focus:border-ink disabled:cursor-not-allowed disabled:text-muted md:min-h-0 md:text-sm ${className ?? ""}`}
       />
       <svg
         viewBox="0 0 16 16"
         aria-hidden
-        className={`pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted transition-transform ${
+        className={`pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted transition-transform ${
           open ? "rotate-180" : ""
         }`}
         fill="none"
@@ -371,7 +371,7 @@ export function Combobox({
                 ? { top: rect.top }
                 : { bottom: rect.bottom }),
             }}
-            className="fixed z-50 overflow-y-auto border border-black bg-paper py-1 shadow-lg"
+            className="fixed z-50 overflow-y-auto rounded-2xl border border-border bg-card p-1 shadow-float"
           >
             {matches.length === 0 && (
               <li role="presentation" className="px-3 py-2 text-sm text-muted">
@@ -389,11 +389,11 @@ export function Combobox({
                 // Keeps focus in the input so the field never flickers.
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => commit(option)}
-                className={`cursor-pointer px-3 py-2 text-sm ${
+                className={`cursor-pointer rounded-xl px-3 py-2 text-sm ${
                   option.disabled
                     ? "cursor-not-allowed text-muted"
                     : i === active
-                      ? "bg-soft text-ink"
+                      ? "bg-surface text-ink"
                       : "text-ink"
                 } ${option.value === value ? "font-medium" : ""}`}
               >

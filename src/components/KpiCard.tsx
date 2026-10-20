@@ -65,13 +65,13 @@ export function KpiCard({
           ? "text-success"
           : "text-ink";
   return (
-    <div className="border border-line bg-paper p-6">
+    <div className="p-5">
       <div
-        className={`text-5xl font-semibold tracking-tight tabular-nums ${valueColor}`}
+        className={`text-[28px] font-extrabold tracking-[-0.5px] tabular-nums ${valueColor}`}
       >
         {shown}
       </div>
-      <div className="label mt-3">{label}</div>
+      <div className="mt-1 text-xs text-muted">{label}</div>
       {delta && <div className="mt-1 text-xs text-muted">{delta}</div>}
     </div>
   );

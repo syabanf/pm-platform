@@ -35,10 +35,10 @@ export function ConfirmButton({
           timer.current = setTimeout(() => setArmed(false), 3000);
         }
       }}
-      className={`border px-2 py-1 text-xs transition-colors ${
+      className={`h-8 rounded-full px-3 text-xs font-medium transition-colors ${
         armed
-          ? "border-danger bg-danger font-medium text-paper"
-          : "border-line text-muted hover:border-danger hover:text-danger"
+          ? "bg-accent-strong text-on-ink"
+          : "bg-surface text-muted hover:bg-accent-soft hover:text-danger"
       } ${className}`}
     >
       {armed ? confirmLabel : label}

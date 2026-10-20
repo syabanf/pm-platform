@@ -35,12 +35,12 @@ export function Folder({
   const regionId = useId();
 
   return (
-    <div className="border border-line">
+    <div className="overflow-hidden rounded-card bg-card shadow-card">
       <button
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={regionId}
-        className="flex w-full items-center gap-2.5 bg-soft px-4 py-3 text-left hover:bg-line/40"
+        className="flex w-full items-center gap-2.5 px-5 py-4 text-left transition-colors hover:bg-surface-2"
       >
         <svg
           viewBox="0 0 16 16"
@@ -54,7 +54,7 @@ export function Folder({
         >
           <path d="M6 4l4 4-4 4" />
         </svg>
-        <span className="text-sm font-semibold text-ink">{label}</span>
+        <span className="text-base font-semibold text-ink">{label}</span>
         <span className="text-xs tabular-nums text-muted">({count})</span>
         {meta && <span className="ml-auto text-xs text-muted">{meta}</span>}
       </button>
@@ -77,7 +77,7 @@ export function Folder({
             and last columns sit flush against the folder border. `border-t`
             still spans the full width — padding is inside the border box.
           */}
-          <div className="border-t border-line px-5 pb-2">{children}</div>
+          <div className="border-t border-border px-5 pb-2">{children}</div>
         </div>
       </div>
     </div>

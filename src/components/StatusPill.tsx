@@ -1,38 +1,38 @@
 const toneMap: Record<string, string> = {
-  healthy: "text-success border-success/30",
-  done: "text-success border-success/30",
-  active: "text-success border-success/30",
-  ready: "text-success border-success/30",
-  decided: "text-success border-success/30",
-  low: "text-success border-success/30",
-  warning: "text-warning border-warning/30",
-  medium: "text-warning border-warning/30",
-  "needs-clarification": "text-warning border-warning/30",
-  "in-progress": "text-ink border-line",
-  planning: "text-ink border-line",
-  review: "text-ink border-line",
-  discovery: "text-muted border-line",
-  planned: "text-muted border-line",
-  draft: "text-muted border-line",
-  open: "text-warning border-warning/30",
-  "at-risk": "text-danger border-danger/30",
-  high: "text-danger border-danger/30",
-  blocked: "text-danger border-danger/30",
-  overloaded: "text-danger border-danger/30",
-  development: "text-ink border-line",
-  maintenance: "text-muted border-line",
-  release: "text-success border-success/30",
+  healthy: "bg-success-soft text-success",
+  done: "bg-success-soft text-success",
+  active: "bg-success-soft text-success",
+  ready: "bg-success-soft text-success",
+  decided: "bg-success-soft text-success",
+  low: "bg-success-soft text-success",
+  warning: "bg-warning-soft text-warning",
+  medium: "bg-warning-soft text-warning",
+  "needs-clarification": "bg-warning-soft text-warning",
+  "in-progress": "bg-info-soft text-info",
+  planning: "bg-info-soft text-info",
+  review: "bg-info-soft text-info",
+  discovery: "bg-surface text-muted",
+  planned: "bg-surface text-muted",
+  draft: "bg-surface text-muted",
+  open: "bg-warning-soft text-warning",
+  "at-risk": "bg-danger-soft text-danger",
+  high: "bg-danger-soft text-danger",
+  blocked: "bg-danger-soft text-danger",
+  overloaded: "bg-danger-soft text-danger",
+  development: "bg-info-soft text-info",
+  maintenance: "bg-surface text-muted",
+  release: "bg-success-soft text-success",
   // Reachable and previously silent: "On Hold" is in the project status
   // dropdown, and selected / in-review / qa are board columns the Technical
   // Team report renders per task. All four fell through to plain grey with no
   // tooltip, next to siblings that were coloured.
-  "on-hold": "text-warning border-warning/30",
-  selected: "text-muted border-line",
-  "in-review": "text-ink border-line",
-  qa: "text-ink border-line",
-  inactive: "text-muted border-line",
-  temporary: "text-ink border-line",
-  prospect: "text-ink border-line",
+  "on-hold": "bg-warning-soft text-warning",
+  selected: "bg-surface text-muted",
+  "in-review": "bg-info-soft text-info",
+  qa: "bg-info-soft text-info",
+  inactive: "bg-surface text-muted",
+  temporary: "bg-info-soft text-info",
+  prospect: "bg-info-soft text-info",
 };
 
 // Plain-language meaning shown on hover/long-press — a lightweight status legend.
@@ -73,12 +73,12 @@ export const statusTones = toneMap;
 export const statusTitles = titleMap;
 
 export function StatusPill({ status, label }: { status: string; label?: string }) {
-  const tone = toneMap[status] ?? "text-muted border-line";
+  const tone = toneMap[status] ?? "bg-surface text-muted";
   const title = titleMap[status];
   return (
     <span
       title={title}
-      className={`inline-flex items-center border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide whitespace-nowrap ${tone}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap ${tone}`}
     >
       {label ?? status.replace(/-/g, " ")}
     </span>

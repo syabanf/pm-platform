@@ -35,7 +35,7 @@ export function Wordmark({
   className?: string;
 }) {
   const name = (
-    <span className="text-lg font-bold tracking-tight text-black">
+    <span className="text-lg font-bold tracking-tight text-ink">
       projectOS
     </span>
   );
@@ -63,22 +63,30 @@ export function Wordmark({
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 type ButtonSize = "sm" | "md" | "lg";
 
+// Every control is a full pill. Primary is the one solid accent on a screen
+// region, secondary is the ink surface, and the quiet options sit on white.
 const BTN_BASE =
-  "inline-flex items-center justify-center gap-2 border font-medium transition-colors disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
 
 const BTN_VARIANT: Record<ButtonVariant, string> = {
-  primary:
-    "border-black bg-black text-paper hover:bg-ink disabled:border-line disabled:bg-line disabled:text-paper",
-  secondary: "border-line text-muted hover:border-black hover:text-ink",
-  danger: "border-danger text-danger hover:bg-danger hover:text-paper",
-  ghost: "border-transparent text-muted hover:text-ink",
+  primary: "bg-accent-strong text-on-ink shadow-glow hover:bg-accent-dark",
+  secondary: "bg-card text-ink shadow-card hover:bg-surface",
+  danger: "bg-accent-soft text-danger hover:bg-accent-strong hover:text-on-ink",
+  ghost: "text-muted hover:bg-surface hover:text-ink",
 };
 
 const BTN_SIZE: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2 text-sm",
-  lg: "px-4 py-2.5 text-sm",
+  sm: "h-8 px-3.5 text-xs",
+  md: "h-10 px-5 text-sm",
+  lg: "h-11 px-6 text-sm",
 };
+
+/** Button classes for a Link that should look like a button. */
+export const buttonClass = (
+  variant: ButtonVariant = "primary",
+  size: ButtonSize = "md",
+  className?: string
+) => cx(BTN_BASE, BTN_VARIANT[variant], BTN_SIZE[size], className);
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -94,13 +102,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       type={type ?? "button"}
-      className={cx(
-        BTN_BASE,
-        BTN_VARIANT[variant],
-        BTN_SIZE[size],
-        fullWidth && "w-full",
-        className
-      )}
+      className={buttonClass(variant, size, cx(fullWidth && "w-full", className))}
       {...rest}
     />
   );
@@ -116,7 +118,7 @@ export const IconButton = forwardRef<
       ref={ref}
       type={type ?? "button"}
       className={cx(
-        "flex h-9 w-9 items-center justify-center border border-line text-ink transition-colors hover:border-black",
+        "flex h-10 w-10 items-center justify-center rounded-full bg-card text-ink shadow-card transition-colors hover:bg-surface",
         className
       )}
       {...rest}
@@ -126,10 +128,10 @@ export const IconButton = forwardRef<
 
 /* ------------------------------- Form controls ----------------------------- */
 
-// Note: no `focus:outline-none` — the global :focus-visible ring (globals.css)
-// provides the keyboard indicator; `focus:border-black` is the visual accent.
+// The global :focus-visible ring (globals.css) is the keyboard indicator; the
+// border darkening is the pointer one. 16px on phones so iOS never zooms.
 export const inputClass =
-  "w-full border border-line px-3 py-2 text-sm text-ink transition-colors focus:border-black";
+  "w-full rounded-2xl border border-border bg-card px-4 py-2.5 text-base text-ink transition-colors placeholder:text-silver focus:border-ink md:text-sm";
 
 export const Input = forwardRef<
   HTMLInputElement,
@@ -221,11 +223,11 @@ export function ToggleButton({
       className={cx(
         // Comfortable thumb target on touch screens; the dense desktop size is
         // restored from md up so the Swiss density is unchanged there.
-        "border transition-colors min-h-10 md:min-h-0",
-        size === "sm" ? "px-3 py-1 text-xs md:px-2" : "px-3 py-2 text-left text-sm",
+        "rounded-full font-medium transition-colors min-h-10 md:min-h-0",
+        size === "sm" ? "px-3.5 py-1.5 text-xs" : "px-4 py-2 text-left text-sm",
         active
-          ? "border-black font-medium text-ink"
-          : "border-line text-muted hover:border-black hover:text-ink",
+          ? "bg-ink text-on-ink"
+          : "bg-card text-muted shadow-card hover:bg-surface hover:text-ink",
         className
       )}
       {...rest}
@@ -255,7 +257,7 @@ export function PageContainer({
   return (
     <div
       className={cx(
-        "mx-auto px-5 py-8 md:px-10 md:py-12",
+        "mx-auto px-4 py-6 md:px-6 md:py-8",
         CONTAINER_MAX[max],
         className
       )}
@@ -281,8 +283,9 @@ export function PageHeader({
     <div>
       {eyebrow && <div className="label">{eyebrow}</div>}
       <div className={cx("flex items-start justify-between gap-4", eyebrow && "mt-2")}>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink md:text-3xl">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">
           {title}
+          <span className="text-accent">.</span>
         </h1>
         {actions && <div className="shrink-0">{actions}</div>}
       </div>
@@ -306,7 +309,7 @@ export function SectionHeader({
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
-        <h2 className="label">{title}</h2>
+        <h2 className="text-base font-semibold text-ink">{title}</h2>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
       {actions && <div className="shrink-0">{actions}</div>}
@@ -316,7 +319,7 @@ export function SectionHeader({
 
 /* --------------------------------- Surfaces -------------------------------- */
 
-/** Inline create/edit panel (the black-bordered form that animates in). */
+/** Inline create/edit panel: a white card that animates in. */
 export function Panel({
   title,
   children,
@@ -327,8 +330,8 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <div className={cx("animate-in border border-black p-5", className)}>
-      {title && <div className="label">{title}</div>}
+    <div className={cx("animate-in rounded-card bg-card p-5 shadow-card", className)}>
+      {title && <h3 className="text-base font-semibold text-ink">{title}</h3>}
       <div className={cx(title && "mt-4")}>{children}</div>
     </div>
   );
@@ -348,7 +351,7 @@ export function EmptyState({
     return (
       <div
         className={cx(
-          "flex h-full min-h-80 items-center justify-center border border-dashed border-line",
+          "flex h-full min-h-80 items-center justify-center rounded-card bg-surface-2",
           className
         )}
       >
@@ -359,7 +362,7 @@ export function EmptyState({
   return (
     <div
       className={cx(
-        "border border-dashed border-line p-6 text-sm text-muted",
+        "rounded-2xl bg-surface-2 p-6 text-sm text-muted",
         className
       )}
     >
@@ -402,7 +405,7 @@ export function FilterBar({
   return (
     <div
       className={cx(
-        "flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-line pb-4",
+        "flex flex-wrap items-center gap-x-6 gap-y-3",
         className
       )}
     >
@@ -451,7 +454,7 @@ export function KpiStrip({
   return (
     <div
       className={cx(
-        "grid gap-px border border-line bg-line",
+        "grid gap-3 sm:gap-4",
         items.length === 1
           ? "grid-cols-1"
           : items.length === 3
@@ -461,7 +464,7 @@ export function KpiStrip({
       )}
     >
       {items.map((item) => (
-        <div key={item.label} className="bg-paper">
+        <div key={item.label} className="rounded-card bg-card shadow-card">
           <KpiCard
             value={item.value}
             label={item.label}

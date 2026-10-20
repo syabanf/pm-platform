@@ -11,9 +11,9 @@ export function DataTable({
     <div className="overflow-x-auto">
       <table className="w-full text-sm [&_td]:break-words">
         <thead>
-          <tr className="border-b border-black">
+          <tr className="border-b border-border">
             {headers.map((h) => (
-              <th key={h} className="label py-3 pr-6 text-left font-medium">
+              <th key={h} className="py-3 pr-6 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                 {h}
               </th>
             ))}

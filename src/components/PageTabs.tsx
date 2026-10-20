@@ -14,7 +14,7 @@ export function PageTabs({ tabs }: { tabs: Tab[] }) {
   return (
     <nav
       aria-label="Section"
-      className="flex gap-6 border-b border-line overflow-x-auto"
+      className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-card p-1 shadow-card"
     >
       {tabs.map((tab) => {
         const active = tab.exact
@@ -25,10 +25,10 @@ export function PageTabs({ tabs }: { tabs: Tab[] }) {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={`-mb-px flex min-h-11 items-end whitespace-nowrap border-b-2 pb-3 text-sm transition-colors md:min-h-0 md:block ${
+            className={`flex h-9 items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors ${
               active
-                ? "border-brand font-semibold text-ink"
-                : "border-transparent text-muted hover:text-ink"
+                ? "bg-ink text-on-ink"
+                : "text-muted hover:bg-surface hover:text-ink"
             }`}
           >
             {tab.label}

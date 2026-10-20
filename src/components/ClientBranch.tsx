@@ -49,10 +49,10 @@ function Row({
           PAD[depth]
         } ${
           row.state === "current"
-            ? "border-brand font-semibold text-black"
+            ? "border-accent font-semibold text-on-ink"
             : row.state === "ancestor"
-              ? "border-transparent text-ink"
-              : "border-transparent text-muted hover:text-ink"
+              ? "border-transparent text-on-ink"
+              : "border-transparent text-on-ink-muted hover:text-on-ink"
         }`}
       >
         <span className="truncate">{row.label}</span>
@@ -73,7 +73,7 @@ function Overflow({ list, depth }: { list: BranchList; depth: 0 | 1 | 2 }) {
     return (
       <li>
         <span
-          className={`block py-1.5 pr-2 text-[13px] text-muted ${PAD[depth]}`}
+          className={`block py-1.5 pr-2 text-[13px] text-on-ink-muted ${PAD[depth]}`}
         >
           {label} on this page
         </span>
@@ -86,7 +86,7 @@ function Overflow({ list, depth }: { list: BranchList; depth: 0 | 1 | 2 }) {
         href={over.href}
         // "+12 more" alone means nothing read out of context.
         aria-label={`See all ${over.total} ${over.noun} in ${over.parentName}`}
-        className={`block border-l-2 border-transparent py-1.5 pr-2 text-[13px] text-muted transition-colors hover:text-ink ${PAD[depth]}`}
+        className={`block border-l-2 border-transparent py-1.5 pr-2 text-[13px] text-on-ink-muted transition-colors hover:text-on-ink ${PAD[depth]}`}
       >
         {label}
       </Link>
@@ -124,7 +124,7 @@ export function ClientBranch({ pathname }: { pathname: string }) {
   const isCurrent = (row: BranchRow) => row.href === branch.currentKey;
 
   return (
-    <div ref={rootRef} className="ml-4 border-l border-line">
+    <div ref={rootRef} className="ml-4 border-l border-white/10">
       {/*
         Nested <ul>s, each labelled, are what carry the hierarchy to a screen
         reader — the visible depth is padding, which no assistive technology
