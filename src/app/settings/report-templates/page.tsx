@@ -187,7 +187,7 @@ export default function ReportTemplatesPage() {
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {reportTemplates.map((tpl) => (
-          <div key={tpl.id} className="group border border-line p-5">
+          <article key={tpl.id} aria-label={tpl.name} className="group rounded-card bg-card p-5 shadow-card">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-base font-semibold text-ink">{tpl.name}</div>
@@ -226,7 +226,7 @@ export default function ReportTemplatesPage() {
                 }}
               />
             </div>
-          </div>
+          </article>
         ))}
       </div>
     </div>

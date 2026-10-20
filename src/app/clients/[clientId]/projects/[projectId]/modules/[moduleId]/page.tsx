@@ -26,7 +26,7 @@ export default function ModuleOverviewPage({
   return (
     <div>
       {sprint ? (
-        <div className="border border-black p-6">
+        <div className="rounded-card bg-card shadow-card p-6">
           <div className="label">
             Sprint Goal — Sprint {String(sprint.number).padStart(2, "0")}
           </div>
@@ -77,7 +77,7 @@ export default function ModuleOverviewPage({
       <section className="mt-12 grid gap-12 md:grid-cols-2">
         <div>
           <h2 className="label">Components</h2>
-          <ul className="mt-4 divide-y divide-line border-y border-line">
+          <ul className="mt-4 divide-y divide-border rounded-card bg-card px-5 shadow-card">
             {mod.components.length === 0 && (
               <li className="py-4 text-sm text-muted">
                 No components yet — add them from the Components tab.

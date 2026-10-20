@@ -167,10 +167,10 @@ export function MembersMaster({
                   <button
                     key={tag}
                     onClick={() => toggleTag(tag)}
-                    className={`border px-2.5 py-1 text-xs ${
+                    className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
                       draft.skillTags.includes(tag)
-                        ? "border-black bg-black font-medium text-paper"
-                        : "border-line text-muted hover:border-black hover:text-ink"
+                        ? "bg-ink font-medium text-on-ink"
+                        : "bg-surface-2 text-muted hover:bg-surface hover:text-ink"
                     }`}
                   >
                     {tag}
@@ -256,7 +256,7 @@ export function MembersMaster({
                       {member.skillTags.map((tag) => (
                         <span
                           key={tag}
-                          className="border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted"
+                          className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted"
                         >
                           {tag}
                         </span>
@@ -272,7 +272,7 @@ export function MembersMaster({
                   <div className="flex items-center gap-3">
                     <div className="h-1 w-24 bg-soft">
                       <div
-                        className={`animate-grow-x h-1 ${isOverloaded ? "bg-danger" : member.workload > 85 ? "bg-warning" : "bg-black"}`}
+                        className={`animate-grow-x h-1 rounded-full ${isOverloaded ? "bg-danger" : member.workload > 85 ? "bg-warning" : "bg-black"}`}
                         style={{ width: `${Math.min(member.workload, 100)}%` }}
                       />
                     </div>
@@ -292,7 +292,7 @@ export function MembersMaster({
                   <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                     <button
                       onClick={() => openEdit(member)}
-                      className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                      className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted hover:bg-surface hover:text-ink"
                     >
                       Edit
                     </button>

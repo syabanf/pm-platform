@@ -167,9 +167,9 @@ export function ReportPreview({
     : "—";
 
   return (
-    <article className="border border-line bg-paper p-10">
+    <article className="rounded-card bg-card shadow-card p-10">
       {/* Document header */}
-      <header className="border-b-2 border-black pb-6">
+      <header className="border-b border-border pb-6">
         <div className="flex items-start justify-between">
           <Wordmark />
           <div className="text-right text-xs text-muted">
@@ -219,7 +219,7 @@ export function ReportPreview({
         );
       })}
 
-      <section className="mt-8 border border-line border-l-2 border-l-ai p-5">
+      <section className="mt-8 rounded-card bg-info-soft p-5">
         <div className="flex items-center justify-between">
           <AIBadge />
           <span className="text-[10px] uppercase tracking-wide text-muted">

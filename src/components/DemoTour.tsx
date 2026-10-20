@@ -398,7 +398,7 @@ export function DemoTour({
       <div
         role="status"
         aria-live="polite"
-        className="animate-in print-hide fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[60] mx-auto w-[calc(100%-2rem)] max-w-lg border border-black bg-paper shadow-sm lg:bottom-6"
+        className="animate-in print-hide fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[60] mx-auto w-[calc(100%-2rem)] max-w-lg rounded-card bg-card shadow-float lg:bottom-6"
       >
       {/* progress for the current stop */}
       <div className="h-0.5 w-full bg-line">

@@ -75,7 +75,7 @@ export default function BackendProbe() {
         seam, proven.
       </p>
 
-      <div className="mt-8 border border-line p-5">
+      <div className="mt-8 rounded-card bg-card shadow-card p-5">
         <div className="label">Session</div>
         <p className="mt-1 text-sm text-ink">{status}</p>
 
@@ -85,7 +85,7 @@ export default function BackendProbe() {
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-line px-3 py-2 text-sm focus:border-black focus:outline-none"
+              className="w-full rounded-xl border border-border px-3 py-2 text-sm focus:border-ink focus:outline-none"
             />
           </label>
           <label className="block">
@@ -94,7 +94,7 @@ export default function BackendProbe() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-line px-3 py-2 text-sm focus:border-black focus:outline-none"
+              className="w-full rounded-xl border border-border px-3 py-2 text-sm focus:border-ink focus:outline-none"
             />
           </label>
         </div>
@@ -102,19 +102,19 @@ export default function BackendProbe() {
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={doLogin}
-            className="border border-black bg-black px-3 py-2 text-sm font-medium text-paper hover:bg-ink"
+            className="rounded-full bg-accent-strong shadow-glow px-3 py-2 text-sm font-medium text-on-ink hover:bg-accent-dark"
           >
             Sign in to backend
           </button>
           <button
             onClick={loadClients}
-            className="border border-line px-3 py-2 text-sm text-ink hover:border-black"
+            className="rounded-full bg-surface-2 px-3 py-2 text-sm text-ink hover:bg-surface"
           >
             Load clients
           </button>
           <button
             onClick={doLogout}
-            className="border border-line px-3 py-2 text-sm text-muted hover:border-black hover:text-ink"
+            className="rounded-full bg-surface-2 px-3 py-2 text-sm text-muted hover:bg-surface hover:text-ink"
           >
             Sign out
           </button>
@@ -128,7 +128,7 @@ export default function BackendProbe() {
       </div>
 
       {clients.length > 0 && (
-        <div className="mt-6 border border-line">
+        <div className="mt-6 rounded-card bg-card shadow-card">
           <div className="border-b border-line px-5 py-3">
             <span className="label">
               {clients.length} clients — live from the database

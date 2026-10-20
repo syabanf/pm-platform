@@ -165,7 +165,7 @@ export default function ChangeRequestPage() {
                   { role: "Client PIC", name: subject.client?.clientPic ?? "—" },
                   { role: "WIT Delivery Lead", name: "Fahmi" },
                 ].map((signer) => (
-                  <div key={signer.role} className="border border-line p-4">
+                  <div key={signer.role} className="rounded-card bg-card shadow-card p-4">
                     <div className="label">{signer.role}</div>
                     <div className="mt-1 text-sm text-ink">{signer.name}</div>
                     <div className="mt-8 border-t border-line pt-2 text-xs text-muted">

@@ -27,7 +27,7 @@ export default function ErrorBoundary({
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/"
-          className="border border-line px-4 py-2 text-sm text-muted hover:border-black hover:text-ink"
+          className="rounded-full bg-surface-2 px-4 py-2 text-sm text-muted hover:bg-surface hover:text-ink"
         >
           Back to Home
         </a>

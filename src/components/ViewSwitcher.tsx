@@ -10,19 +10,17 @@ export function ViewSwitcher<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="flex" role="tablist" aria-label="View switcher">
-      {options.map((option, i) => (
+    <div className="inline-flex gap-1 rounded-full bg-card p-1 shadow-card" role="tablist" aria-label="View switcher">
+      {options.map((option) => (
         <button
           key={option.id}
           role="tab"
           aria-selected={value === option.id}
           onClick={() => onChange(option.id)}
-          className={`border min-h-10 md:min-h-0 px-3 py-1.5 text-xs font-medium ${
-            i > 0 ? "-ml-px" : ""
-          } ${
+          className={`min-h-10 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors md:min-h-0 ${
             value === option.id
-              ? "z-10 border-black bg-black text-paper"
-              : "border-line text-muted hover:border-black hover:text-ink"
+              ? "bg-ink text-on-ink"
+              : "text-muted hover:bg-surface hover:text-ink"
           }`}
         >
           {option.label}

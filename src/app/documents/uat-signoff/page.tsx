@@ -85,7 +85,7 @@ export default function UatSignoffPage() {
             <input value={period} onChange={(e) => setPeriod(e.target.value)} className={inputClass} />
           </Field>
           <Field label="Scope Items & Results">
-            <ul className="divide-y divide-line border-y border-line">
+            <ul className="divide-y divide-border rounded-card bg-card px-5 shadow-card">
               {items.map((item, i) => (
                 <li key={item.scope} className="py-3">
                   <div className="text-sm text-ink">{item.scope}</div>
@@ -94,10 +94,10 @@ export default function UatSignoffPage() {
                       <button
                         key={r}
                         onClick={() => setResult(i, r)}
-                        className={`border px-2.5 py-1 text-xs capitalize ${
+                        className={`rounded-full px-2.5 py-1 text-xs capitalize transition-colors ${
                           item.result === r
-                            ? `border-black font-medium ${resultStyle[r]}`
-                            : "border-line text-muted hover:border-black"
+                            ? `font-medium ring-1 ring-current ${resultStyle[r]}`
+                            : "bg-surface-2 text-muted hover:bg-surface hover:text-ink"
                         }`}
                       >
                         {r}
@@ -162,7 +162,7 @@ export default function UatSignoffPage() {
             <DocSection number={2} title="Test Results">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-black text-left">
+                  <tr className="border-b border-border text-left">
                     <th className="label py-2 pr-4 font-medium">Scope Item</th>
                     <th className="label py-2 pr-4 font-medium">Result</th>
                     <th className="label py-2 font-medium">Note</th>
@@ -199,7 +199,7 @@ export default function UatSignoffPage() {
                   { role: "Client PIC", name: subject.client?.clientPic ?? "—" },
                   { role: "WIT QA Engineer", name: "Christian" },
                 ].map((signer) => (
-                  <div key={signer.role} className="border border-line p-4">
+                  <div key={signer.role} className="rounded-card bg-card shadow-card p-4">
                     <div className="label">{signer.role}</div>
                     <div className="mt-1 text-sm text-ink">{signer.name}</div>
                     <div className="mt-8 border-t border-line pt-2 text-xs text-muted">

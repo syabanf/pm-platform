@@ -209,10 +209,10 @@ export default function BacklogPage({
                     setCreating(false);
                     setEditing(false);
                   }}
-                  className={`w-full border p-3 text-left transition-colors ${
+                  className={`w-full rounded-2xl p-3 text-left transition-colors ${
                     selected?.id === item.id && !creating
-                      ? "border-black"
-                      : "border-line hover:border-muted"
+                      ? "bg-card shadow-card ring-2 ring-ink"
+                      : "bg-card shadow-card hover:bg-surface-2"
                   }`}
                 >
                   <div className="text-sm font-medium text-ink">{item.title}</div>
@@ -323,7 +323,7 @@ export default function BacklogPage({
                   <StatusPill status={selected.priority} label={`${selected.priority} priority`} />
                   <button
                     onClick={() => startEdit(selected)}
-                    className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                    className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted hover:bg-surface hover:text-ink"
                   >
                     Edit
                   </button>
@@ -390,7 +390,7 @@ export default function BacklogPage({
 
         {/* Right: AI refinement — full-width row on tablet, third pane on desktop */}
         <div className="md:col-span-2 lg:col-span-1">
-          <div className="border border-line border-l-2 border-l-ai p-5">
+          <div className="rounded-card bg-info-soft p-5">
             <div className="flex items-center justify-between">
               <AIBadge />
               <span className="label">Refinement</span>

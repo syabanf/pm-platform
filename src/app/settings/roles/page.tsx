@@ -17,7 +17,7 @@ export default function RolesPage() {
       <div className="mt-6 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-black">
+            <tr className="border-b border-border">
               <th className="label py-3 pr-6 text-left font-medium">Role</th>
               {permissionCapabilities.map((cap) => (
                 <th
@@ -42,10 +42,10 @@ export default function RolesPage() {
                     <td key={cap} className="px-2 py-3 text-center">
                       <button
                         onClick={() => togglePermission(role.id, cap)}
-                        className={`h-5 w-5 border text-[11px] leading-none transition-colors ${
+                        className={`h-5 w-5 rounded-md border text-[11px] leading-none transition-colors ${
                           granted
-                            ? "border-black bg-black text-paper"
-                            : "border-line text-transparent hover:border-black"
+                            ? "border-ink bg-ink text-on-ink"
+                            : "border-border text-transparent hover:border-ink"
                         }`}
                         aria-label={`${role.name}: ${cap} ${granted ? "granted" : "not granted"}`}
                       >

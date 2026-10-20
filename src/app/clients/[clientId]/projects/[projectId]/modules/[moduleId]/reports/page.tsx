@@ -177,7 +177,7 @@ export default function ReportsPage({
                         "success"
                       );
                     }}
-                    className="border border-success px-4 py-2 text-sm font-medium text-success hover:bg-success hover:text-paper"
+                    className="h-10 rounded-full bg-success-soft px-5 text-sm font-medium text-success transition-colors hover:bg-success hover:text-on-ink"
                   >
                     Mark as Sent
                   </button>
@@ -199,10 +199,10 @@ export default function ReportsPage({
                   <li key={report.id}>
                     <button
                       onClick={() => reopen(report.id)}
-                      className={`flex w-full items-center justify-between gap-2 border px-3 py-2 text-left text-xs ${
+                      className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-xs transition-colors ${
                         report.id === reportId
-                          ? "border-black"
-                          : "border-line hover:border-black"
+                          ? "bg-ink text-on-ink"
+                          : "bg-surface-2 hover:bg-surface"
                       }`}
                     >
                       <span className="min-w-0">

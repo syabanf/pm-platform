@@ -50,10 +50,10 @@ function Chain({ highlight }: { highlight?: string[] }) {
       {chain.map((c, i) => (
         <span key={c} className="flex items-center gap-1.5">
           <span
-            className={`border px-2.5 py-1 text-xs font-medium ${
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
               highlight?.includes(c)
-                ? "border-black bg-black text-paper"
-                : "border-line text-muted"
+                ? "bg-ink text-on-ink"
+                : "bg-surface-2 text-muted"
             }`}
           >
             {c}
@@ -84,7 +84,7 @@ function Levels() {
     <ul className="space-y-2">
       {levels.map(([name, desc, indent]) => (
         <li key={name} className={`flex items-baseline gap-3 ${indent}`}>
-          <span className="w-24 shrink-0 border border-line px-2 py-1 text-center text-xs font-medium text-ink">
+          <span className="w-24 shrink-0 rounded-full bg-surface-2 px-2 py-1 text-center text-xs font-medium text-ink">
             {name}
           </span>
           <span className="text-xs text-muted">{desc}</span>
@@ -100,7 +100,7 @@ function Pills({ items }: { items: string[] }) {
       {items.map((p) => (
         <span
           key={p}
-          className="border border-line px-2.5 py-1 text-xs text-muted"
+          className="rounded-full bg-surface-2 px-2.5 py-1 text-xs text-muted"
         >
           {p}
         </span>
@@ -193,7 +193,7 @@ export function HowToWizard({
         role="dialog"
         aria-modal="true"
         aria-label="How to use projectOS"
-        className="animate-in flex w-full max-w-lg flex-col border border-black bg-paper"
+        className="animate-in flex w-full max-w-lg flex-col rounded-card bg-card shadow-float"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           if (e.key === "Escape") close();

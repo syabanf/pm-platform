@@ -213,7 +213,7 @@ export default function ComponentDetailPage({
                         <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                           <button
                             onClick={() => openEdit(sprint)}
-                            className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                            className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted hover:bg-surface hover:text-ink"
                           >
                             Edit
                           </button>
@@ -252,7 +252,7 @@ export default function ComponentDetailPage({
               Backlog tab.
             </EmptyState>
           ) : (
-            <ul className="divide-y divide-line border-y border-line">
+            <ul className="divide-y divide-border rounded-card bg-card px-5 shadow-card">
               {componentBacklog.map((item) => (
                 <li
                   key={item.id}

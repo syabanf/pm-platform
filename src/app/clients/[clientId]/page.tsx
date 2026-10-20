@@ -317,7 +317,7 @@ export default function ClientDetailPage({
                             <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                               <button
                                 onClick={() => openEdit(project)}
-                                className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                                className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted hover:bg-surface hover:text-ink"
                               >
                                 Edit
                               </button>
@@ -349,7 +349,7 @@ export default function ClientDetailPage({
       <section className="mt-12 grid gap-12 md:grid-cols-2">
         <div>
           <h2 className="label">Client Action Needed</h2>
-          <ul className="mt-4 divide-y divide-line border-y border-line">
+          <ul className="mt-4 divide-y divide-border rounded-card bg-card px-5 shadow-card">
             {client.actionNeeded.length === 0 && (
               <li className="py-4 text-sm text-muted">
                 No pending client actions.
@@ -365,7 +365,7 @@ export default function ClientDetailPage({
         </div>
         <div>
           <h2 className="label">AI Client Insight</h2>
-          <div className="mt-4 border border-line border-l-2 border-l-ai p-5">
+          <div className="mt-4 rounded-card bg-info-soft p-5">
             <AIBadge />
             <p className="mt-3 text-sm text-ink">{client.aiInsight}</p>
           </div>

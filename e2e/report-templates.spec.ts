@@ -84,10 +84,7 @@ test("deleting a template breaks its reports, and Undo puts both back", async ({
   await page.waitForURL("**/settings/report-templates");
 
   // The card itself, not the grid that holds all six of them.
-  const card = page
-    .locator("div.group.border-line")
-    .filter({ hasText: "Internal PM" })
-    .first();
+  const card = page.getByRole("article", { name: "Internal PM" });
   await card.getByRole("button", { name: "Delete" }).click();
   await card.getByRole("button", { name: "Confirm?" }).click();
 

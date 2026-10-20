@@ -237,7 +237,7 @@ export default function SprintsListPage({
                   <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                     <button
                       onClick={() => openEdit(sprint)}
-                      className="border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+                      className="rounded-full bg-surface-2 px-2 py-1 text-xs text-muted hover:bg-surface hover:text-ink"
                     >
                       Edit
                     </button>

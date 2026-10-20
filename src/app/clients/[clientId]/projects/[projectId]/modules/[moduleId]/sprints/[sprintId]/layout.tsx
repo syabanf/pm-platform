@@ -50,7 +50,7 @@ export default function SprintLayout({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border border-black p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-card shadow-card p-5">
         <div>
           <div className="label">
             Sprint {String(sprint.number).padStart(2, "0")} — Sprint Goal

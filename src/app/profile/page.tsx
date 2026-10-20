@@ -70,7 +70,7 @@ export default function ProfilePage() {
             {currentUser.skillTags.map((tag) => (
               <span
                 key={tag}
-                className="border border-line px-2.5 py-1 text-xs uppercase tracking-wide text-muted"
+                className="rounded-full bg-surface-2 px-2.5 py-1 text-xs uppercase tracking-wide text-muted"
               >
                 {tag}
               </span>
@@ -79,7 +79,7 @@ export default function ProfilePage() {
         </div>
         <div>
           <h2 className="label">Workspace</h2>
-          <div className="mt-4 divide-y divide-line border-y border-line text-sm">
+          <div className="mt-4 divide-y divide-border rounded-card bg-card px-5 shadow-card text-sm">
             <div className="flex items-center justify-between py-3">
               <span className="text-muted">Workspace</span>
               <span className="text-ink">{workspaceConf.name}</span>

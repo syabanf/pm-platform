@@ -106,7 +106,7 @@ export default function LoginPage() {
                   <button
                     key={id}
                     onClick={() => signIn(id)}
-                    className="flex items-center gap-2.5 border border-line px-3 py-2 text-left transition-colors hover:border-black"
+                    className="flex items-center gap-2.5 rounded-full bg-surface-2 px-3 py-2 text-left transition-colors hover:bg-surface"
                   >
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-soft text-[11px] font-semibold text-ink">
                       {member.name.charAt(0)}

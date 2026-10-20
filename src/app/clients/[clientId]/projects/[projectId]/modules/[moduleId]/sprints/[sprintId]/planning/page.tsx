@@ -70,7 +70,7 @@ export default function SprintPlanningPage({
               disabled={i > step}
               className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-left text-sm transition-colors md:w-full md:gap-3 md:border-b-0 md:border-l-2 md:py-3 md:pl-4 ${
                 i === step
-                  ? "border-black font-semibold text-ink"
+                  ? "border-accent font-semibold text-ink"
                   : i < step
                     ? "border-line text-muted hover:text-ink"
                     : "border-line text-line"
@@ -99,7 +99,7 @@ export default function SprintPlanningPage({
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               rows={3}
-              className="mt-6 w-full max-w-xl border border-line p-4 text-sm text-ink focus:border-black focus:outline-none"
+              className="mt-6 w-full max-w-xl rounded-xl border border-border p-4 text-sm text-ink focus:border-ink focus:outline-none"
               placeholder="Define a Sprint Goal before selecting backlog items."
             />
             {goal.trim().length === 0 && (
@@ -118,7 +118,7 @@ export default function SprintPlanningPage({
             <p className="mt-1 text-sm text-muted">
               Only members active in this sprint count toward capacity.
             </p>
-            <ul className="mt-6 max-w-xl divide-y divide-line border-y border-line">
+            <ul className="mt-6 max-w-xl divide-y divide-border rounded-card bg-card px-5 shadow-card">
               {members.map((member) => (
                 <li key={member.id}>
                   <label className="flex cursor-pointer items-center gap-4 py-3">
@@ -154,7 +154,7 @@ export default function SprintPlanningPage({
             <p className="mt-1 text-sm text-muted">
               Member Capacity = Working Days × Allocation % · 1 pt ≈ 1 manday
             </p>
-            <div className="mt-8 border border-line p-8 text-center max-w-xl">
+            <div className="mt-8 rounded-card bg-card shadow-card p-8 text-center max-w-xl">
               <div className="text-6xl font-semibold tabular-nums tracking-tight text-ink">
                 {capacity.toFixed(1)}
               </div>
@@ -183,7 +183,7 @@ export default function SprintPlanningPage({
                 {selectedWork} / {capacity.toFixed(1)} pts
               </span>
             </div>
-            <ul className="mt-6 max-w-xl divide-y divide-line border-y border-line">
+            <ul className="mt-6 max-w-xl divide-y divide-border rounded-card bg-card px-5 shadow-card">
               {backlogItems.map((item) => (
                 <li key={item.id}>
                   <label className="flex cursor-pointer items-center gap-4 py-3">
@@ -222,7 +222,7 @@ export default function SprintPlanningPage({
             <h3 className="text-xl font-semibold tracking-tight text-ink">
               AI Risk Check
             </h3>
-            <div className="mt-6 max-w-xl border border-line border-l-2 border-l-ai p-6">
+            <div className="mt-6 max-w-xl rounded-card bg-info-soft p-6">
               <AIBadge />
               {overcommit > 0 ? (
                 <>
@@ -266,7 +266,7 @@ export default function SprintPlanningPage({
             <h3 className="text-xl font-semibold tracking-tight text-ink">
               Commit Sprint
             </h3>
-            <div className="mt-6 max-w-xl space-y-4 border border-line p-6">
+            <div className="mt-6 max-w-xl space-y-4 rounded-card bg-card shadow-card p-6">
               <div>
                 <div className="label">Sprint Goal</div>
                 <p className="mt-1 text-sm text-ink">{goal}</p>

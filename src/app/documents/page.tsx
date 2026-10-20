@@ -19,11 +19,11 @@ export default function DocumentsIndexPage() {
           <Link
             key={gen.slug}
             href={documentHref(gen)}
-            className="group flex flex-col border border-line p-6 transition-colors hover:border-black"
+            className="group flex flex-col rounded-card bg-card shadow-card p-6 transition-colors hover:shadow-float"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="text-base font-semibold text-ink">{gen.title}</div>
-              <span className="border border-line px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted">
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted">
                 {gen.input}
               </span>
             </div>

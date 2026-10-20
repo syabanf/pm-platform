@@ -125,7 +125,7 @@ export default function DecisionLogPage({
       )}
 
       {filteredDecisions.length > 0 && (
-        <ul className="mt-6 divide-y divide-line border-y border-line">
+        <ul className="mt-6 divide-y divide-border rounded-card bg-card px-5 shadow-card">
           {filteredDecisions.map((decision) => (
           <li
             key={decision.id}

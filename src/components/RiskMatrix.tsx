@@ -40,7 +40,7 @@ export function RiskMatrix({ compact = false }: { compact?: boolean }) {
   });
 
   return (
-    <div className="border border-line p-4 md:p-6">
+    <div className="rounded-card bg-card shadow-card p-4 md:p-6">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"

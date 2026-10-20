@@ -118,11 +118,11 @@ export function SprintGantt({
                   <Link
                     href={hrefFor(sprint)}
                     title={`${sprint.goal} — ${progress}% complete`}
-                    className={`animate-grow-x absolute inset-y-0 flex items-center overflow-hidden border px-2 text-[11px] font-medium transition-colors ${
+                    className={`animate-grow-x absolute inset-y-0 flex items-center overflow-hidden rounded-full border px-2 text-[11px] font-medium transition-colors ${
                       sprint.status === "done"
-                        ? "border-black bg-black text-paper"
+                        ? "border-ink bg-ink text-on-ink"
                         : sprint.status === "active"
-                          ? "border-black bg-paper text-ink hover:bg-soft"
+                          ? "border-accent bg-accent-soft text-ink hover:bg-card"
                           : "border-dashed border-muted text-muted"
                     }`}
                     style={{ left: `${left}%`, width: `${width}%` }}

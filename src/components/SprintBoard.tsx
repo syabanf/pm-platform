@@ -91,7 +91,7 @@ function TaskCardView({
           <button
             onClick={onToggleExpand}
             aria-expanded={!!expanded}
-            className="border border-line px-1.5 py-0.5 text-[11px] text-muted hover:border-black hover:text-ink"
+            className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted hover:bg-surface hover:text-ink"
           >
             {expanded ? "Close" : "Details"}
           </button>
@@ -189,7 +189,7 @@ function TaskCardView({
               onChange={(e) =>
                 tasksCrud.update(task.id, { title: e.target.value })
               }
-              className="w-full border border-line px-2 py-1 text-xs text-ink focus:border-black focus:outline-none"
+              className="w-full rounded-xl border border-border px-2 py-1 text-xs text-ink focus:border-ink focus:outline-none"
             />
           </label>
           <div className="flex gap-1.5">
@@ -200,7 +200,7 @@ function TaskCardView({
                 onChange={(value) =>
                   tasksCrud.update(task.id, { assigneeId: value })
                 }
-                className="w-full border border-line px-1.5 py-1 text-xs text-ink focus:border-black focus:outline-none"
+                className="w-full rounded-xl border border-border px-1.5 py-1 text-xs text-ink focus:border-ink focus:outline-none"
               >
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -220,7 +220,7 @@ function TaskCardView({
                     estimate: Number(e.target.value),
                   })
                 }
-                className="w-14 border border-line px-1.5 py-1 text-xs tabular-nums text-ink focus:border-black focus:outline-none"
+                className="w-14 rounded-xl border border-border px-1.5 py-1 text-xs tabular-nums text-ink focus:border-ink focus:outline-none"
               />
             </label>
           </div>
@@ -349,7 +349,7 @@ function AddTaskForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mt-2 w-full border border-dashed border-line py-1 text-[11px] text-muted hover:border-black hover:text-ink"
+        className="mt-2 w-full rounded-full border border-dashed border-border py-1 text-[11px] text-muted hover:border-ink hover:text-ink"
       >
         {label}
       </button>
@@ -364,7 +364,7 @@ function AddTaskForm({
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && create()}
         placeholder="Task title"
-        className="w-full border border-line px-2 py-1 text-xs text-ink focus:border-black focus:outline-none"
+        className="w-full rounded-xl border border-border px-2 py-1 text-xs text-ink focus:border-ink focus:outline-none"
       />
       {!item && (
         <label className="block">
@@ -394,13 +394,13 @@ function AddTaskForm({
       <div className="flex gap-1.5">
         <button
           onClick={create}
-          className="flex-1 border border-black bg-black py-1 text-[11px] font-medium text-paper hover:bg-ink"
+          className="flex-1 rounded-full bg-accent-strong shadow-glow py-1 text-[11px] font-medium text-on-ink hover:bg-accent-dark"
         >
           Add
         </button>
         <button
           onClick={() => setOpen(false)}
-          className="flex-1 border border-line py-1 text-[11px] text-muted hover:border-black hover:text-ink"
+          className="flex-1 rounded-full bg-surface-2 py-1 text-[11px] text-muted hover:bg-surface hover:text-ink"
         >
           Cancel
         </button>
@@ -426,7 +426,7 @@ function Lane({
     <div className="flex border-b border-line">
       {/* Sticky lane header = the sprint backlog item */}
       <div
-        className={`${LANE_W} sticky left-0 z-10 shrink-0 border-r border-black bg-paper p-4`}
+        className={`${LANE_W} sticky left-0 z-10 shrink-0 border-r border-border bg-card p-4`}
       >
         <div className="label">Backlog Item</div>
         <div className="mt-1 text-sm font-semibold leading-snug text-ink">
@@ -442,7 +442,7 @@ function Lane({
         </div>
         <div className="mt-2 h-1 w-full bg-soft">
           <div
-            className={`h-1 ${blocked ? "bg-danger" : "bg-black"}`}
+            className={`h-1 rounded-full ${blocked ? "bg-danger" : "bg-black"}`}
             style={{
               width: `${tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0}%`,
             }}
@@ -565,7 +565,7 @@ function KanbanColumn({
           );
         })}
         {colTasks.length === 0 && (
-          <div className="border border-dashed border-line py-6 text-center text-xs text-muted">
+          <div className="rounded-full border border-dashed border-border py-6 text-center text-xs text-muted">
             No items
           </div>
         )}
@@ -628,12 +628,12 @@ function AddBlocker({ task }: { task: Task }) {
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && add()}
             placeholder="What is it waiting on?"
-            className="w-full border border-line bg-paper px-2 py-1 text-xs text-ink"
+            className="w-full rounded-full bg-surface-2 px-2 py-1 text-xs text-ink"
           />
         </label>
         <button
           onClick={add}
-          className="shrink-0 border border-line px-2 py-1 text-xs text-muted hover:border-black hover:text-ink"
+          className="shrink-0 rounded-full bg-surface-2 px-2 py-1 text-xs text-muted hover:bg-surface hover:text-ink"
         >
           Add
         </button>
@@ -686,12 +686,12 @@ export function SprintBoard({ sprintId }: { sprintId: string }) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="overflow-x-auto border border-line">
+      <div className="overflow-x-auto rounded-card bg-card shadow-card">
         <div className="min-w-max">
           {/* Column header row */}
-          <div className="flex border-b border-black bg-paper">
+          <div className="flex border-b border-border bg-paper">
             <div
-              className={`${LANE_W} sticky left-0 z-10 shrink-0 border-r border-black bg-paper p-4`}
+              className={`${LANE_W} sticky left-0 z-10 shrink-0 border-r border-border bg-card p-4`}
             >
               <span className="label">Sprint Backlog ↓ / Status →</span>
             </div>

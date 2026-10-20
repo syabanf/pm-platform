@@ -222,7 +222,7 @@ export default function GlobalReportsPage({
             reopened from the component&apos;s Reports tab.
           </EmptyState>
         ) : (
-          <ul className="mt-3 divide-y divide-line border-y border-line">
+          <ul className="mt-3 divide-y divide-border rounded-card bg-card px-5 shadow-card">
             {generatedReports.map((report) => {
               const mod = modules.find((p) => p.id === report.moduleId);
               return (

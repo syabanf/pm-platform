@@ -28,7 +28,7 @@ export default function DodTemplatePage() {
         description="The default quality checklist applied to every new task created on a sprint board. Tasks cannot move to Done until their checklist is complete."
       />
 
-      <ul className="mt-6 divide-y divide-line border-y border-line">
+      <ul className="mt-6 divide-y divide-border rounded-card bg-card px-5 shadow-card">
         {dodTemplate.map((item, i) => (
           <li key={item} className="flex items-center gap-3 py-3">
             <span className="text-xs tabular-nums text-muted">

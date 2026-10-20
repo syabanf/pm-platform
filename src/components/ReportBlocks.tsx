@@ -99,7 +99,7 @@ const capacityCommitment: Block = ({ sprint, members }) => {
 const memberWorkload: Block = ({ members }) => (
   <table className="w-full text-xs">
     <thead>
-      <tr className="border-b border-black text-left">
+      <tr className="border-b border-border text-left">
         <th className="label py-2 pr-4 font-medium">Member</th>
         <th className="label py-2 pr-4 font-medium">Role</th>
         <th className="label py-2 pr-4 font-medium">Allocation</th>

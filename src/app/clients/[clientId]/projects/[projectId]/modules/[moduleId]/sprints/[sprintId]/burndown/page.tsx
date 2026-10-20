@@ -77,7 +77,7 @@ export default function BurndownPage({
           </div>
         </div>
         <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_320px]">
-          <div className="border border-line p-6">
+          <div className="rounded-card bg-card shadow-card p-6">
             <BurndownChart data={sprintBurndown} />
           </div>
           <AIInsightBlock insight={burndownInsight} />
@@ -102,7 +102,7 @@ export default function BurndownPage({
           </div>
         </div>
         <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_320px]">
-          <div className="border border-line p-6">
+          <div className="rounded-card bg-card shadow-card p-6">
             <VelocityChart data={velocity} />
           </div>
           <AIInsightBlock insight={velocityInsight} />
@@ -119,7 +119,7 @@ export default function BurndownPage({
             progress is piling up faster than it finishes.
           </p>
         </div>
-        <div className="mt-8 max-w-3xl border border-line p-6">
+        <div className="mt-8 max-w-3xl rounded-card bg-card shadow-card p-6">
           <CfdChart />
         </div>
       </section>

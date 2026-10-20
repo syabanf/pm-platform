@@ -97,14 +97,14 @@ export function TaskCalendar({
         <div className="flex gap-1.5">
           <button
             onClick={() => shift(-1)}
-            className="border border-line px-2.5 py-1 text-xs text-muted hover:border-black hover:text-ink"
+            className="rounded-full bg-surface-2 px-2.5 py-1 text-xs text-muted hover:bg-surface hover:text-ink"
             aria-label="Previous month"
           >
             ←
           </button>
           <button
             onClick={() => shift(1)}
-            className="border border-line px-2.5 py-1 text-xs text-muted hover:border-black hover:text-ink"
+            className="rounded-full bg-surface-2 px-2.5 py-1 text-xs text-muted hover:bg-surface hover:text-ink"
             aria-label="Next month"
           >
             →
@@ -248,7 +248,7 @@ function DayDetail({
         aria-label={`Work due on ${longDate(date)}`}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="animate-in flex max-h-[80vh] w-full max-w-lg flex-col border border-black bg-paper"
+        className="animate-in flex max-h-[80vh] w-full max-w-lg flex-col rounded-card bg-card shadow-float"
       >
         <div className="flex items-start justify-between border-b border-line px-6 py-4">
           <div>

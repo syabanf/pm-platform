@@ -169,7 +169,7 @@ export default function NewProjectWizard({
                 aria-current={i === step ? "step" : undefined}
                 className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-left text-sm transition-colors md:w-full md:gap-3 md:border-b-0 md:border-l-2 md:py-3 md:pl-4 ${
                   i === step
-                    ? "border-black font-semibold text-ink"
+                    ? "border-accent font-semibold text-ink"
                     : i < step
                       ? "border-line text-muted hover:text-ink"
                       : "border-line text-line"
@@ -298,7 +298,7 @@ export default function NewProjectWizard({
               </p>
               <div className="mt-6 space-y-4">
                 {mods.map((m, i) => (
-                  <div key={m.key} className="border border-line p-4">
+                  <div key={m.key} className="rounded-card bg-card shadow-card p-4">
                     <div className="flex items-center justify-between">
                       <span className="label">Module {i + 1}</span>
                       {mods.length > 1 && (
@@ -354,7 +354,7 @@ export default function NewProjectWizard({
           {step === 3 && (
             <section>
               <h3 className="text-xl font-semibold tracking-tight text-ink">Review</h3>
-              <dl className="mt-6 divide-y divide-line border-y border-line text-sm">
+              <dl className="mt-6 divide-y divide-border rounded-card bg-card px-5 shadow-card text-sm">
                 <div className="flex gap-6 py-3">
                   <dt className="w-28 shrink-0 text-muted">Client</dt>
                   <dd className="text-ink">

@@ -28,7 +28,7 @@ export function AIInsightBlock({
   if (dismissed) return null;
 
   return (
-    <div className="border border-line border-l-2 border-l-ai bg-paper p-5">
+    <div className="rounded-card bg-info-soft p-5">
       <div className="flex items-center justify-between">
         <AIBadge />
         <span className="text-[11px] text-muted uppercase tracking-wide">

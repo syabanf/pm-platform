@@ -49,10 +49,10 @@ export function WorkloadView({ sprintId }: { sprintId: string }) {
           <span className="h-2.5 w-2.5 bg-muted" /> In flight
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 bg-black" /> Done
+          <span className="h-2.5 w-2.5 rounded-full bg-black" /> Done
         </span>
       </div>
-      <ul className="divide-y divide-line border-y border-line">
+      <ul className="divide-y divide-border rounded-card bg-card px-5 shadow-card">
         {rows.map((row) => {
           const total = row.todo + row.inFlight + row.done;
           return (

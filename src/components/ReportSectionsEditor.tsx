@@ -25,7 +25,7 @@ function TokenPalette({ onInsert }: { onInsert: (token: string) => void }) {
         {open ? "Hide" : "Show"} available tokens
       </button>
       {open && (
-        <div className="mt-2 space-y-2 border border-line p-3">
+        <div className="mt-2 space-y-2 rounded-card bg-card shadow-card p-3">
           {groups.map((group) => (
             <div key={group}>
               <div className="label">{group}</div>
@@ -36,7 +36,7 @@ function TokenPalette({ onInsert }: { onInsert: (token: string) => void }) {
                     type="button"
                     title={t.describe}
                     onClick={() => onInsert(`{{${t.token}}}`)}
-                    className="border border-line px-2 py-1 font-mono text-[11px] text-muted hover:border-black hover:text-ink"
+                    className="rounded-full bg-surface-2 px-2 py-1 font-mono text-[11px] text-muted hover:bg-surface hover:text-ink"
                   >
                     {t.token}
                   </button>
@@ -102,7 +102,7 @@ export function ReportSectionsEditor({
         {sections.map((section, i) => {
           const unknown = unknownTokens(section.body);
           return (
-            <div key={section.id} className="border border-line p-4">
+            <div key={section.id} className="rounded-card bg-card shadow-card p-4">
               <div className="flex items-center gap-2">
                 <span className="tabular-nums text-xs text-muted">{i + 1}.</span>
                 <input

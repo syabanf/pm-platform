@@ -228,7 +228,7 @@ export function CommandPalette({
         role="dialog"
         aria-modal="true"
         aria-label="Command palette — search and go anywhere"
-        className="animate-in mx-auto w-full max-w-lg border border-black bg-paper"
+        className="animate-in mx-auto w-full max-w-lg rounded-card bg-card shadow-float"
         onClick={(e) => e.stopPropagation()}
       >
         <input

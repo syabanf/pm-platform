@@ -17,28 +17,31 @@ import { usePrototype } from "@/lib/store";
 export function Toast() {
   const { toast, dismissToast } = usePrototype();
 
-  const border =
+  const dot =
     toast?.tone === "warning"
-      ? "border-l-warning"
+      ? "bg-warning"
       : toast?.tone === "success"
-        ? "border-l-success"
-        : "border-l-black";
+        ? "bg-success"
+        : "bg-on-ink-muted";
 
   return (
     <div role="status" aria-live="polite" aria-atomic="true">
       {toast && (
         <div
           key={toast.id}
-          className={`animate-toast fixed bottom-20 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-4 border border-line ${border} border-l-2 bg-paper px-5 py-4 text-sm text-ink lg:bottom-6`}
+          className={`animate-toast fixed bottom-20 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-4 rounded-2xl bg-ink px-5 py-4 text-sm text-on-ink shadow-float lg:bottom-6`}
         >
-          <span>{toast.message}</span>
+          <span className="flex items-center gap-3">
+            <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} aria-hidden />
+            {toast.message}
+          </span>
           {toast.action && (
             <button
               onClick={() => {
                 toast.action?.run();
                 dismissToast();
               }}
-              className="shrink-0 font-medium text-ink underline underline-offset-2 hover:no-underline"
+              className="shrink-0 font-medium text-on-ink underline underline-offset-2 hover:no-underline"
             >
               {toast.action.label}
             </button>

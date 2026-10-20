@@ -147,7 +147,7 @@ export default function MomGeneratorPage() {
               ) : (
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b border-black text-left">
+                    <tr className="border-b border-border text-left">
                       <th className="label py-2 pr-4 font-medium">Action</th>
                       <th className="label py-2 pr-4 font-medium">Owner</th>
                       <th className="label py-2 font-medium">Due</th>

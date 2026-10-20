@@ -56,7 +56,7 @@ function NoteColumn({
           Nothing captured yet. Add what the team said.
         </EmptyState>
       ) : (
-        <ul className="mt-3 divide-y divide-line border-y border-line">
+        <ul className="mt-3 divide-y divide-border rounded-card bg-card px-5 shadow-card">
           {notes.map((note) => (
             <li key={note.id} className="group flex items-center gap-3 py-3">
               <span className={`h-1.5 w-1.5 shrink-0 ${tone.dot}`} />
@@ -182,7 +182,7 @@ export default function SprintRetroPage({
             No actions yet. A retro without one changes nothing next sprint.
           </EmptyState>
         ) : (
-          <ul className="mt-3 divide-y divide-line border-y border-line">
+          <ul className="mt-3 divide-y divide-border rounded-card bg-card px-5 shadow-card">
             {actions.map((action) => (
               <li
                 key={action.id}
@@ -270,7 +270,7 @@ export default function SprintRetroPage({
             Sprints 01 to 03, which makes it an observation about the module.
             Copying it onto each sprint would make it false.
           */}
-          <div className="mt-3 border border-line border-l-2 border-l-ai p-5">
+          <div className="mt-3 rounded-card bg-info-soft p-5">
             <AIBadge />
             <p className="mt-3 text-sm leading-relaxed text-ink">
               {retroInsights.memory}

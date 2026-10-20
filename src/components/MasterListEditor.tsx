@@ -58,7 +58,7 @@ export function MasterListEditor({ listKey }: { listKey: MasterListKey }) {
 
   return (
     <div>
-      <ul className="divide-y divide-line border-y border-line">
+      <ul className="divide-y divide-border rounded-card bg-card px-5 shadow-card">
         {items.length === 0 && (
           <li className="py-3">
             <EmptyState>

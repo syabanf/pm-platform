@@ -154,7 +154,7 @@ export default function HomePage() {
     <PageContainer>
       <PageHeader
         eyebrow="Workspace"
-        title={`${greeting}, ${firstName}.`}
+        title={`${greeting}, ${firstName}`}
         description={
           triage.length > 0
             ? `${triage.length} things need your attention.`
@@ -165,7 +165,7 @@ export default function HomePage() {
       {/* 1. Triage — what needs me */}
       <section id="triage" className="mt-8 scroll-mt-8">
         <h2 className="label">Needs Your Attention</h2>
-        <ul className="animate-stagger mt-3 divide-y divide-line border-y border-line">
+        <ul className="animate-stagger mt-3 divide-y divide-border rounded-card bg-card px-5 shadow-card">
           {triage.slice(0, 6).map((item) => (
             <li key={`${item.kind}:${item.title}`}>
               <Link
@@ -225,7 +225,7 @@ export default function HomePage() {
             <Link
               key={recent.path}
               href={recent.path}
-              className="border border-line px-3 py-1.5 text-xs text-ink hover:border-black"
+              className="rounded-full bg-surface-2 px-3 py-1.5 text-xs text-ink hover:bg-surface"
             >
               {recent.label}
             </Link>
@@ -241,7 +241,7 @@ export default function HomePage() {
             All clients →
           </Link>
         </div>
-        <div className="animate-stagger mt-4 border-y border-line">
+        <div className="animate-stagger mt-4 rounded-card bg-card px-5 shadow-card">
           {clients.map((client) => {
             const clientProjects = projects.filter(
               (p) => p.clientId === client.id

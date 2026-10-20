@@ -75,7 +75,7 @@ export default function SprintReviewPage({
               No demo checklist for this sprint yet.
             </EmptyState>
           ) : (
-          <ul className="mt-3 divide-y divide-line border-y border-line">
+          <ul className="mt-3 divide-y divide-border rounded-card bg-card px-5 shadow-card">
             {checklist.map((item) => (
               <li key={item.id}>
                 <label className="flex cursor-pointer items-center gap-3 py-3">
@@ -99,7 +99,7 @@ export default function SprintReviewPage({
           )}
 
           <h4 className="label mt-10">Increment Summary</h4>
-          <ul className="mt-3 divide-y divide-line border-y border-line">
+          <ul className="mt-3 divide-y divide-border rounded-card bg-card px-5 shadow-card">
             {increment.length === 0 && (
               <li className="py-3 text-sm text-muted">
                 Nothing in Done yet — the increment builds up as tasks pass the
@@ -124,7 +124,7 @@ export default function SprintReviewPage({
               Nothing captured from the client yet.
             </EmptyState>
           ) : (
-          <ul className="mt-3 divide-y divide-line border-y border-line">
+          <ul className="mt-3 divide-y divide-border rounded-card bg-card px-5 shadow-card">
             {feedback.map((item) => (
               <li key={item.id} className="py-3">
                 <div className="flex items-start justify-between gap-3">
