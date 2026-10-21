@@ -436,15 +436,16 @@ async function syncDod(taskId: string, prev: Task["dod"], next: Task["dod"]) {
   }
 }
 
+/** For tasks the API reads "" as "clear it", so an unassign gets through. */
 function taskBody(t: Partial<Task>) {
   return {
     title: t.title,
     componentName: t.componentName,
-    assigneeId: blank(t.assigneeId),
+    assigneeId: t.assigneeId,
     estimate: t.estimate,
     boardColumn: t.column,
     priority: t.priority,
-    dueDate: blank(t.dueDate),
+    dueDate: t.dueDate,
     blockers: t.blockers,
     offGoal: t.offGoal,
   };

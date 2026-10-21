@@ -797,7 +797,8 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
    * report already generated from it: the lookup missed, the body came back
    * empty, and the page blamed the user for a template with "no sections
    * switched on". A rename is a rewrite here, the same as it is for a master
-   * list value.
+   * list value. The API does the same rewrite when the template is saved, so
+   * this keeps the screen in step until the server answers.
    */
   const renameReportTemplate = useCallback(
     (templateId: string, newName: string) => {

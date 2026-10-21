@@ -149,3 +149,68 @@ func TestReportTemplateSectionsAreObjects(t *testing.T) {
 		t.Errorf("section body should persist, got %v", saved.body["sections"])
 	}
 }
+
+// TestTaskPatchClearsAssigneeAndDueDate: an omitted field keeps its value, an
+// empty string clears it. The board's "Unassigned" option has to reach the row.
+func TestTaskPatchClearsAssigneeAndDueDate(t *testing.T) {
+	h := newHarness(t)
+	admin := h.adminToken()
+	sprintID, itemID, memberID := scaffoldSprint(h, admin)
+
+	created := h.expect(h.do("POST", "/api/v1/sprints/"+sprintID+"/tasks", admin, map[string]any{
+		"backlogItemId": itemID, "title": "T", "assigneeId": memberID, "dueDate": "2026-10-30",
+	}), http.StatusCreated, "assigned task")
+	id := str(created.body, "id")
+
+	kept := h.expect(h.do("PATCH", "/api/v1/tasks/"+id, admin, map[string]any{"title": "T2"}),
+		http.StatusOK, "rename")
+	if str(kept.body, "assigneeId") != memberID || kept.body["dueDate"] == nil {
+		t.Errorf("omitted fields should keep their values, got %v", kept.body)
+	}
+
+	cleared := h.expect(h.do("PATCH", "/api/v1/tasks/"+id, admin,
+		map[string]any{"assigneeId": "", "dueDate": ""}), http.StatusOK, "clear")
+	if cleared.body["assigneeId"] != nil || cleared.body["dueDate"] != nil {
+		t.Errorf("empty strings should clear assignee and due date, got %v", cleared.body)
+	}
+}
+
+// TestReportTemplateRenameFollowsReports: the queue and generated reports name
+// their template by string, so renaming the template must rewrite both.
+func TestReportTemplateRenameFollowsReports(t *testing.T) {
+	h := newHarness(t)
+	admin := h.adminToken()
+	sprintID, _, _ := scaffoldSprint(h, admin)
+	sprint := h.expect(h.do("GET", "/api/v1/sprints/"+sprintID, admin, nil), http.StatusOK, "sprint")
+	moduleID := str(sprint.body, "moduleId")
+
+	tpl := h.expect(h.do("PUT", "/api/v1/report-templates", admin, map[string]any{
+		"name": "Weekly", "frequency": "Weekly",
+	}), http.StatusOK, "create template")
+	queued := h.expect(h.do("POST", "/api/v1/report-queue", admin, map[string]any{
+		"title": "Q", "moduleId": moduleID, "type": "Weekly", "template": "Weekly",
+	}), http.StatusCreated, "queue item")
+	report := h.expect(h.do("POST", "/api/v1/generated-reports", admin, map[string]any{
+		"moduleId": moduleID, "sprintId": sprintID, "type": "Weekly", "template": "Weekly",
+	}), http.StatusCreated, "generated report")
+
+	h.expect(h.do("PUT", "/api/v1/report-templates", admin, map[string]any{
+		"id": str(tpl.body, "id"), "name": "Weekly client update", "frequency": "Weekly",
+	}), http.StatusOK, "rename template")
+
+	queue := h.expect(h.do("GET", "/api/v1/report-queue", admin, nil), http.StatusOK, "queue")
+	for _, raw := range queue.list {
+		row, _ := raw.(map[string]any)
+		if row["id"] == queued.body["id"] && row["template"] != "Weekly client update" {
+			t.Errorf("queue item should follow the rename, got %v", row["template"])
+		}
+	}
+	reports := h.expect(h.do("GET", "/api/v1/modules/"+moduleID+"/generated-reports", admin, nil),
+		http.StatusOK, "reports")
+	for _, raw := range reports.list {
+		row, _ := raw.(map[string]any)
+		if row["id"] == report.body["id"] && row["template"] != "Weekly client update" {
+			t.Errorf("generated report should follow the rename, got %v", row["template"])
+		}
+	}
+}

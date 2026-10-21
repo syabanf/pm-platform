@@ -520,6 +520,10 @@ func paged[T any](c echo.Context, rows []T, limit int32) error {
 // a plain YYYY-MM-DD — what <input type="date"> produces, and what this API
 // documents — failed during binding and was reported as "invalid JSON body",
 // blaming the envelope for a value it never reached.
+// isEmpty reports a field that was sent as "" (clear it), as opposed to one
+// left out of the body (keep it).
+func isEmpty(raw *string) bool { return raw != nil && *raw == "" }
+
 func parseDate(raw *string) (*time.Time, error) {
 	if raw == nil || *raw == "" {
 		return nil, nil

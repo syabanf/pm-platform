@@ -201,16 +201,20 @@ func (s *Server) updateTask(c echo.Context) error {
 	}
 
 	// Partial update: renaming a card while someone else drags it to another
-	// column no longer sends it back to where it started.
+	// column no longer sends it back to where it started. An absent field keeps
+	// its value; an empty string clears it, which is how a card loses its
+	// assignee or its due date.
 	arg := db.UpdateTaskParams{
 		ID:            taskID,
 		Title:         req.Title,
 		ComponentName: req.ComponentName,
 		AssigneeID:    req.AssigneeID,
+		ClearAssignee: isEmpty(req.AssigneeID),
 		Estimate:      req.Estimate,
 		BoardColumn:   req.BoardColumn,
 		Priority:      req.Priority,
 		DueDate:       dueDate,
+		ClearDueDate:  isEmpty(req.DueDate),
 		Blockers:      req.Blockers,
 		OffGoal:       req.OffGoal,
 	}

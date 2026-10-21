@@ -62,11 +62,13 @@ LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 UPDATE tasks
 SET title           = COALESCE(sqlc.narg('title'), title),
     component_name     = COALESCE(sqlc.narg('component_name'), component_name),
-    assignee_id     = COALESCE(sqlc.narg('assignee_id'), assignee_id),
+    assignee_id     = CASE WHEN sqlc.arg('clear_assignee')::bool THEN NULL
+                           ELSE COALESCE(sqlc.narg('assignee_id'), assignee_id) END,
     estimate        = COALESCE(sqlc.narg('estimate'), estimate),
     board_column    = COALESCE(sqlc.narg('board_column'), board_column),
     priority        = COALESCE(sqlc.narg('priority'), priority),
-    due_date        = COALESCE(sqlc.narg('due_date'), due_date),
+    due_date        = CASE WHEN sqlc.arg('clear_due_date')::bool THEN NULL
+                           ELSE COALESCE(sqlc.narg('due_date'), due_date) END,
     blockers        = COALESCE(sqlc.narg('blockers'), blockers),
     off_goal        = COALESCE(sqlc.narg('off_goal'), off_goal),
     updated_at      = now()
@@ -225,6 +227,22 @@ SET name       = EXCLUDED.name,
     sections   = EXCLUDED.sections,
     updated_at = now()
 RETURNING *;
+
+-- name: GetReportTemplate :one
+SELECT * FROM report_templates
+WHERE id = $1;
+
+-- Reports and the queue name their template by string, so a rename has to
+-- follow it into both tables or every report generated so far loses its body.
+-- name: RenameReportTemplateInQueue :exec
+UPDATE report_queue
+SET template = sqlc.arg('new_name'), updated_at = now()
+WHERE template = sqlc.arg('old_name');
+
+-- name: RenameReportTemplateInReports :exec
+UPDATE generated_reports
+SET template = sqlc.arg('new_name'), updated_at = now()
+WHERE template = sqlc.arg('old_name');
 
 -- name: DeleteReportTemplate :exec
 DELETE FROM report_templates

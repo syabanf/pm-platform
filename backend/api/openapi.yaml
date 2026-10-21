@@ -3118,14 +3118,15 @@ components:
         offGoal: { type: boolean, default: false }
     TaskUpdate:
       type: object
+      description: An omitted field keeps its value. An empty assigneeId or dueDate clears it.
       properties:
         title: { type: string }
         componentName: { type: string }
-        assigneeId: { type: string }
+        assigneeId: { type: string, description: '"" unassigns the task.' }
         estimate: { type: integer, minimum: 0 }
         boardColumn: { $ref: '#/components/schemas/BoardColumn' }
         priority: { type: string }
-        dueDate: { $ref: '#/components/schemas/DateOnly' }
+        dueDate: { $ref: '#/components/schemas/DateOnly', description: '"" clears the due date.' }
         blockers: { type: array, description: Replaces the whole list., items: { $ref: '#/components/schemas/Blocker' } }
         offGoal: { type: boolean }
     Blocker:

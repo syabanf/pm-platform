@@ -510,6 +510,28 @@ func (q *Queries) GetMember(ctx context.Context, id string) (Member, error) {
 	return i, err
 }
 
+const getReportTemplate = `-- name: GetReportTemplate :one
+SELECT id, name, audience, visibility, created_at, updated_at, frequency, formats, sections FROM report_templates
+WHERE id = $1
+`
+
+func (q *Queries) GetReportTemplate(ctx context.Context, id string) (ReportTemplate, error) {
+	row := q.db.QueryRow(ctx, getReportTemplate, id)
+	var i ReportTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Audience,
+		&i.Visibility,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Frequency,
+		&i.Formats,
+		&i.Sections,
+	)
+	return i, err
+}
+
 const getTask = `-- name: GetTask :one
 SELECT id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, off_goal, created_at, updated_at, due_date, blockers FROM tasks
 WHERE id = $1
@@ -1066,6 +1088,40 @@ func (q *Queries) RenameMasterValue(ctx context.Context, arg RenameMasterValuePa
 	return i, err
 }
 
+const renameReportTemplateInQueue = `-- name: RenameReportTemplateInQueue :exec
+UPDATE report_queue
+SET template = $1, updated_at = now()
+WHERE template = $2
+`
+
+type RenameReportTemplateInQueueParams struct {
+	NewName string `json:"newName"`
+	OldName string `json:"oldName"`
+}
+
+// Reports and the queue name their template by string, so a rename has to
+// follow it into both tables or every report generated so far loses its body.
+func (q *Queries) RenameReportTemplateInQueue(ctx context.Context, arg RenameReportTemplateInQueueParams) error {
+	_, err := q.db.Exec(ctx, renameReportTemplateInQueue, arg.NewName, arg.OldName)
+	return err
+}
+
+const renameReportTemplateInReports = `-- name: RenameReportTemplateInReports :exec
+UPDATE generated_reports
+SET template = $1, updated_at = now()
+WHERE template = $2
+`
+
+type RenameReportTemplateInReportsParams struct {
+	NewName string `json:"newName"`
+	OldName string `json:"oldName"`
+}
+
+func (q *Queries) RenameReportTemplateInReports(ctx context.Context, arg RenameReportTemplateInReportsParams) error {
+	_, err := q.db.Exec(ctx, renameReportTemplateInReports, arg.NewName, arg.OldName)
+	return err
+}
+
 const setTaskDodItem = `-- name: SetTaskDodItem :one
 
 INSERT INTO task_dod (task_id, position, label, done)
@@ -1267,25 +1323,29 @@ const updateTask = `-- name: UpdateTask :one
 UPDATE tasks
 SET title           = COALESCE($1, title),
     component_name     = COALESCE($2, component_name),
-    assignee_id     = COALESCE($3, assignee_id),
-    estimate        = COALESCE($4, estimate),
-    board_column    = COALESCE($5, board_column),
-    priority        = COALESCE($6, priority),
-    due_date        = COALESCE($7, due_date),
-    blockers        = COALESCE($8, blockers),
-    off_goal        = COALESCE($9, off_goal),
+    assignee_id     = CASE WHEN $3::bool THEN NULL
+                           ELSE COALESCE($4, assignee_id) END,
+    estimate        = COALESCE($5, estimate),
+    board_column    = COALESCE($6, board_column),
+    priority        = COALESCE($7, priority),
+    due_date        = CASE WHEN $8::bool THEN NULL
+                           ELSE COALESCE($9, due_date) END,
+    blockers        = COALESCE($10, blockers),
+    off_goal        = COALESCE($11, off_goal),
     updated_at      = now()
-WHERE id = $10
+WHERE id = $12
 RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, off_goal, created_at, updated_at, due_date, blockers
 `
 
 type UpdateTaskParams struct {
 	Title         *string         `json:"title"`
 	ComponentName *string         `json:"componentName"`
+	ClearAssignee bool            `json:"clearAssignee"`
 	AssigneeID    *string         `json:"assigneeId"`
 	Estimate      *int32          `json:"estimate"`
 	BoardColumn   *string         `json:"boardColumn"`
 	Priority      *string         `json:"priority"`
+	ClearDueDate  bool            `json:"clearDueDate"`
 	DueDate       *time.Time      `json:"dueDate"`
 	Blockers      json.RawMessage `json:"blockers"`
 	OffGoal       *bool           `json:"offGoal"`
@@ -1298,10 +1358,12 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, e
 	row := q.db.QueryRow(ctx, updateTask,
 		arg.Title,
 		arg.ComponentName,
+		arg.ClearAssignee,
 		arg.AssigneeID,
 		arg.Estimate,
 		arg.BoardColumn,
 		arg.Priority,
+		arg.ClearDueDate,
 		arg.DueDate,
 		arg.Blockers,
 		arg.OffGoal,

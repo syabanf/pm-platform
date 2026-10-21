@@ -97,14 +97,31 @@ func (s *Server) upsertReportTemplate(c echo.Context) error {
 		req.Formats = []string{}
 	}
 
-	row, err := s.q.UpsertReportTemplate(c.Request().Context(), db.UpsertReportTemplateParams{
-		ID:         req.ID,
-		Name:       req.Name,
-		Audience:   req.Audience,
-		Frequency:  req.Frequency,
-		Visibility: orDefault(req.Visibility, "internal"),
-		Formats:    req.Formats,
-		Sections:   jsonArrayOrEmpty(req.Sections),
+	var row db.ReportTemplate
+	err = s.withTx(c.Request().Context(), func(q *db.Queries) error {
+		ctx := c.Request().Context()
+		before, err := q.GetReportTemplate(ctx, req.ID)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		row, err = q.UpsertReportTemplate(ctx, db.UpsertReportTemplateParams{
+			ID:         req.ID,
+			Name:       req.Name,
+			Audience:   req.Audience,
+			Frequency:  req.Frequency,
+			Visibility: orDefault(req.Visibility, "internal"),
+			Formats:    req.Formats,
+			Sections:   jsonArrayOrEmpty(req.Sections),
+		})
+		if err != nil || before.ID == "" || before.Name == req.Name {
+			return err
+		}
+		// The queue and generated reports point at the template by name.
+		rename := db.RenameReportTemplateInQueueParams{OldName: before.Name, NewName: req.Name}
+		if err := q.RenameReportTemplateInQueue(ctx, rename); err != nil {
+			return err
+		}
+		return q.RenameReportTemplateInReports(ctx, db.RenameReportTemplateInReportsParams(rename))
 	})
 	if err != nil {
 		return dbErr(err)

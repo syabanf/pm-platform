@@ -130,6 +130,7 @@ type Querier interface {
 	GetMember(ctx context.Context, id string) (Member, error)
 	GetModule(ctx context.Context, id string) (Module, error)
 	GetProject(ctx context.Context, id string) (Project, error)
+	GetReportTemplate(ctx context.Context, id string) (ReportTemplate, error)
 	// The middleware query: one indexed lookup resolves the bearer token to the
 	// user and the permissions of their role. Expiry is checked here rather than
 	// in Go so an expired session and a bogus token are indistinguishable.
@@ -253,6 +254,10 @@ type Querier interface {
 	// A rename onto an existing value fails the unique check, which the handler
 	// reports as a 409 the same way an add does.
 	RenameMasterValue(ctx context.Context, arg RenameMasterValueParams) (MasterList, error)
+	// Reports and the queue name their template by string, so a rename has to
+	// follow it into both tables or every report generated so far loses its body.
+	RenameReportTemplateInQueue(ctx context.Context, arg RenameReportTemplateInQueueParams) error
+	RenameReportTemplateInReports(ctx context.Context, arg RenameReportTemplateInReportsParams) error
 	RestoreClient(ctx context.Context, id string) (int64, error)
 	// The pointer may only name a sprint of this very module. A mismatch matches
 	// no row, which the handler reports as a 400 rather than silently storing it.
