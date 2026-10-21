@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type {
@@ -49,6 +50,38 @@ import {
   type ReportTemplateDef,
   type RoleDef,
 } from "./data";
+import * as persist from "./api/persist";
+import { loadWorkspace, type WorkspaceData } from "./api/workspace";
+import {
+  getSessionToken,
+  login as apiLogin,
+  logout as apiLogout,
+  setSessionToken,
+} from "./api/client";
+
+/**
+ * Where the records live.
+ *
+ * `api` is the product: the Go backend owns the data and every change goes
+ * there. `seed` is the prototype's in-memory store, kept for the Playwright
+ * suite and for a demo with no backend; set NEXT_PUBLIC_DATA_SOURCE=seed.
+ */
+export const dataSource: "api" | "seed" =
+  process.env.NEXT_PUBLIC_DATA_SOURCE === "seed" ? "seed" : "api";
+
+const live = dataSource === "api";
+
+/** The seed in prototype mode; nothing until the snapshot arrives otherwise. */
+const initial = <T,>(seed: T[]): T[] => (live ? [] : seed);
+
+/** The profile the backend signed in; remembered across reloads. */
+interface Profile {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  memberId: string | null;
+}
 
 export type WorkspaceConf = typeof workspaceDefaults;
 export type Masters = Record<MasterListKey, string[]>;
@@ -69,20 +102,57 @@ export interface Crud<T extends { id: string }> {
   remove: (id: string) => void;
 }
 
+/**
+ * A collection with optional persistence.
+ *
+ * Every change lands in the array first, so the page answers at once; the
+ * server call follows. When the server refuses, the array goes back to what
+ * it was and `fail` carries the server's reason to a toast. With no persister
+ * (seed mode) this is the plain in-memory store it always was.
+ */
 function useCollection<T extends { id: string }>(
-  seed: T[]
+  seed: T[],
+  persister: persist.Persister<T> | null,
+  fail: (message: string) => void,
 ): [T[], Crud<T>, React.Dispatch<React.SetStateAction<T[]>>] {
   const [items, setItems] = useState<T[]>(seed);
+  // The record as it was before an update, for the revert and the diff.
+  const latest = useRef(items);
+  useEffect(() => {
+    latest.current = items;
+  }, [items]);
   const crud = useMemo<Crud<T>>(
     () => ({
-      add: (item) => setItems((prev) => [...prev, item]),
-      update: (id, patch) =>
+      add: (item) => {
+        setItems((prev) => [...prev, item]);
+        persister?.add(item).catch((e: Error) => {
+          setItems((prev) => prev.filter((i) => i.id !== item.id));
+          fail(e.message);
+        });
+      },
+      update: (id, patch) => {
+        const before = latest.current.find((i) => i.id === id);
         setItems((prev) =>
-          prev.map((i) => (i.id === id ? { ...i, ...patch } : i))
-        ),
-      remove: (id) => setItems((prev) => prev.filter((i) => i.id !== id)),
+          prev.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+        );
+        if (!persister || !before) return;
+        const after = { ...before, ...patch };
+        persister.update(id, patch, before, after).catch((e: Error) => {
+          setItems((prev) => prev.map((i) => (i.id === id ? before : i)));
+          fail(e.message);
+        });
+      },
+      remove: (id) => {
+        const before = latest.current.find((i) => i.id === id);
+        setItems((prev) => prev.filter((i) => i.id !== id));
+        if (!persister || !before) return;
+        persister.remove(id, before).catch((e: Error) => {
+          setItems(restoreById([before]));
+          fail(e.message);
+        });
+      },
     }),
-    []
+    [persister, fail],
   );
   return [items, crud, setItems];
 }
@@ -112,11 +182,20 @@ function restoreById<T extends { id: string }>(snapshot: T[]) {
 }
 
 interface PrototypeState {
-  // --- mock auth (prototype, persisted in localStorage) ---
+  /** `api` or `seed`; the login screen and the shell adapt to it. */
+  dataSource: "api" | "seed";
+  // --- auth: a backend session in api mode, a member id in seed mode ---
   currentUser: Member | null;
   authHydrated: boolean;
+  /** Seed mode: sign in as a member, no password. */
   login: (memberId: string) => void;
+  /** Api mode: sign in against the backend; rejects with its reason. */
+  signIn: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Api mode: where the first load stands. Seed mode is always ready. */
+  loadState: "loading" | "ready" | "error";
+  loadError: string | null;
+  retryLoad: () => void;
 
   clients: Client[];
   projects: Project[];
@@ -164,7 +243,7 @@ interface PrototypeState {
   renameMasterValue: (
     key: MasterListKey,
     oldValue: string,
-    newValue: string
+    newValue: string,
   ) => boolean;
   removeMasterValue: (key: MasterListKey, value: string) => void;
   viewPrefs: ViewPrefs;
@@ -182,7 +261,7 @@ interface PrototypeState {
   showToast: (
     message: string,
     tone?: ToastState["tone"],
-    action?: ToastAction
+    action?: ToastAction,
   ) => void;
   dismissToast: () => void;
   aiPanelOpen: boolean;
@@ -197,39 +276,249 @@ interface PrototypeState {
   } | null;
   commitSprint: (
     sprintId: string,
-    data: { goal: string; memberIds: string[]; backlogIds: string[] }
+    data: { goal: string; memberIds: string[]; backlogIds: string[] },
   ) => void;
 }
 
 const PrototypeContext = createContext<PrototypeState | null>(null);
 
-export function PrototypeProvider({ children }: { children: React.ReactNode }) {
-  const [clients, clientsCrud, setClients] = useCollection<Client>(seedClients);
-  const [projects, projectsCrud, setProjects] = useCollection<Project>(seedProjects);
-  const [modules, modulesCrud, setModules] = useCollection<Module>(seedModules);
-  const [members, membersCrud, setMembers] = useCollection<Member>(seedMembers);
-  const [backlog, backlogCrud, setBacklog] = useCollection<BacklogItem>(seedBacklog);
-  const [sprints, sprintsCrud, setSprints] = useCollection<Sprint>(seedSprints);
+const AUTH_KEY = "wit-auth-user";
+const PROFILE_KEY = "wit-auth-profile";
 
-  // Mock auth: the "session" is just a member id in localStorage. Read it
-  // after mount to stay SSR-safe (authHydrated gates the redirect logic).
-  const AUTH_KEY = "wit-auth-user";
+function readProfile(): Profile | null {
+  try {
+    const raw = window.localStorage.getItem(PROFILE_KEY);
+    return raw ? (JSON.parse(raw) as Profile) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeProfile(profile: Profile | null) {
+  try {
+    if (profile)
+      window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    else window.localStorage.removeItem(PROFILE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function PrototypeProvider({ children }: { children: React.ReactNode }) {
+  // Server refusals surface as a toast; the toast is defined further down, so
+  // the collections reach it through a ref.
+  const failRef = useRef<(message: string) => void>(() => {});
+  const fail = useCallback((message: string) => failRef.current(message), []);
+  const P = live ? persist : null;
+
+  const [clients, clientsCrud, setClients] = useCollection<Client>(
+    initial(seedClients),
+    P && P.clients,
+    fail,
+  );
+  const [projects, projectsCrud, setProjects] = useCollection<Project>(
+    initial(seedProjects),
+    P && P.projects,
+    fail,
+  );
+  const [modules, modulesCrud, setModules] = useCollection<Module>(
+    initial(seedModules),
+    P && P.modules,
+    fail,
+  );
+  const [members, membersCrud, setMembers] = useCollection<Member>(
+    initial(seedMembers),
+    P && P.members,
+    fail,
+  );
+  const [backlog, backlogCrud, setBacklog] = useCollection<BacklogItem>(
+    initial(seedBacklog),
+    P && P.backlog,
+    fail,
+  );
+  const [sprints, sprintsCrud, setSprints] = useCollection<Sprint>(
+    initial(seedSprints),
+    P && P.sprints,
+    fail,
+  );
+  const [tasks, tasksCrud, setTasks] = useCollection<Task>(
+    initial(seedTasks),
+    P && P.tasks,
+    fail,
+  );
+  const [decisions, decisionsCrud, setDecisions] = useCollection<Decision>(
+    initial(seedDecisions),
+    P && P.decisions,
+    fail,
+  );
+  // Retro and review records, keyed by sprint. Same idiom as every other
+  // collection here — a retro action is edited the way a decision is.
+  const [retroNotes, retroNotesCrud, setRetroNotes] = useCollection<RetroNote>(
+    initial(seedRetroNotes),
+    P && P.retroNotes,
+    fail,
+  );
+  const [retroActions, retroActionsCrud, setRetroActions] =
+    useCollection<RetroAction>(
+      initial(seedRetroActions),
+      P && P.retroActions,
+      fail,
+    );
+  const [demoItems, demoItemsCrud, setDemoItems] = useCollection<DemoItem>(
+    initial(seedDemoItems),
+    P && P.demoItems,
+    fail,
+  );
+  const [clientFeedback, clientFeedbackCrud, setClientFeedback] =
+    useCollection<ClientFeedback>(
+      initial(seedClientFeedback),
+      P && P.clientFeedback,
+      fail,
+    );
+
+  const [workspaceConf, setWorkspaceConfState] =
+    useState<WorkspaceConf>(workspaceDefaults);
+  const [roles, , setRoles] = useCollection<RoleDef>(
+    initial(roleMatrix),
+    null,
+    fail,
+  );
+  const [reportTemplates, reportTemplatesCrud, setReportTemplates] =
+    useCollection<ReportTemplateDef>(
+      initial(reportTemplateMaster),
+      P && P.reportTemplates,
+      fail,
+    );
+  const [dodTemplate, setDodTemplateState] = useState<string[]>(
+    live ? [] : defaultDodTemplate,
+  );
+  const [masters, setMasters] = useState<Masters>(masterLists);
+  const [reportQueue, reportQueueCrud, setReportQueue] =
+    useCollection<QueuedReport>(
+      initial(reportQueueSeed),
+      P && P.reportQueue,
+      fail,
+    );
+  const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>(
+    [],
+  );
+
+  // --- auth and the first load -------------------------------------------
+  //
+  // Seed mode: the session is a member id in localStorage, read after mount
+  // so server and first client render agree on the logged-out state.
+  //
+  // Api mode: a session token plus the signed-in profile, also in
+  // localStorage. A token means "load the workspace"; the shell waits on
+  // loadState before it lets a page render.
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [authHydrated, setAuthHydrated] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
+    live ? "loading" : "ready",
+  );
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const applyWorkspace = useCallback(
+    (w: WorkspaceData) => {
+      setClients(w.clients);
+      setProjects(w.projects);
+      setModules(w.modules);
+      setMembers(w.members);
+      setBacklog(w.backlog);
+      setSprints(w.sprints);
+      setTasks(w.tasks);
+      setDecisions(w.decisions);
+      setRetroNotes(w.retroNotes);
+      setRetroActions(w.retroActions);
+      setDemoItems(w.demoItems);
+      setClientFeedback(w.clientFeedback);
+      setRoles(w.roles);
+      setReportTemplates(w.reportTemplates);
+      setReportQueue(w.reportQueue);
+      setGeneratedReports(w.generatedReports);
+      setMasters(w.masters);
+      setWorkspaceConfState(w.workspaceConf);
+      setDodTemplateState(w.dodTemplate);
+    },
+    [
+      setClients,
+      setProjects,
+      setModules,
+      setMembers,
+      setBacklog,
+      setSprints,
+      setTasks,
+      setDecisions,
+      setRetroNotes,
+      setRetroActions,
+      setDemoItems,
+      setClientFeedback,
+      setRoles,
+      setReportTemplates,
+      setReportQueue,
+    ],
+  );
+
+  const load = useCallback(() => {
+    setLoadState("loading");
+    setLoadError(null);
+    loadWorkspace()
+      .then((w) => {
+        applyWorkspace(w);
+        setLoadState("ready");
+      })
+      .catch((e: Error) => {
+        setLoadError(e.message);
+        setLoadState("error");
+      });
+  }, [applyWorkspace]);
+
   useEffect(() => {
-    // One-time hydration from an external system (localStorage). This MUST run
-    // post-mount (not a lazy initializer) so server and first client render
-    // agree on the logged-out state and avoid a hydration mismatch.
+    // One-time hydration from localStorage. This MUST run post-mount (not a
+    // lazy initializer) to avoid a hydration mismatch.
     /* eslint-disable react-hooks/set-state-in-effect */
     try {
       setCurrentUserId(window.localStorage.getItem(AUTH_KEY));
     } catch {
       /* localStorage unavailable — stay logged out */
     }
-    setAuthHydrated(true);
+    if (live) {
+      setProfile(readProfile());
+      if (getSessionToken()) load();
+      else setLoadState("ready");
+    }
+    setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
-  const currentUser = members.find((m) => m.id === currentUserId) ?? null;
+  }, [load]);
+
+  // In api mode a signed-in account acts as the member it is linked to, or
+  // the member with its address, or as itself when it has no member row.
+  const currentUser = useMemo<Member | null>(() => {
+    const byId = members.find((m) => m.id === currentUserId);
+    if (byId) return byId;
+    if (!live || !profile || !getSessionToken()) return null;
+    return (
+      members.find(
+        (m) => m.email.toLowerCase() === profile.email.toLowerCase(),
+      ) ?? {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role,
+        roleLabel:
+          roles.find((r) => r.id === profile.role)?.name ?? profile.role,
+        skillTags: [],
+        allocation: 100,
+        capacityDays: 0,
+        workload: 0,
+        status: "active",
+      }
+    );
+  }, [members, roles, currentUserId, profile]);
+
+  const authHydrated = hydrated && loadState !== "loading";
+
   const login = useCallback((memberId: string) => {
     setCurrentUserId(memberId);
     try {
@@ -238,67 +527,101 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
   }, []);
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const user = await apiLogin(email, password);
+      const next: Profile = {
+        id: user.id ?? "",
+        email: user.email ?? email,
+        name: user.name ?? "",
+        role: user.role ?? "",
+        memberId: user.memberId ?? null,
+      };
+      writeProfile(next);
+      setProfile(next);
+      login(next.memberId ?? "");
+      load();
+    },
+    [login, load],
+  );
+
   const logout = useCallback(() => {
     setCurrentUserId(null);
+    setProfile(null);
+    writeProfile(null);
     try {
       window.localStorage.removeItem(AUTH_KEY);
     } catch {
       /* ignore */
     }
+    if (live) {
+      apiLogout().catch(() => setSessionToken(null));
+    }
   }, []);
-  const [tasks, tasksCrud, setTasks] = useCollection<Task>(seedTasks);
-  const [decisions, decisionsCrud] = useCollection<Decision>(seedDecisions);
-  // Retro and review records, keyed by sprint. Same idiom as every other
-  // collection here — a retro action is edited the way a decision is.
-  const [retroNotes, retroNotesCrud] = useCollection<RetroNote>(seedRetroNotes);
-  const [retroActions, retroActionsCrud] =
-    useCollection<RetroAction>(seedRetroActions);
-  const [demoItems, demoItemsCrud] = useCollection<DemoItem>(seedDemoItems);
-  const [clientFeedback, clientFeedbackCrud] =
-    useCollection<ClientFeedback>(seedClientFeedback);
-
-  const [workspaceConf, setWorkspaceConf] =
-    useState<WorkspaceConf>(workspaceDefaults);
-  const [roles, , setRoles] = useCollection<RoleDef>(roleMatrix);
-  const [reportTemplates, reportTemplatesCrud, setReportTemplates] =
-    useCollection<ReportTemplateDef>(reportTemplateMaster);
-  const [dodTemplate, setDodTemplate] = useState<string[]>(defaultDodTemplate);
-  const [masters, setMasters] = useState<Masters>(masterLists);
 
   const togglePermission = useCallback(
     (roleId: string, capability: string) => {
-      setRoles((prev) =>
-        prev.map((r) =>
-          r.id === roleId
-            ? {
-                ...r,
-                permissions: {
-                  ...r.permissions,
-                  [capability]: !r.permissions[capability],
-                },
-              }
-            : r
-        )
-      );
+      const before = roles.find((r) => r.id === roleId);
+      if (!before) return;
+      const after: RoleDef = {
+        ...before,
+        permissions: {
+          ...before.permissions,
+          [capability]: !before.permissions[capability],
+        },
+      };
+      setRoles((prev) => prev.map((r) => (r.id === roleId ? after : r)));
+      P?.saveRole(after).catch((e: Error) => {
+        setRoles((prev) => prev.map((r) => (r.id === roleId ? before : r)));
+        fail(e.message);
+      });
     },
-    [setRoles]
+    [roles, setRoles, P, fail],
+  );
+
+  const setWorkspaceConf = useCallback(
+    (conf: WorkspaceConf) => {
+      const before = workspaceConf;
+      setWorkspaceConfState(conf);
+      P?.saveSettings(conf, dodTemplate).catch((e: Error) => {
+        setWorkspaceConfState(before);
+        fail(e.message);
+      });
+    },
+    [workspaceConf, dodTemplate, P, fail],
+  );
+
+  const setDodTemplate = useCallback(
+    (items: string[]) => {
+      const before = dodTemplate;
+      setDodTemplateState(items);
+      P?.saveSettings(workspaceConf, items).catch((e: Error) => {
+        setDodTemplateState(before);
+        fail(e.message);
+      });
+    },
+    [workspaceConf, dodTemplate, P, fail],
   );
 
   const addMasterValue = useCallback(
     (key: MasterListKey, value: string): boolean => {
       const v = value.trim();
       if (!v) return false;
-      let added = false;
-      setMasters((prev) => {
-        if (prev[key].some((x) => x.toLowerCase() === v.toLowerCase())) {
-          return prev;
-        }
-        added = true;
-        return { ...prev, [key]: [...prev[key], v] };
+      if (masters[key].some((x) => x.toLowerCase() === v.toLowerCase())) {
+        return false;
+      }
+      setMasters((prev) => ({ ...prev, [key]: [...prev[key], v] }));
+      P?.addMasterValue(key, v, masters[key].length).catch((e: Error) => {
+        setMasters((prev) => ({
+          ...prev,
+          [key]: prev[key].filter((x) => x !== v),
+        }));
+        fail(e.message);
       });
-      return added;
+      return true;
     },
-    []
+    [masters, P, fail],
   );
 
   const renameMasterValue = useCallback(
@@ -312,7 +635,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       // and a case-only rename ("qa" to "QA") can never succeed.
       if (
         masters[key].some(
-          (x) => x !== oldValue && x.toLowerCase() === v.toLowerCase()
+          (x) => x !== oldValue && x.toLowerCase() === v.toLowerCase(),
         )
       )
         return false;
@@ -320,66 +643,95 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         [key]: prev[key].map((x) => (x === oldValue ? v : x)),
       }));
+      P?.renameMasterValue(key, oldValue, v).catch((e: Error) => {
+        setMasters((prev) => ({
+          ...prev,
+          [key]: prev[key].map((x) => (x === v ? oldValue : x)),
+        }));
+        fail(e.message);
+      });
       // Propagate the rename to referencing records so it behaves like real master data.
       if (key === "industries") {
         setClients((prev) =>
-          prev.map((c) => (c.industry === oldValue ? { ...c, industry: v } : c))
+          prev.map((c) =>
+            c.industry === oldValue ? { ...c, industry: v } : c,
+          ),
         );
       } else if (key === "contractTypes") {
         setClients((prev) =>
           prev.map((c) =>
-            c.contractType === oldValue ? { ...c, contractType: v } : c
-          )
+            c.contractType === oldValue ? { ...c, contractType: v } : c,
+          ),
         );
       } else if (key === "priorities") {
         setBacklog((prev) =>
-          prev.map((b) => (b.priority === oldValue ? { ...b, priority: v } : b))
+          prev.map((b) =>
+            b.priority === oldValue ? { ...b, priority: v } : b,
+          ),
         );
         setTasks((prev) =>
-          prev.map((t) => (t.priority === oldValue ? { ...t, priority: v } : t))
+          prev.map((t) =>
+            t.priority === oldValue ? { ...t, priority: v } : t,
+          ),
         );
       } else if (key === "workItemTypes") {
         setBacklog((prev) =>
-          prev.map((b) => (b.type === oldValue ? { ...b, type: v } : b))
+          prev.map((b) => (b.type === oldValue ? { ...b, type: v } : b)),
         );
       } else if (key === "jobRoles") {
         setMembers((prev) =>
           prev.map((m) =>
-            m.roleLabel === oldValue ? { ...m, roleLabel: v, role: v } : m
-          )
+            m.roleLabel === oldValue ? { ...m, roleLabel: v, role: v } : m,
+          ),
         );
       } else if (key === "skillTags") {
         setMembers((prev) =>
           prev.map((m) => ({
             ...m,
             skillTags: m.skillTags.map((t) => (t === oldValue ? v : t)),
-          }))
+          })),
         );
       } else if (key === "reportFrequencies") {
         setReportTemplates((prev) =>
           prev.map((t) =>
-            t.frequency === oldValue ? { ...t, frequency: v } : t
-          )
+            t.frequency === oldValue ? { ...t, frequency: v } : t,
+          ),
         );
       } else if (key === "reportFormats") {
         setReportTemplates((prev) =>
           prev.map((t) => ({
             ...t,
             formats: t.formats.map((f) => (f === oldValue ? v : f)),
-          }))
+          })),
         );
       }
       return true;
     },
-    [masters, setClients, setBacklog, setTasks, setMembers, setReportTemplates]
+    [
+      masters,
+      setClients,
+      setBacklog,
+      setTasks,
+      setMembers,
+      setReportTemplates,
+      P,
+      fail,
+    ],
   );
 
-  const removeMasterValue = useCallback((key: MasterListKey, value: string) => {
-    setMasters((prev) => ({
-      ...prev,
-      [key]: prev[key].filter((x) => x !== value),
-    }));
-  }, []);
+  const removeMasterValue = useCallback(
+    (key: MasterListKey, value: string) => {
+      setMasters((prev) => ({
+        ...prev,
+        [key]: prev[key].filter((x) => x !== value),
+      }));
+      P?.removeMasterValue(key, value).catch((e: Error) => {
+        setMasters((prev) => ({ ...prev, [key]: [...prev[key], value] }));
+        fail(e.message);
+      });
+    },
+    [P, fail],
+  );
 
   const [viewPrefs, setViewPrefs] = useState<ViewPrefs>({
     board: "kanban",
@@ -390,7 +742,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     <K extends keyof ViewPrefs>(key: K, value: ViewPrefs[K]) => {
       setViewPrefs((prev) => ({ ...prev, [key]: value }));
     },
-    []
+    [],
   );
 
   const [recentPaths, setRecentPaths] = useState<
@@ -398,36 +750,44 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
   >([]);
   const recordRecentPath = useCallback((path: string, label: string) => {
     setRecentPaths((prev) =>
-      [{ path, label }, ...prev.filter((p) => p.path !== path)].slice(0, 3)
+      [{ path, label }, ...prev.filter((p) => p.path !== path)].slice(0, 3),
     );
   }, []);
 
-  const [reportQueue, reportQueueCrud, setReportQueue] =
-    useCollection<QueuedReport>(reportQueueSeed);
-  const [generatedReports, setGeneratedReports] = useState<GeneratedReport[]>(
-    []
+  const saveGeneratedReport = useCallback(
+    (report: GeneratedReport) => {
+      setGeneratedReports((prev) => [report, ...prev]);
+      P?.saveGeneratedReport(report).catch((e: Error) => {
+        setGeneratedReports((prev) => prev.filter((r) => r.id !== report.id));
+        fail(e.message);
+      });
+    },
+    [P, fail],
   );
-  const saveGeneratedReport = useCallback((report: GeneratedReport) => {
-    setGeneratedReports((prev) => [report, ...prev]);
-  }, []);
   const markReportSent = useCallback(
     (reportId: string) => {
       const report = generatedReports.find((r) => r.id === reportId);
       setGeneratedReports((prev) =>
-        prev.map((r) => (r.id === reportId ? { ...r, status: "sent" } : r))
+        prev.map((r) => (r.id === reportId ? { ...r, status: "sent" } : r)),
       );
+      P?.markReportSent(reportId).catch((e: Error) => {
+        setGeneratedReports((prev) =>
+          prev.map((r) => (r.id === reportId ? { ...r, status: "draft" } : r)),
+        );
+        fail(e.message);
+      });
       if (report) {
         // Complete the matching queue item (same mod + report type, not done yet).
         const match = reportQueue.find(
           (q) =>
             q.moduleId === report.moduleId &&
             q.type === report.config.type &&
-            q.status !== "done"
+            q.status !== "done",
         );
         if (match) reportQueueCrud.update(match.id, { status: "done" });
       }
     },
-    [generatedReports, reportQueue, reportQueueCrud]
+    [generatedReports, reportQueue, reportQueueCrud, P, fail],
   );
 
   /**
@@ -447,14 +807,16 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         prev.map((r) =>
           r.config.template === from
             ? { ...r, config: { ...r.config, template: newName } }
-            : r
-        )
+            : r,
+        ),
       );
       setReportQueue((prev) =>
-        prev.map((q) => (q.template === from ? { ...q, template: newName } : q))
+        prev.map((q) =>
+          q.template === from ? { ...q, template: newName } : q,
+        ),
       );
     },
-    [reportTemplates, setReportQueue]
+    [reportTemplates, setReportQueue],
   );
 
   /**
@@ -470,9 +832,17 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     (templateId: string) => {
       const snapshot = reportTemplates.filter((t) => t.id === templateId);
       setReportTemplates((prev) => prev.filter((t) => t.id !== templateId));
-      return () => setReportTemplates(restoreById(snapshot));
+      P?.reportTemplates.remove(templateId, snapshot[0]).catch((e: Error) => {
+        setReportTemplates(restoreById(snapshot));
+        fail(e.message);
+      });
+      return () => {
+        setReportTemplates(restoreById(snapshot));
+        for (const t of snapshot)
+          P?.reportTemplates.add(t).catch((e: Error) => fail(e.message));
+      };
     },
-    [reportTemplates, setReportTemplates]
+    [reportTemplates, setReportTemplates, P, fail],
   );
 
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -482,20 +852,37 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     useState<PrototypeState["committedSprint"]>(null);
 
   const showToast = useCallback(
-    (message: string, tone: ToastState["tone"] = "info", action?: ToastAction) => {
+    (
+      message: string,
+      tone: ToastState["tone"] = "info",
+      action?: ToastAction,
+    ) => {
       const id = Date.now();
       setToast({ id, message, tone, action });
       // An actionable toast lingers longer — four seconds is barely enough to
       // notice a message, let alone read it and decide to undo.
       setTimeout(
         () => setToast((t) => (t?.id === id ? null : t)),
-        action ? 8000 : 4000
+        action ? 8000 : 4000,
       );
     },
-    []
+    [],
   );
 
   const dismissToast = useCallback(() => setToast(null), []);
+  useEffect(() => {
+    failRef.current = (message) => showToast(message, "warning");
+  }, [showToast]);
+
+  /** Undo for a cascade: the arrays go back, and so do the rows on the server. */
+  const undoCascade = useCallback(
+    (gone: Parameters<typeof persist.restoreTree>[0], restore: () => void) =>
+      () => {
+        restore();
+        P?.restoreTree(gone).catch((e: Error) => fail(e.message));
+      },
+    [P, fail],
+  );
 
   const removeModuleCascade = useCallback(
     (moduleId: string) => {
@@ -513,17 +900,34 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       setBacklog((prev) => prev.filter((b) => b.moduleId !== moduleId));
       setSprints((prev) => prev.filter((s) => s.moduleId !== moduleId));
       setTasks((prev) =>
-        prev.filter((t) => !removedSprintIds.includes(t.sprintId))
+        prev.filter((t) => !removedSprintIds.includes(t.sprintId)),
       );
-
-      return () => {
+      const restore = () => {
         setModules(restoreById(gone.modules));
         setBacklog(restoreById(gone.backlog));
         setSprints(restoreById(gone.sprints));
         setTasks(restoreById(gone.tasks));
       };
+      // The server cascades from the module, so one call removes the tree.
+      P?.modules.remove(moduleId, gone.modules[0]).catch((e: Error) => {
+        restore();
+        fail(e.message);
+      });
+      return undoCascade(gone, restore);
     },
-    [modules, backlog, sprints, tasks, setModules, setBacklog, setSprints, setTasks]
+    [
+      modules,
+      backlog,
+      sprints,
+      tasks,
+      setModules,
+      setBacklog,
+      setSprints,
+      setTasks,
+      P,
+      fail,
+      undoCascade,
+    ],
   );
 
   const removeProjectCascade = useCallback(
@@ -531,7 +935,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       const removedModules = modules.filter((p) => p.projectId === projectId);
       const removedModuleIds = removedModules.map((p) => p.id);
       const removedSprints = sprints.filter((s) =>
-        removedModuleIds.includes(s.moduleId)
+        removedModuleIds.includes(s.moduleId),
       );
       const removedSprintIds = removedSprints.map((s) => s.id);
       const gone = {
@@ -544,23 +948,27 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
 
       setModules((prev) => prev.filter((p) => p.projectId !== projectId));
       setBacklog((prev) =>
-        prev.filter((b) => !removedModuleIds.includes(b.moduleId))
+        prev.filter((b) => !removedModuleIds.includes(b.moduleId)),
       );
       setSprints((prev) =>
-        prev.filter((s) => !removedModuleIds.includes(s.moduleId))
+        prev.filter((s) => !removedModuleIds.includes(s.moduleId)),
       );
       setTasks((prev) =>
-        prev.filter((t) => !removedSprintIds.includes(t.sprintId))
+        prev.filter((t) => !removedSprintIds.includes(t.sprintId)),
       );
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
-
-      return () => {
+      const restore = () => {
         setProjects(restoreById(gone.projects));
         setModules(restoreById(gone.modules));
         setBacklog(restoreById(gone.backlog));
         setSprints(restoreById(gone.sprints));
         setTasks(restoreById(gone.tasks));
       };
+      P?.projects.remove(projectId, gone.projects[0]).catch((e: Error) => {
+        restore();
+        fail(e.message);
+      });
+      return undoCascade(gone, restore);
     },
     [
       modules,
@@ -573,7 +981,10 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       setBacklog,
       setSprints,
       setTasks,
-    ]
+      P,
+      fail,
+      undoCascade,
+    ],
   );
 
   const removeClientCascade = useCallback(
@@ -581,7 +992,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       const removedModules = modules.filter((p) => p.clientId === clientId);
       const removedModuleIds = removedModules.map((p) => p.id);
       const removedSprints = sprints.filter((s) =>
-        removedModuleIds.includes(s.moduleId)
+        removedModuleIds.includes(s.moduleId),
       );
       const removedSprintIds = removedSprints.map((s) => s.id);
       const gone = {
@@ -596,17 +1007,16 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       setProjects((prev) => prev.filter((p) => p.clientId !== clientId));
       setModules((prev) => prev.filter((p) => p.clientId !== clientId));
       setBacklog((prev) =>
-        prev.filter((b) => !removedModuleIds.includes(b.moduleId))
+        prev.filter((b) => !removedModuleIds.includes(b.moduleId)),
       );
       setSprints((prev) =>
-        prev.filter((s) => !removedModuleIds.includes(s.moduleId))
+        prev.filter((s) => !removedModuleIds.includes(s.moduleId)),
       );
       setTasks((prev) =>
-        prev.filter((t) => !removedSprintIds.includes(t.sprintId))
+        prev.filter((t) => !removedSprintIds.includes(t.sprintId)),
       );
       setClients((prev) => prev.filter((c) => c.id !== clientId));
-
-      return () => {
+      const restore = () => {
         setClients(restoreById(gone.clients));
         setProjects(restoreById(gone.projects));
         setModules(restoreById(gone.modules));
@@ -614,6 +1024,11 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         setSprints(restoreById(gone.sprints));
         setTasks(restoreById(gone.tasks));
       };
+      P?.clients.remove(clientId, gone.clients[0]).catch((e: Error) => {
+        restore();
+        fail(e.message);
+      });
+      return undoCascade(gone, restore);
     },
     [
       clients,
@@ -628,7 +1043,10 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       setBacklog,
       setSprints,
       setTasks,
-    ]
+      P,
+      fail,
+      undoCascade,
+    ],
   );
 
   const moveTask = useCallback(
@@ -638,34 +1056,45 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       if (column === "done" && task.dod.some((d) => !d.done)) {
         showToast(
           "Complete the Definition of Done before moving this item to Done.",
-          "warning"
+          "warning",
         );
         return false;
       }
+      const from = task.column;
       setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, column } : t))
+        prev.map((t) => (t.id === taskId ? { ...t, column } : t)),
       );
+      P?.moveTask(taskId, column).catch((e: Error) => {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, column: from } : t)),
+        );
+        fail(e.message);
+      });
       return true;
     },
-    [tasks, setTasks, showToast]
+    [tasks, setTasks, showToast, P, fail],
   );
 
   const toggleDod = useCallback(
     (taskId: string, index: number) => {
-      setTasks((prev) =>
+      const flip = (prev: Task[]) =>
         prev.map((t) =>
           t.id === taskId
             ? {
                 ...t,
                 dod: t.dod.map((d, i) =>
-                  i === index ? { ...d, done: !d.done } : d
+                  i === index ? { ...d, done: !d.done } : d,
                 ),
               }
-            : t
-        )
-      );
+            : t,
+        );
+      setTasks(flip);
+      P?.toggleDod(taskId, index).catch((e: Error) => {
+        setTasks(flip);
+        fail(e.message);
+      });
     },
-    [setTasks]
+    [setTasks, P, fail],
   );
 
   // Committing a sprint must actually write the plan onto the sprint —
@@ -673,7 +1102,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
   const commitSprint = useCallback(
     (
       sprintId: string,
-      data: { goal: string; memberIds: string[]; backlogIds: string[] }
+      data: { goal: string; memberIds: string[]; backlogIds: string[] },
     ) => {
       const sprintMembers = data.memberIds.map((memberId) => {
         const member = members.find((m) => m.id === memberId);
@@ -685,35 +1114,36 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       });
       const committed = data.backlogIds.reduce(
         (sum, id) => sum + (backlog.find((b) => b.id === id)?.estimate ?? 0),
-        0
+        0,
       );
-      setSprints((prev) =>
-        prev.map((s) =>
-          s.id === sprintId
-            ? {
-                ...s,
-                goal: data.goal.trim() || s.goal,
-                members: sprintMembers,
-                backlogItemIds: data.backlogIds,
-                committed,
-                // a committed sprint starts running
-                status: s.status === "planning" ? "active" : s.status,
-              }
-            : s
-        )
-      );
+      const before = sprints.find((s) => s.id === sprintId);
+      if (!before) return;
+      const patch: Partial<Sprint> = {
+        goal: data.goal.trim() || before.goal,
+        members: sprintMembers,
+        backlogItemIds: data.backlogIds,
+        committed,
+        // a committed sprint starts running
+        status: before.status === "planning" ? "active" : before.status,
+      };
+      sprintsCrud.update(sprintId, patch);
       setCommittedSprint({ sprintId, ...data });
     },
-    [members, backlog, setSprints]
+    [members, backlog, sprints, sprintsCrud],
   );
 
   return (
     <PrototypeContext.Provider
       value={{
+        dataSource,
         currentUser,
         authHydrated,
         login,
+        signIn,
         logout,
+        loadState,
+        loadError,
+        retryLoad: load,
         clients,
         projects,
         modules,
@@ -784,7 +1214,8 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
 
 export function usePrototype() {
   const ctx = useContext(PrototypeContext);
-  if (!ctx) throw new Error("usePrototype must be used within PrototypeProvider");
+  if (!ctx)
+    throw new Error("usePrototype must be used within PrototypeProvider");
   return ctx;
 }
 
@@ -797,7 +1228,9 @@ export function usePrototype() {
  */
 export type BlockerSeverity = "none" | "low" | "medium" | "high";
 
-export function blockerSeverity(task: { blockers: unknown[] }): BlockerSeverity {
+export function blockerSeverity(task: {
+  blockers: unknown[];
+}): BlockerSeverity {
   const n = task.blockers.length;
   if (n === 0) return "none";
   if (n === 1) return "low";
@@ -856,10 +1289,10 @@ export function useSprintProgress(sprintId: string): {
 export function blockedCountFor(
   sprints: Sprint[],
   tasks: Task[],
-  moduleId: string
+  moduleId: string,
 ): number {
   const ids = new Set(
-    sprints.filter((s) => s.moduleId === moduleId).map((s) => s.id)
+    sprints.filter((s) => s.moduleId === moduleId).map((s) => s.id),
   );
   return tasks.filter((t) => ids.has(t.sprintId) && t.column === "blocked")
     .length;

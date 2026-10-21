@@ -948,6 +948,32 @@ export interface paths {
         patch: operations["updateDecision"];
         trace?: never;
     };
+    "/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Snapshot the whole workspace
+         * @description Every collection the frontend store keeps, in one response: clients,
+         *     projects, modules with their components, members, backlog, sprints
+         *     with their members and backlog item ids, tasks with their DoD items,
+         *     decisions, the four review records, roles, report templates, the
+         *     report queue, generated reports, every master list and the workspace
+         *     settings. Not paged: a workspace is hundreds of rows, and the store
+         *     filters in memory. Use the per-resource lists for anything larger.
+         */
+        get: operations["workspaceSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/retro-notes": {
         parameters: {
             query?: never;
@@ -2216,6 +2242,38 @@ export interface components {
             owner?: string;
             status?: components["schemas"]["DecisionStatus"];
         };
+        Workspace: {
+            clients: components["schemas"]["Client"][];
+            projects: components["schemas"]["Project"][];
+            modules: (components["schemas"]["Module"] & {
+                components: components["schemas"]["Component"][];
+            })[];
+            members: components["schemas"]["Member"][];
+            backlog: components["schemas"]["BacklogItem"][];
+            sprints: (components["schemas"]["Sprint"] & {
+                members: components["schemas"]["SprintMember"][];
+                backlogItemIds: string[];
+            })[];
+            tasks: (components["schemas"]["Task"] & {
+                dod: {
+                    label: string;
+                    done: boolean;
+                }[];
+            })[];
+            decisions: components["schemas"]["Decision"][];
+            retroNotes: components["schemas"]["RetroNote"][];
+            retroActions: components["schemas"]["RetroAction"][];
+            demoItems: components["schemas"]["DemoItem"][];
+            clientFeedback: components["schemas"]["ClientFeedback"][];
+            roles: components["schemas"]["Role"][];
+            reportTemplates: components["schemas"]["ReportTemplate"][];
+            reportQueue: components["schemas"]["ReportQueueItem"][];
+            generatedReports: components["schemas"]["GeneratedReport"][];
+            masters: {
+                [key: string]: string[];
+            };
+            settings: components["schemas"]["WorkspaceSettings"];
+        };
         /** @enum {string} */
         RetroNoteKind: "went-well" | "needs-improvement";
         /** @enum {string} */
@@ -2495,7 +2553,10 @@ export interface components {
         Role: {
             id?: string;
             label?: string;
-            permissions?: Record<string, never>;
+            /** @description Flags by capability; the API reads `all`, `write` and `read`. */
+            permissions?: {
+                [key: string]: boolean;
+            };
         };
         MasterListValue: {
             key?: string;
@@ -2506,7 +2567,9 @@ export interface components {
             /** @description Always true — this table holds one row. */
             id?: boolean;
             name?: string;
-            settings?: Record<string, never>;
+            settings?: {
+                [key: string]: unknown;
+            };
             dodTemplate?: string[];
             updatedAt?: components["schemas"]["Timestamp"];
         };
@@ -4572,6 +4635,27 @@ export interface operations {
             413: components["responses"]["TooLarge"];
         };
     };
+    workspaceSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The snapshot. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
     listRetroNotes: {
         parameters: {
             query?: {
@@ -5358,7 +5442,9 @@ export interface operations {
                      * @description Must be a JSON object under 64 KB. An absent value or an
                      *     explicit `null` both store `{}`.
                      */
-                    permissions?: Record<string, never>;
+                    permissions?: {
+                        [key: string]: boolean;
+                    };
                 };
             };
         };
@@ -5555,7 +5641,9 @@ export interface operations {
                 "application/json": {
                     name: string;
                     /** @description Must be a JSON object under 64 KB. */
-                    settings?: Record<string, never>;
+                    settings?: {
+                        [key: string]: unknown;
+                    };
                     dodTemplate?: string[];
                 };
             };

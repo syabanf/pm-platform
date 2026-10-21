@@ -10,6 +10,8 @@ export default defineConfig({
     },
   },
   test: {
+    // The store's unit tests drive the in-memory seed, not a backend.
+    env: { NEXT_PUBLIC_DATA_SOURCE: "seed" },
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["src/test/setup.ts"],

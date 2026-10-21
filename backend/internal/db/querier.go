@@ -263,6 +263,24 @@ type Querier interface {
 	// --------------------------------------------------------------- task_dod ---
 	SetTaskDodItem(ctx context.Context, arg SetTaskDodItemParams) (TaskDod, error)
 	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
+	SnapshotBacklog(ctx context.Context) ([]BacklogItem, error)
+	// One snapshot of the whole workspace, in the shape the frontend store keeps.
+	//
+	// The store loads everything once and filters in memory, so these are not
+	// paged: a workspace is tens of clients and hundreds of tasks, not the perf
+	// seed's million rows. Nested rows (components, sprint members, DoD items)
+	// ride along as JSON so the load is one round trip per table, not per row.
+	SnapshotClients(ctx context.Context) ([]Client, error)
+	SnapshotDecisions(ctx context.Context) ([]Decision, error)
+	SnapshotGeneratedReports(ctx context.Context) ([]GeneratedReport, error)
+	SnapshotMembers(ctx context.Context) ([]Member, error)
+	SnapshotModules(ctx context.Context) ([]SnapshotModulesRow, error)
+	SnapshotProjects(ctx context.Context) ([]Project, error)
+	SnapshotReportQueue(ctx context.Context) ([]ReportQueue, error)
+	SnapshotReportTemplates(ctx context.Context) ([]ReportTemplate, error)
+	SnapshotRoles(ctx context.Context) ([]Role, error)
+	SnapshotSprints(ctx context.Context) ([]SnapshotSprintsRow, error)
+	SnapshotTasks(ctx context.Context) ([]SnapshotTasksRow, error)
 	ToggleTaskDodItem(ctx context.Context, arg ToggleTaskDodItemParams) (TaskDod, error)
 	// Partial update (see UpdateClient).
 	UpdateBacklogItem(ctx context.Context, arg UpdateBacklogItemParams) (BacklogItem, error)

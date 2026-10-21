@@ -51,13 +51,16 @@ file yang sedang dibuka. Sekarang tidak ada lagi yang perlu diterjemahkan.
 | --- | --- | --- |
 | Letak | `src/` | `backend/` |
 | Teknologi | Next.js App Router, TypeScript, Tailwind v4 | Go 1.25, Echo v4, PostgreSQL 17, sqlc, pgx |
-| Data | **di memori browser** — reload mengembalikan semuanya | PostgreSQL sungguhan |
-| Status | jalan penuh sebagai prototipe | lengkap dan teruji |
+| Data | PostgreSQL lewat API (mode `api`), atau seed di memori (mode `seed`) | PostgreSQL sungguhan |
+| Status | tersambung ke backend | lengkap dan teruji |
 
-**Keduanya belum terhubung.** Aplikasi berjalan sepenuhnya di store in-memory
-(`src/lib/store.tsx`), tidak memanggil backend sama sekali. Ini disengaja:
-backend bebas berkembang tanpa mengganggu aplikasi. Langkah menyambungkannya ada
-di [backend/README.md](../backend/README.md#wiring-it-up-later).
+**Keduanya sudah terhubung.** Setelah masuk, aplikasi memuat seluruh workspace
+dari `GET /workspace` dan menulis setiap perubahan kembali lewat route per
+resource (`src/lib/api/persist.ts`). Perubahan diterapkan dulu di layar, lalu
+dikirim; penolakan server mengembalikan layar dan menampilkan alasannya.
+`NEXT_PUBLIC_DATA_SOURCE=seed` menjalankan aplikasi di seed in-memory, yang
+dipakai suite Playwright. Rinciannya di
+[backend/README.md](../backend/README.md#how-the-app-uses-it).
 
 ---
 
@@ -276,7 +279,7 @@ skrip remediasinya lengkap di
 | Prioritas | Hal |
 | --------- | --- |
 | Besar | **Mailer** — supaya link verifikasi benar-benar terkirim |
-| Sedang | **Store swap** — memindahkan store in-memory ke typed client (login + baca sudah terbukti di `/backend`); sisa: semua collection + write-back mutasi |
+| Sedang | **Undo lintas server** — undo hapus cascade membuat ulang baris lewat API satu per satu; rename template laporan belum menulis ulang antrian di server |
 | Kecil | CRUD akun (user belum bisa diubah atau dihapus lewat API) |
 
 ---

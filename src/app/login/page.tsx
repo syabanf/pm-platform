@@ -10,27 +10,40 @@ const DEMO_IDS = ["admin", "fahmi", "risya", "reyza"];
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = usePrototype();
-  const [email, setEmail] = useState("fahmi@wit.id");
+  const { login, signIn: signInToBackend, dataSource } = usePrototype();
+  const seeded = dataSource === "seed";
+  const [email, setEmail] = useState(seeded ? "fahmi@wit.id" : "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const signIn = (memberId: string) => {
     login(memberId);
     router.replace("/");
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError("Enter an email and password to continue.");
       return;
     }
-    // Dummy auth: match a seed member by email, else sign in as the lead.
-    const match = members.find(
-      (m) => m.email.toLowerCase() === email.trim().toLowerCase()
-    );
-    signIn(match?.id ?? "fahmi");
+    if (seeded) {
+      // Dummy auth: match a seed member by email, else sign in as the lead.
+      const match = members.find(
+        (m) => m.email.toLowerCase() === email.trim().toLowerCase(),
+      );
+      signIn(match?.id ?? "fahmi");
+      return;
+    }
+    setBusy(true);
+    try {
+      await signInToBackend(email.trim(), password);
+      router.replace("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed.");
+      setBusy(false);
+    }
   };
 
   return (
@@ -48,7 +61,8 @@ export default function LoginPage() {
           </p>
         </div>
         <div className="hidden text-xs text-muted md:block">
-          {workspaceDefaults.company} · Prototype
+          {workspaceDefaults.company}
+          {seeded ? " · Prototype" : ""}
         </div>
       </div>
 
@@ -60,7 +74,9 @@ export default function LoginPage() {
             Welcome back.
           </h2>
           <p className="mt-1 text-sm text-muted">
-            Prototype sign-in — any password works.
+            {seeded
+              ? "Prototype sign-in: any password works."
+              : "Sign in with your workspace account."}
           </p>
 
           <form onSubmit={submit} className="mt-8 space-y-4">
@@ -91,39 +107,41 @@ export default function LoginPage() {
               />
             </label>
             {error && <p className="text-xs text-danger">{error}</p>}
-            <Button type="submit" size="lg" fullWidth>
-              Sign in
+            <Button type="submit" size="lg" fullWidth disabled={busy}>
+              {busy ? "Signing in…" : "Sign in"}
             </Button>
           </form>
 
-          <div className="mt-8 border-t border-line pt-6">
-            <div className="label mb-3">Demo accounts — one click</div>
-            <div className="grid grid-cols-2 gap-2">
-              {DEMO_IDS.map((id) => {
-                const member = members.find((m) => m.id === id);
-                if (!member) return null;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => signIn(id)}
-                    className="flex items-center gap-2.5 rounded-full bg-surface-2 px-3 py-2 text-left transition-colors hover:bg-surface"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-soft text-[11px] font-semibold text-ink">
-                      {member.name.charAt(0)}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-ink">
-                        {member.name}
+          {seeded && (
+            <div className="mt-8 border-t border-line pt-6">
+              <div className="label mb-3">Demo accounts — one click</div>
+              <div className="grid grid-cols-2 gap-2">
+                {DEMO_IDS.map((id) => {
+                  const member = members.find((m) => m.id === id);
+                  if (!member) return null;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => signIn(id)}
+                      className="flex items-center gap-2.5 rounded-full bg-surface-2 px-3 py-2 text-left transition-colors hover:bg-surface"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-soft text-[11px] font-semibold text-ink">
+                        {member.name.charAt(0)}
                       </span>
-                      <span className="block truncate text-[11px] text-muted">
-                        {member.roleLabel}
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-ink">
+                          {member.name}
+                        </span>
+                        <span className="block truncate text-[11px] text-muted">
+                          {member.roleLabel}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

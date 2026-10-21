@@ -53,7 +53,7 @@ npm run build
 | ---- | ------------- |
 | `src/app/` | routes (Next.js App Router) |
 | `src/components/` | shared UI; `ui.tsx` holds the primitives |
-| `src/lib/store.tsx` | the in-memory store every page reads from |
+| `src/lib/store.tsx` | the store every page reads from; backed by the API, or by the seed with `NEXT_PUBLIC_DATA_SOURCE=seed` |
 | `src/lib/types.ts` | domain types |
 | `src/lib/data.ts` | the seed data the store starts from |
 | `backend/` | Go + Postgres REST API — see [backend/README.md](backend/README.md) |

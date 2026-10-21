@@ -2,9 +2,11 @@
 
 Go + Echo + PostgreSQL REST API for the projectOS delivery hierarchy.
 
-> **Status: not wired.** This service is intentionally standalone — the Next.js
-> app in `../src` still runs entirely off its in-memory prototype store and does
-> not call this API yet. Nothing in the frontend imports from here.
+> **Status: wired.** The Next.js app in `../src` loads its workspace from
+> `GET /workspace` on sign-in and writes every change back through the
+> per-resource routes (`src/lib/api/persist.ts`). Set
+> `NEXT_PUBLIC_DATA_SOURCE=seed` to run the app on its in-memory seed instead,
+> which is what the Playwright suite does.
 
 For the system as a whole — both halves, accounts, what is still open — see
 [docs/OVERVIEW.md](../docs/OVERVIEW.md).
@@ -412,14 +414,19 @@ UPDATE sprints t SET number = r.new_number FROM renumber r WHERE t.id = r.id;
 If a run already failed, clear the dirty flag with `make migrate-force V=1`
 before retrying.
 
-## Wiring it up later
+## How the app uses it
 
-The frontend currently reads from `src/lib/store.tsx` (in-memory, seeded from
-`src/lib/data.ts`). To connect it:
+`src/lib/store.tsx` keeps every collection in React state and, in api mode
+(the default), reaches this service through two files:
 
-1. Point a data layer at `NEXT_PUBLIC_API_URL` (this service).
-2. Replace the `useCollection` seeds with fetches — the JSON field names already
-   match (`moduleId`, `componentId`, camelCase throughout).
-3. Seed the database from `src/lib/data.ts` so the prototype data survives.
+- `src/lib/api/workspace.ts` fetches `GET /workspace` once after sign-in and
+  maps the rows into the store's types (dates to `yyyy-mm-dd`, `boardColumn`
+  to `column`, nulls to `""`).
+- `src/lib/api/persist.ts` turns each store mutation into the matching route.
+  The store applies a change locally first, then calls the adapter; a refusal
+  reverts the change and shows the server's reason in a toast.
 
-Until then this service is free to evolve without touching the app.
+To fill a fresh database with the prototype's data, run the backend and
+`npm run seed:backend` from the repo root: it signs in as the administrator
+and pushes `src/lib/data.ts` through the same adapters, creating an account
+per member along the way.

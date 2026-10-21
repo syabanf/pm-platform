@@ -18,9 +18,13 @@ import type { paths } from "./schema";
 
 const TOKEN_KEY = "wit-session-token";
 
+// Outside a browser (the seed script) the token lives here instead of in
+// localStorage, so the same client serves both.
+let memoryToken: string | null = null;
+
 /** The bearer token from the last backend login, or null. */
 export function getSessionToken(): string | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") return memoryToken;
   try {
     return window.localStorage.getItem(TOKEN_KEY);
   } catch {
@@ -30,7 +34,10 @@ export function getSessionToken(): string | null {
 
 /** Remember (or, with null, forget) the backend session token. */
 export function setSessionToken(token: string | null) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    memoryToken = token;
+    return;
+  }
   try {
     if (token) window.localStorage.setItem(TOKEN_KEY, token);
     else window.localStorage.removeItem(TOKEN_KEY);
@@ -49,7 +56,11 @@ const auth: Middleware = {
   },
 };
 
-export const api = createClient<paths>({ baseUrl: "/api/v1" });
+// The seed script runs in Node, where there is no proxy to be relative to, so
+// it points this at the backend directly.
+export const api = createClient<paths>({
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE ?? "/api/v1",
+});
 api.use(auth);
 
 /**

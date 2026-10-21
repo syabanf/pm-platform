@@ -1,11 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Browser e2e for the frontend prototype.
+ * Browser e2e for the frontend.
  *
- * The app runs entirely on its in-memory store, which makes these tests
- * hermetic for free: every fresh page load is the pristine seed, so there is
- * no fixture setup, no teardown, and no way for one test to leak into another.
+ * The server runs in seed mode (NEXT_PUBLIC_DATA_SOURCE=seed): the in-memory
+ * store, not the backend. That makes these tests hermetic for free: every
+ * fresh page load is the pristine seed, so there is no fixture setup, no
+ * teardown, and no way for one test to leak into another. The one spec that
+ * talks to the backend (backend-wiring) goes through the proxy and skips when
+ * nothing answers.
  *
  * In CI the server is the production build — `next build && next start` —
  * because that is what ships; HMR-mode quirks are not worth catching. Locally
@@ -35,6 +38,7 @@ export default defineConfig({
     command: process.env.CI
       ? "npm run build && npx next start --port 3900"
       : "npx next dev --port 3900",
+    env: { NEXT_PUBLIC_DATA_SOURCE: "seed" },
     url: "http://localhost:3900",
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

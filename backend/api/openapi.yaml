@@ -65,6 +65,8 @@ tags:
     description: People who can be assigned work.
   - name: decisions
     description: The decision log for a module.
+  - name: workspace
+    description: The whole workspace in one response, for the frontend store's first load.
   - name: reviews
     description: Retrospective notes and actions, demo checklist and client feedback, per sprint.
   - name: reports
@@ -1418,6 +1420,28 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  # ----------------------------------------------------------- workspace ---
+  /workspace:
+    get:
+      tags: [workspace]
+      summary: Snapshot the whole workspace
+      description: |
+        Every collection the frontend store keeps, in one response: clients,
+        projects, modules with their components, members, backlog, sprints
+        with their members and backlog item ids, tasks with their DoD items,
+        decisions, the four review records, roles, report templates, the
+        report queue, generated reports, every master list and the workspace
+        settings. Not paged: a workspace is hundreds of rows, and the store
+        filters in memory. Use the per-resource lists for anything larger.
+      operationId: workspaceSnapshot
+      responses:
+        '200':
+          description: The snapshot.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   # ------------------------------------------------------------- reviews ---
   /retro-notes:
     get:
@@ -1959,6 +1983,7 @@ paths:
                 label: { type: string }
                 permissions:
                   type: object
+                  additionalProperties: { type: boolean }
                   description: |
                     Must be a JSON object under 64 KB. An absent value or an
                     explicit `null` both store `{}`.
@@ -2109,6 +2134,7 @@ paths:
                 name: { type: string }
                 settings:
                   type: object
+                  additionalProperties: true
                   description: Must be a JSON object under 64 KB.
                 dodTemplate: { type: array, items: { type: string } }
       responses:
@@ -3193,6 +3219,66 @@ components:
         owner: { type: string }
         status: { $ref: '#/components/schemas/DecisionStatus' }
 
+    # --------------------------------------------------------- workspace ---
+    Workspace:
+      type: object
+      required: [clients, projects, modules, members, backlog, sprints, tasks, decisions,
+                 retroNotes, retroActions, demoItems, clientFeedback, roles,
+                 reportTemplates, reportQueue, generatedReports, masters, settings]
+      properties:
+        clients: { type: array, items: { $ref: '#/components/schemas/Client' } }
+        projects: { type: array, items: { $ref: '#/components/schemas/Project' } }
+        modules:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Module'
+              - type: object
+                required: [components]
+                properties:
+                  components: { type: array, items: { $ref: '#/components/schemas/Component' } }
+        members: { type: array, items: { $ref: '#/components/schemas/Member' } }
+        backlog: { type: array, items: { $ref: '#/components/schemas/BacklogItem' } }
+        sprints:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Sprint'
+              - type: object
+                required: [members, backlogItemIds]
+                properties:
+                  members: { type: array, items: { $ref: '#/components/schemas/SprintMember' } }
+                  backlogItemIds: { type: array, items: { type: string } }
+        tasks:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Task'
+              - type: object
+                required: [dod]
+                properties:
+                  dod:
+                    type: array
+                    items:
+                      type: object
+                      required: [label, done]
+                      properties:
+                        label: { type: string }
+                        done: { type: boolean }
+        decisions: { type: array, items: { $ref: '#/components/schemas/Decision' } }
+        retroNotes: { type: array, items: { $ref: '#/components/schemas/RetroNote' } }
+        retroActions: { type: array, items: { $ref: '#/components/schemas/RetroAction' } }
+        demoItems: { type: array, items: { $ref: '#/components/schemas/DemoItem' } }
+        clientFeedback: { type: array, items: { $ref: '#/components/schemas/ClientFeedback' } }
+        roles: { type: array, items: { $ref: '#/components/schemas/Role' } }
+        reportTemplates: { type: array, items: { $ref: '#/components/schemas/ReportTemplate' } }
+        reportQueue: { type: array, items: { $ref: '#/components/schemas/ReportQueueItem' } }
+        generatedReports: { type: array, items: { $ref: '#/components/schemas/GeneratedReport' } }
+        masters:
+          type: object
+          additionalProperties: { type: array, items: { type: string } }
+        settings: { $ref: '#/components/schemas/WorkspaceSettings' }
+
     # ----------------------------------------------------------- reviews ---
     RetroNoteKind: { type: string, enum: [went-well, needs-improvement] }
     RetroActionStatus: { type: string, enum: [open, done] }
@@ -3494,7 +3580,10 @@ components:
       properties:
         id: { type: string }
         label: { type: string }
-        permissions: { type: object }
+        permissions:
+          type: object
+          description: Flags by capability; the API reads `all`, `write` and `read`.
+          additionalProperties: { type: boolean }
     MasterListValue:
       type: object
       properties:
@@ -3506,6 +3595,6 @@ components:
       properties:
         id: { type: boolean, description: Always true — this table holds one row. }
         name: { type: string }
-        settings: { type: object }
+        settings: { type: object, additionalProperties: true }
         dodTemplate: { type: array, items: { type: string } }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }

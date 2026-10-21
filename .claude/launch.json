@@ -4,14 +4,34 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "3007"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3007"
+      ],
       "port": 3007
     },
     {
       "name": "prod",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "start", "--port", "3007"],
+      "runtimeArgs": [
+        "next",
+        "start",
+        "--port",
+        "3007"
+      ],
       "port": 3007
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd backend && go run ./cmd/api"
+      ],
+      "port": 8080
     }
   ]
 }
