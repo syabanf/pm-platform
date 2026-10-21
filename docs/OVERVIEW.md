@@ -279,7 +279,6 @@ skrip remediasinya lengkap di
 | Prioritas | Hal |
 | --------- | --- |
 | Besar | **Mailer** — supaya link verifikasi benar-benar terkirim |
-| Sedang | **Undo lintas server** — undo hapus cascade membuat ulang baris lewat API satu per satu; rename template laporan belum menulis ulang antrian di server |
 | Kecil | CRUD akun (user belum bisa diubah atau dihapus lewat API) |
 
 ---

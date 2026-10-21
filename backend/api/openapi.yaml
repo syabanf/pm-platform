@@ -323,10 +323,15 @@ paths:
       summary: Delete a client
       description: |
         Cascades to the client's projects, modules, components, sprints,
-        backlog, tasks, decisions and reports. There is no undo.
+        backlog, tasks, decisions and reports. The subtree is filed in the
+        trash; POST /trash/{trashId}/restore puts it back.
       operationId: deleteClient
       responses:
-        '204': { description: Deleted. }
+        '200':
+          description: Deleted. The subtree is in the trash for 30 days.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deleted' }
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
@@ -459,7 +464,11 @@ paths:
       description: Cascades to its modules and everything beneath them.
       operationId: deleteProject
       responses:
-        '204': { description: Deleted. }
+        '200':
+          description: Deleted. The subtree is in the trash for 30 days.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deleted' }
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
@@ -560,7 +569,11 @@ paths:
       description: Cascades to its components, sprints, backlog, tasks, decisions and reports.
       operationId: deleteModule
       responses:
-        '204': { description: Deleted. }
+        '200':
+          description: Deleted. The subtree is in the trash for 30 days.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deleted' }
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
@@ -1417,6 +1430,24 @@ paths:
       operationId: deleteDecision
       responses:
         '204': { description: Deleted. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  # --------------------------------------------------------------- trash ---
+  /trash/{trashId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/TrashId'
+    post:
+      tags: [workspace]
+      summary: Restore a deleted subtree
+      description: |
+        Puts back every row a cascade delete removed, parents first, in one
+        transaction, and empties that trash entry. Fails as a whole when a row
+        exists again under the same id or a parent has since been deleted.
+      operationId: restoreTrash
+      responses:
+        '204': { description: Restored. }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
@@ -2659,6 +2690,11 @@ components:
       schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
     ClientId:  { name: clientId,  in: path, required: true, schema: { type: string } }
     ProjectId: { name: projectId, in: path, required: true, schema: { type: string } }
+    TrashId:
+      name: trashId
+      in: path
+      required: true
+      schema: { type: string }
     ModuleId:
       name: moduleId
       in: path
@@ -2755,6 +2791,13 @@ components:
       format: date-time
       description: RFC 3339 with an offset.
       examples: ['2026-07-23T02:35:08.590146+07:00']
+    Deleted:
+      type: object
+      required: [trashId]
+      properties:
+        trashId:
+          type: string
+          description: Pass to POST /trash/{trashId}/restore to undo the delete.
     DateOnly:
       type: [string, 'null']
       format: date-time

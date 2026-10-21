@@ -203,7 +203,8 @@ export interface paths {
         /**
          * Delete a client
          * @description Cascades to the client's projects, modules, components, sprints,
-         *     backlog, tasks, decisions and reports. There is no undo.
+         *     backlog, tasks, decisions and reports. The subtree is filed in the
+         *     trash; POST /trash/{trashId}/restore puts it back.
          */
         delete: operations["deleteClient"];
         options?: never;
@@ -946,6 +947,30 @@ export interface paths {
         head?: never;
         /** Update a decision */
         patch: operations["updateDecision"];
+        trace?: never;
+    };
+    "/trash/{trashId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trashId: components["parameters"]["TrashId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a deleted subtree
+         * @description Puts back every row a cascade delete removed, parents first, in one
+         *     transaction, and empties that trash entry. Fails as a whole when a row
+         *     exists again under the same id or a parent has since been deleted.
+         */
+        post: operations["restoreTrash"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/workspace": {
@@ -1822,6 +1847,10 @@ export interface components {
          * @example 2026-07-23T02:35:08.590146+07:00
          */
         Timestamp: string;
+        Deleted: {
+            /** @description Pass to POST /trash/{trashId}/restore to undo the delete. */
+            trashId: string;
+        };
         /**
          * Format: date-time
          * @description A date-only column. Returned as RFC 3339 at midnight UTC; accepted as
@@ -2146,13 +2175,16 @@ export interface components {
             /** @default false */
             offGoal: boolean;
         };
+        /** @description An omitted field keeps its value. An empty assigneeId or dueDate clears it. */
         TaskUpdate: {
             title?: string;
             componentName?: string;
+            /** @description "" unassigns the task. */
             assigneeId?: string;
             estimate?: number;
             boardColumn?: components["schemas"]["BoardColumn"];
             priority?: string;
+            /** @description "" clears the due date. */
             dueDate?: components["schemas"]["DateOnly"];
             /** @description Replaces the whole list. */
             blockers?: components["schemas"]["Blocker"][];
@@ -2658,6 +2690,7 @@ export interface components {
         Offset: number;
         ClientId: string;
         ProjectId: string;
+        TrashId: string;
         /** @description A module id — the UI calls this a Component. */
         ModuleId: string;
         /** @description A component id — the UI calls this a Component. */
@@ -2935,12 +2968,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Deleted. */
-            204: {
+            /** @description Deleted. The subtree is in the trash for 30 days. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Deleted"];
+                };
             };
             409: components["responses"]["Conflict"];
             503: components["responses"]["Unavailable"];
@@ -3144,12 +3179,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Deleted. */
-            204: {
+            /** @description Deleted. The subtree is in the trash for 30 days. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Deleted"];
+                };
             };
             409: components["responses"]["Conflict"];
             503: components["responses"]["Unavailable"];
@@ -3291,12 +3328,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Deleted. */
-            204: {
+            /** @description Deleted. The subtree is in the trash for 30 days. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Deleted"];
+                };
             };
             409: components["responses"]["Conflict"];
             503: components["responses"]["Unavailable"];
@@ -4633,6 +4672,29 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
+        };
+    };
+    restoreTrash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trashId: components["parameters"]["TrashId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
         };
     };
     workspaceSnapshot: {

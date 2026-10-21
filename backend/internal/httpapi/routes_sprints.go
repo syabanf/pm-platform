@@ -343,7 +343,7 @@ func (s *Server) deleteSprint(c echo.Context) error {
 	// sprint; deleting without the module lock is the other order, and that
 	// AB-BA cycle deadlocked 15.5% of overlapping module deletes before they
 	// learned the same lesson. Same fix here: lock the owner first.
-	err = s.deleteTx(ctx, func(q *db.Queries) error {
+	err = s.deleteTx(ctx, func(q *db.Queries, _ pgx.Tx) error {
 		sprint, err := q.GetSprint(ctx, id)
 		if err != nil {
 			return err

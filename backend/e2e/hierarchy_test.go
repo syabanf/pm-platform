@@ -85,7 +85,7 @@ func TestHierarchyLifecycle(t *testing.T) {
 
 	// Cascade: deleting the client takes the whole subtree with it.
 	h.expect(h.do("DELETE", "/api/v1/clients/"+clientID, admin, nil),
-		http.StatusNoContent, "delete client")
+		http.StatusOK, "delete client")
 	h.expect(h.do("GET", "/api/v1/modules/"+moduleID, admin, nil),
 		http.StatusNotFound, "module gone with its client")
 	h.expect(h.do("GET", "/api/v1/components/"+componentID, admin, nil),

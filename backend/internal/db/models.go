@@ -301,6 +301,16 @@ type TaskDod struct {
 	Done     bool   `json:"done"`
 }
 
+type Trash struct {
+	ID        string             `json:"id"`
+	Kind      string             `json:"kind"`
+	RootID    string             `json:"rootId"`
+	Label     string             `json:"label"`
+	Payload   json.RawMessage    `json:"payload"`
+	DeletedBy string             `json:"deletedBy"`
+	DeletedAt pgtype.Timestamptz `json:"deletedAt"`
+}
+
 type User struct {
 	ID               string             `json:"id"`
 	Email            string             `json:"email"`

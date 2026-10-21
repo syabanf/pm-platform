@@ -16,6 +16,7 @@ func (s *Server) routes(g *echo.Group) {
 	s.registerTaskRoutes(g)
 	s.registerReviewRoutes(g)
 	s.registerWorkspaceRoutes(g)
+	s.registerTrashRoutes(g)
 	s.registerSettingsRoutes(g)
 	s.registerUserRoutes(g)
 	s.registerRollupRoutes(g)

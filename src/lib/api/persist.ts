@@ -31,7 +31,8 @@ import { apiError } from "./workspace";
 export interface Persister<T extends { id: string }> {
   add: (item: T) => Promise<void>;
   update: (id: string, patch: Partial<T>, before: T, after: T) => Promise<void>;
-  remove: (id: string, before: T) => Promise<void>;
+  /** A cascade delete resolves to the trash id its undo needs. */
+  remove: (id: string, before: T) => Promise<string | void>;
 }
 
 type Result = { error?: unknown; response: Response };
@@ -40,6 +41,16 @@ type Result = { error?: unknown; response: Response };
 async function ok(call: Promise<Result>, what: string): Promise<void> {
   const { error, response } = await call;
   if (error || !response.ok) throw apiError(error, `${what} failed`);
+}
+
+/** A cascade delete: the server files the subtree and answers with its trash id. */
+async function trashed(
+  call: Promise<Result & { data?: { trashId: string } }>,
+  what: string,
+): Promise<string> {
+  const { data, error, response } = await call;
+  if (error || !response.ok || !data) throw apiError(error, `${what} failed`);
+  return data.trashId;
 }
 
 /** "" means "none" on the store's side; the API wants the key left out. */
@@ -84,7 +95,7 @@ export const clients: Persister<Client> = {
       "saving the client",
     ),
   remove: (id) =>
-    ok(
+    trashed(
       api.DELETE("/clients/{clientId}", { params: { path: { clientId: id } } }),
       "deleting the client",
     ),
@@ -101,7 +112,7 @@ export const projects: Persister<Project> = {
       "saving the project",
     ),
   remove: (id) =>
-    ok(
+    trashed(
       api.DELETE("/projects/{projectId}", {
         params: { path: { projectId: id } },
       }),
@@ -235,7 +246,7 @@ export const modules: Persister<Module> = {
     }
   },
   remove: (id) =>
-    ok(
+    trashed(
       api.DELETE("/modules/{moduleId}", { params: { path: { moduleId: id } } }),
       "deleting the module",
     ),
@@ -737,22 +748,9 @@ export const removeMasterValue = (key: string, value: string) =>
     "removing the value",
   );
 
-/**
- * Put a deleted subtree back, parents first. The undo on a cascade delete
- * calls this; the server cascaded the delete, so every row has to return.
- */
-export async function restoreTree(gone: {
-  clients?: Client[];
-  projects?: Project[];
-  modules?: Module[];
-  backlog?: BacklogItem[];
-  sprints?: Sprint[];
-  tasks?: Task[];
-}) {
-  for (const c of gone.clients ?? []) await clients.add(c);
-  for (const p of gone.projects ?? []) await projects.add(p);
-  for (const m of gone.modules ?? []) await modules.add(m);
-  for (const b of gone.backlog ?? []) await backlog.add(b);
-  for (const s of gone.sprints ?? []) await sprints.add(s);
-  for (const t of gone.tasks ?? []) await tasks.add(t);
-}
+/** Put a deleted subtree back from the trash, in one server-side transaction. */
+export const restoreTrash = (trashId: string) =>
+  ok(
+    api.POST("/trash/{trashId}/restore", { params: { path: { trashId } } }),
+    "restoring",
+  );

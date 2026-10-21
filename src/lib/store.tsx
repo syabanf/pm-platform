@@ -460,6 +460,15 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
+  /** Fetch the workspace again behind the current screen, without the splash. */
+  const refresh = useCallback(
+    () =>
+      loadWorkspace()
+        .then(applyWorkspace)
+        .catch((e: Error) => fail(e.message)),
+    [applyWorkspace, fail],
+  );
+
   const load = useCallback(() => {
     setLoadState("loading");
     setLoadError(null);
@@ -875,14 +884,26 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
     failRef.current = (message) => showToast(message, "warning");
   }, [showToast]);
 
-  /** Undo for a cascade: the arrays go back, and so do the rows on the server. */
+  /**
+   * Undo for a cascade: the arrays go back, and the server restores the
+   * subtree from the trash. `trashed` resolves to the trash id once the delete
+   * has landed, or to nothing when it failed and the arrays are already back.
+   * The restore brings back rows the arrays never held (decisions, reports,
+   * retro notes), so the workspace is fetched again afterwards.
+   */
   const undoCascade = useCallback(
-    (gone: Parameters<typeof persist.restoreTree>[0], restore: () => void) =>
+    (trashed: Promise<string | void> | undefined, restore: () => void) =>
       () => {
         restore();
-        P?.restoreTree(gone).catch((e: Error) => fail(e.message));
+        trashed
+          ?.then(async (id) => {
+            if (!id || !P) return;
+            await P.restoreTrash(id);
+            await refresh();
+          })
+          .catch((e: Error) => fail(e.message));
       },
-    [P, fail],
+    [P, fail, refresh],
   );
 
   const removeModuleCascade = useCallback(
@@ -910,11 +931,13 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         setTasks(restoreById(gone.tasks));
       };
       // The server cascades from the module, so one call removes the tree.
-      P?.modules.remove(moduleId, gone.modules[0]).catch((e: Error) => {
-        restore();
-        fail(e.message);
-      });
-      return undoCascade(gone, restore);
+      const trashed = P?.modules
+        .remove(moduleId, gone.modules[0])
+        .catch((e: Error) => {
+          restore();
+          fail(e.message);
+        });
+      return undoCascade(trashed, restore);
     },
     [
       modules,
@@ -965,11 +988,13 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         setSprints(restoreById(gone.sprints));
         setTasks(restoreById(gone.tasks));
       };
-      P?.projects.remove(projectId, gone.projects[0]).catch((e: Error) => {
-        restore();
-        fail(e.message);
-      });
-      return undoCascade(gone, restore);
+      const trashed = P?.projects
+        .remove(projectId, gone.projects[0])
+        .catch((e: Error) => {
+          restore();
+          fail(e.message);
+        });
+      return undoCascade(trashed, restore);
     },
     [
       modules,
@@ -1025,11 +1050,13 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
         setSprints(restoreById(gone.sprints));
         setTasks(restoreById(gone.tasks));
       };
-      P?.clients.remove(clientId, gone.clients[0]).catch((e: Error) => {
-        restore();
-        fail(e.message);
-      });
-      return undoCascade(gone, restore);
+      const trashed = P?.clients
+        .remove(clientId, gone.clients[0])
+        .catch((e: Error) => {
+          restore();
+          fail(e.message);
+        });
+      return undoCascade(trashed, restore);
     },
     [
       clients,

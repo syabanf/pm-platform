@@ -190,7 +190,7 @@ func (s *Server) withTx(ctx context.Context, fn func(*db.Queries) error) error {
 // locks them the other way round. That is an AB-BA cycle, and it deadlocked
 // 15.5% of overlapping deletes — with 2,372 of 2,373 modules carrying a
 // current sprint, the precondition is the normal state, not an edge case.
-func (s *Server) deleteTx(ctx context.Context, fn func(*db.Queries) error) error {
+func (s *Server) deleteTx(ctx context.Context, fn func(*db.Queries, pgx.Tx) error) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -202,7 +202,7 @@ func (s *Server) deleteTx(ctx context.Context, fn func(*db.Queries) error) error
 		strconv.FormatInt(s.cfg.DeleteTimeout.Milliseconds(), 10)); err != nil {
 		return err
 	}
-	if err := fn(q); err != nil {
+	if err := fn(q, tx); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

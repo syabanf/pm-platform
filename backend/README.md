@@ -191,6 +191,7 @@ All routes are under `/api/v1`. IDs are opaque `TEXT`.
 | Members    | `GET/POST /members`, `…/members/:memberId`                                   |
 | Decisions  | `GET/POST /modules/:moduleId/decisions`, `…/decisions/:decisionId`         |
 | Settings   | `/report-templates`, `/report-queue`, `/generated-reports`, `/roles`, `/lists/:key`, `/settings` |
+| Trash      | `POST /trash/:trashId/restore` puts back what a client, project or module delete removed |
 
 Errors are always `{"error": "..."}` with an appropriate status.
 
@@ -257,6 +258,7 @@ Endpoint groups, all under `/api/v1`:
 | reports | `/report-templates`, `/report-queue`, `/generated-reports` | queue + generated |
 | settings | `/roles`, `/lists`, `/lists/{key}`, `/lists/{key}/{value}`, `/settings` | yes (except `/settings` and `/lists`, singletons) |
 | users | `/users`, `/users/{id}` | yes |
+| trash | `/trash/{id}/restore`; a cascade delete answers `{trashId}` and keeps the subtree for 30 days | — |
 | auth | `/auth/register`, `/auth/verify`, `/auth/resend-verification`, `/auth/login` | — |
 | probes | `/livez`, `/readyz`, `/healthz` — at the root, not under `/api/v1` | — |
 

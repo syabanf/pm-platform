@@ -40,7 +40,7 @@ func TestAuditTrail(t *testing.T) {
 	// Delete it, then confirm the delete is logged too, and the per-target
 	// filter finds exactly this client's two entries (create + delete).
 	h.expect(h.do("DELETE", "/api/v1/clients/"+clientID, admin, nil),
-		http.StatusNoContent, "delete client")
+		http.StatusOK, "delete client")
 	filtered := h.expect(h.do("GET",
 		"/api/v1/activity?targetKind=clients&targetId="+clientID, admin, nil),
 		http.StatusOK, "activity for target")

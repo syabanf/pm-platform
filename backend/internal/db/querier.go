@@ -123,6 +123,7 @@ type Querier interface {
 	DeleteTaskDod(ctx context.Context, taskID string) error
 	// One item, by position — so a checklist can shrink, not only grow.
 	DeleteTaskDodItem(ctx context.Context, arg DeleteTaskDodItemParams) (int64, error)
+	DeleteTrash(ctx context.Context, id string) error
 	GetBacklogItem(ctx context.Context, id string) (BacklogItem, error)
 	GetClient(ctx context.Context, id string) (Client, error)
 	GetComponent(ctx context.Context, id string) (Component, error)
@@ -138,6 +139,7 @@ type Querier interface {
 	GetSessionUser(ctx context.Context, tokenHash string) (GetSessionUserRow, error)
 	GetSprint(ctx context.Context, id string) (Sprint, error)
 	GetTask(ctx context.Context, id string) (Task, error)
+	GetTrash(ctx context.Context, id string) (Trash, error)
 	GetUser(ctx context.Context, id string) (GetUserRow, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	// The only query that returns the hash. Used to verify a password; its result
@@ -148,6 +150,7 @@ type Querier interface {
 	// ------------------------------------------------------ workspace_settings --
 	GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, error)
 	InsertActivity(ctx context.Context, arg InsertActivityParams) error
+	InsertTrash(ctx context.Context, arg InsertTrashParams) error
 	// A fresh request invalidates any outstanding link, so only the newest works.
 	InvalidateUserPasswordResetTokens(ctx context.Context, userID string) error
 	// Called before issuing a new link, so an earlier mail cannot still be used.
@@ -221,6 +224,7 @@ type Querier interface {
 	LockSprintForUpdate(ctx context.Context, id string) (string, error)
 	MarkGeneratedReportSent(ctx context.Context, id string) (GeneratedReport, error)
 	MarkUserVerified(ctx context.Context, id string) (MarkUserVerifiedRow, error)
+	ModuleIDsByProjects(ctx context.Context, projectIds []string) ([]string, error)
 	// One module's numbers without walking its sprints: what the module overview and
 	// the project drill-down recompute per row. Every column is table-qualified so
 	// the shared module_id is never ambiguous.
@@ -237,6 +241,7 @@ type Querier interface {
 	// query each, computed where the data lives.
 	// The home dashboard in a single request: the counters it used to sum by hand.
 	PortfolioRollup(ctx context.Context) (PortfolioRollupRow, error)
+	ProjectIDsByClient(ctx context.Context, clientID string) ([]string, error)
 	// --------------------------------------------------------- login lockout ---
 	// Count one failure and, at the threshold, set the lock. One statement, so
 	// concurrent wrong guesses cannot race a read-modify-write.
@@ -286,6 +291,9 @@ type Querier interface {
 	SnapshotRoles(ctx context.Context) ([]Role, error)
 	SnapshotSprints(ctx context.Context) ([]SnapshotSprintsRow, error)
 	SnapshotTasks(ctx context.Context) ([]SnapshotTasksRow, error)
+	SprintIDsByModules(ctx context.Context, moduleIds []string) ([]string, error)
+	SweepTrash(ctx context.Context) error
+	TaskIDsBySprints(ctx context.Context, sprintIds []string) ([]string, error)
 	ToggleTaskDodItem(ctx context.Context, arg ToggleTaskDodItemParams) (TaskDod, error)
 	// Partial update (see UpdateClient).
 	UpdateBacklogItem(ctx context.Context, arg UpdateBacklogItemParams) (BacklogItem, error)

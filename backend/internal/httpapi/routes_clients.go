@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 
 	"github.com/syabanf/pm-platform/backend/internal/db"
@@ -216,12 +217,17 @@ func (s *Server) deleteClient(c echo.Context) error {
 	}
 	// A whole-tenant cascade is legitimately slow; deleteTx gives it a budget
 	// that matches, instead of rolling it back at the ordinary request timeout.
-	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries) error {
+	var trashID string
+	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries, tx pgx.Tx) error {
+		var err error
+		if trashID, err = s.stashTree(c.Request().Context(), c, q, tx, "client", id); err != nil {
+			return err
+		}
 		return q.DeleteClient(c.Request().Context(), id)
 	}); err != nil {
 		return dbErr(err)
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusOK, deletedResponse{TrashID: trashID})
 }
 
 // archiveClient hides a client from the active portfolio without deleting it.
@@ -388,10 +394,15 @@ func (s *Server) deleteProject(c echo.Context) error {
 	}
 	// A whole-tenant cascade is legitimately slow; deleteTx gives it a budget
 	// that matches, instead of rolling it back at the ordinary request timeout.
-	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries) error {
+	var trashID string
+	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries, tx pgx.Tx) error {
+		var err error
+		if trashID, err = s.stashTree(c.Request().Context(), c, q, tx, "project", id); err != nil {
+			return err
+		}
 		return q.DeleteProject(c.Request().Context(), id)
 	}); err != nil {
 		return dbErr(err)
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusOK, deletedResponse{TrashID: trashID})
 }

@@ -290,12 +290,17 @@ func (s *Server) deleteModule(c echo.Context) error {
 	}
 	// The cascade origin: it locks the module first by itself, so this only
 	// needs the larger statement budget.
-	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries) error {
+	var trashID string
+	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries, tx pgx.Tx) error {
+		var err error
+		if trashID, err = s.stashTree(c.Request().Context(), c, q, tx, "module", id); err != nil {
+			return err
+		}
 		return q.DeleteModule(c.Request().Context(), id)
 	}); err != nil {
 		return dbErr(err)
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusOK, deletedResponse{TrashID: trashID})
 }
 
 // ------------------------------------------------------------- components ---
@@ -447,7 +452,7 @@ func (s *Server) deleteComponent(c echo.Context) error {
 	// Same reasoning as deleteSprint: this clears component_id on the module's
 	// sprints and backlog items, which the module cascade also touches. Lock
 	// the module first so the two orders cannot cross.
-	err = s.deleteTx(ctx, func(q *db.Queries) error {
+	err = s.deleteTx(ctx, func(q *db.Queries, _ pgx.Tx) error {
 		component, getErr := q.GetComponent(ctx, id)
 		if getErr != nil {
 			if errors.Is(getErr, pgx.ErrNoRows) {
