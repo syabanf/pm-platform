@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,7 +50,8 @@ type deletedResponse struct {
 // stashTree files everything under one client, project or module in the trash
 // before the cascade removes it. It runs inside the delete's transaction, so a
 // failed delete leaves no trash row and a failed stash leaves the rows alone.
-func (s *Server) stashTree(ctx context.Context, c echo.Context, q *db.Queries, tx pgx.Tx, kind, rootID string) (string, error) {
+func (s *Server) stashTree(c echo.Context, q *db.Queries, tx pgx.Tx, kind, rootID string) (string, error) {
+	ctx := c.Request().Context()
 	ids := map[string][]string{}
 	var err error
 	switch kind {

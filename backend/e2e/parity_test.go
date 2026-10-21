@@ -214,3 +214,34 @@ func TestReportTemplateRenameFollowsReports(t *testing.T) {
 		}
 	}
 }
+
+// TestAdminCreatesLoginForMember: the Members page creates an account for a
+// member, and the login carries that member id so the app knows whose work
+// to show.
+func TestAdminCreatesLoginForMember(t *testing.T) {
+	h := newHarness(t)
+	admin := h.adminToken()
+	member := h.expect(h.do("POST", "/api/v1/members", admin, map[string]any{
+		"name": "Dewi", "email": "dewi@wit.id", "role": "dev",
+	}), http.StatusCreated, "member")
+	memberID := str(member.body, "id")
+
+	created := h.expect(h.do("POST", "/api/v1/users", admin, map[string]any{
+		"email": "dewi@wit.id", "password": "dewi-password-1", "name": "Dewi",
+		"memberId": memberID, "role": "lead",
+	}), http.StatusCreated, "login for member")
+	if str(created.body, "memberId") != memberID || str(created.body, "role") != "lead" {
+		t.Errorf("account should carry the member id and role, got %s", created.raw)
+	}
+	h.expect(h.do("POST", "/api/v1/users", admin, map[string]any{
+		"email": "ghost@wit.id", "password": "ghost-password-1", "name": "G", "memberId": "mbr-missing",
+	}), http.StatusBadRequest, "unknown member")
+
+	signedIn := h.expect(h.do("POST", "/api/v1/auth/login", "", map[string]any{
+		"email": "dewi@wit.id", "password": "dewi-password-1",
+	}), http.StatusOK, "sign in")
+	user, _ := signedIn.body["user"].(map[string]any)
+	if str(user, "memberId") != memberID {
+		t.Errorf("login should name the member, got %v", signedIn.raw)
+	}
+}

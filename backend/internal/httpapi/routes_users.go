@@ -127,6 +127,9 @@ type createUserRequest struct {
 	Email    string  `json:"email"`
 	Password string  `json:"password"`
 	Name     string  `json:"name"`
+	// Both optional and admin-vouched: the route is admin-only (auth.go).
+	Role     *string `json:"role"`
+	MemberID *string `json:"memberId"`
 }
 
 type registerRequest struct {
@@ -229,7 +232,8 @@ func (s *Server) createUser(c echo.Context) error {
 		Email:        email,
 		PasswordHash: string(hash),
 		Name:         req.Name,
-		Role:         "member",
+		Role:         orDefault(deref(req.Role), "member"),
+		MemberID:     req.MemberID,
 		// An admin creating an account is vouching for it — born active,
 		// because with no mailer a pending account made here could never sign in.
 		Status: "active",

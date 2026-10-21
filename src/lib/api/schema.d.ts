@@ -2552,11 +2552,9 @@ export interface components {
             updatedAt?: components["schemas"]["Timestamp"];
         };
         /**
-         * @description `role` and `memberId` are **not** accepted. Nothing authenticates this
-         *     request yet, so letting a caller pick its own role was an unauthenticated
-         *     way to mint an administrator. Every account created over HTTP is a plain
-         *     `member`; promoting one, or linking it to a member, is an operator action
-         *     against the database until there is a credential to check.
+         * @description Admin-only. The account is born active, since there is no mailer to
+         *     verify it. `role` defaults to `member`; `memberId` links the login to
+         *     the member it acts as, so the app can show that person's own work.
          */
         UserCreate: {
             id?: string;
@@ -2564,6 +2562,9 @@ export interface components {
             email: string;
             password: string;
             name: string;
+            /** @description An id from the roles table. */
+            role?: string;
+            memberId?: string;
         };
         VerificationPending: {
             /** Format: email */

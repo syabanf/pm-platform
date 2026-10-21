@@ -83,8 +83,7 @@ func TestRBAC(t *testing.T) {
 	h := newHarness(t)
 	admin := h.adminToken()
 
-	// An admin-created account; POST /users deliberately refuses a role field,
-	// so this account is a plain member.
+	// An admin-created account without a role: a plain member.
 	h.expect(h.do("POST", "/api/v1/users", admin, map[string]string{
 		"email": "member@example.com", "password": "member-password-1", "name": "Member",
 	}), http.StatusCreated, "create member user")

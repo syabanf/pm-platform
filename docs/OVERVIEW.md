@@ -279,7 +279,7 @@ skrip remediasinya lengkap di
 | Prioritas | Hal |
 | --------- | --- |
 | Besar | **Mailer** — supaya link verifikasi benar-benar terkirim |
-| Kecil | CRUD akun (user belum bisa diubah atau dihapus lewat API) |
+| Kecil | Ubah dan hapus akun (admin sudah bisa membuat login dari halaman Members, tapi belum mengubah atau menghapusnya) |
 
 ---
 

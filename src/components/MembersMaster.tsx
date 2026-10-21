@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StatusPill } from "@/components/StatusPill";
 import { DataTable } from "@/components/DataTable";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -16,7 +16,15 @@ import {
   SectionHeader,
 } from "@/components/ui";
 import { newId, usePrototype } from "@/lib/store";
+import { createLogin, listLogins, type Login } from "@/lib/api/persist";
 import type { Member } from "@/lib/types";
+
+/** 16 characters from a 62-letter alphabet: the password an admin hands over. */
+function randomPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
 
 const emptyDraft = (roleLabel: string) => ({
   name: "",
@@ -32,10 +40,77 @@ export function MembersMaster({
   heading?: string;
   description?: string;
 }) {
-  const { members, membersCrud, masters, showToast } = usePrototype();
+  const {
+    members,
+    membersCrud,
+    masters,
+    roles,
+    showToast,
+    dataSource,
+    isAdmin,
+  } = usePrototype();
   const [panelOpen, setPanelOpen] = useState(false);
+  // Accounts live on the server and only an admin may list them; the column
+  // and the action stay hidden for everyone else.
+  const manageLogins = dataSource === "api" && isAdmin;
+  const [logins, setLogins] = useState<Login[] | null>(null);
+  const [loginFor, setLoginFor] = useState<Member | null>(null);
+  const [loginDraft, setLoginDraft] = useState({
+    role: "member",
+    password: "",
+  });
+  const [loginBusy, setLoginBusy] = useState(false);
+  useEffect(() => {
+    if (!manageLogins) return;
+    listLogins()
+      .then(setLogins)
+      .catch((e: Error) => showToast(e.message, "warning"));
+  }, [manageLogins, showToast]);
+  const hasLogin = (m: Member) =>
+    logins?.some(
+      (l) =>
+        l.memberId === m.id || l.email.toLowerCase() === m.email.toLowerCase(),
+    ) ?? false;
+
+  const openLogin = (member: Member) => {
+    setLoginFor(member);
+    setLoginDraft({ role: "member", password: randomPassword() });
+  };
+
+  const saveLogin = async () => {
+    if (!loginFor) return;
+    if (loginDraft.password.length < 8) {
+      showToast("The password needs at least 8 characters.", "warning");
+      return;
+    }
+    setLoginBusy(true);
+    try {
+      await createLogin({
+        email: loginFor.email,
+        name: loginFor.name,
+        password: loginDraft.password,
+        role: loginDraft.role,
+        memberId: loginFor.id,
+      });
+      setLogins((prev) => [
+        ...(prev ?? []),
+        { memberId: loginFor.id, email: loginFor.email },
+      ]);
+      showToast(
+        `${loginFor.name} can sign in as ${loginFor.email}. Hand over the password now; it is not shown again.`,
+        "success",
+      );
+      setLoginFor(null);
+    } catch (e) {
+      showToast((e as Error).message, "warning");
+    } finally {
+      setLoginBusy(false);
+    }
+  };
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState(() => emptyDraft(masters.jobRoles[0] ?? ""));
+  const [draft, setDraft] = useState(() =>
+    emptyDraft(masters.jobRoles[0] ?? ""),
+  );
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -48,7 +123,7 @@ export function MembersMaster({
   const filtered = members.filter(
     (m) =>
       (roleFilter === "all" || m.roleLabel === roleFilter) &&
-      (statusFilter === "all" || m.status === statusFilter)
+      (statusFilter === "all" || m.status === statusFilter),
   );
 
   const openCreate = () => {
@@ -190,6 +265,56 @@ export function MembersMaster({
         </Panel>
       )}
 
+      {loginFor && (
+        <Panel
+          title={`Create login for ${loginFor.name}`}
+          className="animate-in mt-4"
+        >
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label="Email">
+              <Input value={loginFor.email} readOnly />
+            </Field>
+            <Field label="Role">
+              <Select
+                value={loginDraft.role}
+                onChange={(role) => setLoginDraft({ ...loginDraft, role })}
+              >
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Password">
+              <Input
+                value={loginDraft.password}
+                onChange={(e) =>
+                  setLoginDraft({ ...loginDraft, password: e.target.value })
+                }
+                className="font-mono"
+              />
+            </Field>
+          </div>
+          <p className="mt-3 text-xs text-muted">
+            The password is shown here once. Copy it and hand it over before you
+            leave the page.
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Button size="sm" onClick={saveLogin} disabled={loginBusy}>
+              {loginBusy ? "Creating…" : "Create login"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setLoginFor(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </Panel>
+      )}
+
       <FilterBar
         className="mt-6"
         groups={[
@@ -198,7 +323,7 @@ export function MembersMaster({
             value: roleFilter,
             onChange: setRoleFilter,
             options: allOf(
-              roleOptions.map((role) => ({ value: role, label: role }))
+              roleOptions.map((role) => ({ value: role, label: role })),
             ),
           },
           {
@@ -224,12 +349,16 @@ export function MembersMaster({
             "Sprint Capacity",
             "Workload",
             "Status",
+            ...(manageLogins ? ["Account"] : []),
             "",
           ]}
         >
           {filtered.length === 0 && (
             <tr>
-              <td colSpan={7} className="py-6 text-sm text-muted">
+              <td
+                colSpan={manageLogins ? 8 : 7}
+                className="py-6 text-sm text-muted"
+              >
                 No members match the filters.
               </td>
             </tr>
@@ -288,6 +417,22 @@ export function MembersMaster({
                     status={isOverloaded ? "overloaded" : member.status}
                   />
                 </td>
+                {manageLogins && (
+                  <td className="py-4 pr-6">
+                    {logins === null ? (
+                      <span className="text-xs text-silver">…</span>
+                    ) : hasLogin(member) ? (
+                      <span className="text-xs text-muted">Can sign in</span>
+                    ) : (
+                      <button
+                        onClick={() => openLogin(member)}
+                        className="rounded-full bg-surface-2 px-2 py-1 text-xs text-ink hover:bg-surface"
+                      >
+                        Create login
+                      </button>
+                    )}
+                  </td>
+                )}
                 <td className="py-4 text-right">
                   <div className="flex justify-end gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
                     <button
@@ -299,7 +444,10 @@ export function MembersMaster({
                     <ConfirmButton
                       onConfirm={() => {
                         membersCrud.remove(member.id);
-                        showToast(`${member.name} removed from the pool.`, "info");
+                        showToast(
+                          `${member.name} removed from the pool.`,
+                          "info",
+                        );
                       }}
                     />
                   </div>

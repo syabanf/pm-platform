@@ -220,7 +220,7 @@ func (s *Server) deleteClient(c echo.Context) error {
 	var trashID string
 	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries, tx pgx.Tx) error {
 		var err error
-		if trashID, err = s.stashTree(c.Request().Context(), c, q, tx, "client", id); err != nil {
+		if trashID, err = s.stashTree(c, q, tx, "client", id); err != nil {
 			return err
 		}
 		return q.DeleteClient(c.Request().Context(), id)
@@ -397,7 +397,7 @@ func (s *Server) deleteProject(c echo.Context) error {
 	var trashID string
 	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries, tx pgx.Tx) error {
 		var err error
-		if trashID, err = s.stashTree(c.Request().Context(), c, q, tx, "project", id); err != nil {
+		if trashID, err = s.stashTree(c, q, tx, "project", id); err != nil {
 			return err
 		}
 		return q.DeleteProject(c.Request().Context(), id)

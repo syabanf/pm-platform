@@ -427,6 +427,10 @@ before retrying.
 - `src/lib/api/persist.ts` turns each store mutation into the matching route.
   The store applies a change locally first, then calls the adapter; a refusal
   reverts the change and shows the server's reason in a toast.
+- Undo on a cascade delete calls `POST /trash/{id}/restore` with the id the
+  delete answered, then fetches the workspace again.
+- The Members page, for an admin, lists `GET /users` to show who can sign in
+  and creates a login with `POST /users` carrying the member's id.
 
 To fill a fresh database with the prototype's data, run the backend and
 `npm run seed:backend` from the repo root: it signs in as the administrator

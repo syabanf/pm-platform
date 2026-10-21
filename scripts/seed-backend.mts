@@ -61,30 +61,45 @@ async function put(label: string, call: () => Promise<void>) {
 await login(adminEmail, adminPassword);
 console.log(`signed in as ${adminEmail}`);
 
-for (const c of data.clients) await put(`client ${c.id}`, () => persist.clients.add(c));
-for (const p of data.projects) await put(`project ${p.id}`, () => persist.projects.add(p));
-for (const m of data.members) await put(`member ${m.id}`, () => persist.members.add(m));
+for (const c of data.clients)
+  await put(`client ${c.id}`, () => persist.clients.add(c));
+for (const p of data.projects)
+  await put(`project ${p.id}`, () => persist.projects.add(p));
+for (const m of data.members)
+  await put(`member ${m.id}`, () => persist.members.add(m));
 // A module's current sprint has to exist before it can be pointed at, so the
 // pointer is set after the sprints below.
 for (const m of data.modules) {
-  await put(`module ${m.id}`, () => persist.modules.add({ ...m, currentSprintId: undefined }));
+  await put(`module ${m.id}`, () =>
+    persist.modules.add({ ...m, currentSprintId: undefined }),
+  );
 }
-for (const b of data.backlog) await put(`backlog ${b.id}`, () => persist.backlog.add(b));
-for (const s of data.sprints) await put(`sprint ${s.id}`, () => persist.sprints.add(s));
+for (const b of data.backlog)
+  await put(`backlog ${b.id}`, () => persist.backlog.add(b));
+for (const s of data.sprints)
+  await put(`sprint ${s.id}`, () => persist.sprints.add(s));
 for (const m of data.modules) {
   if (!m.currentSprintId) continue;
   await put(`current sprint of ${m.id}`, () =>
     persist.modules.update(m.id, { currentSprintId: m.currentSprintId }, m, m),
   );
 }
-for (const t of data.tasks) await put(`task ${t.id}`, () => persist.tasks.add(t));
-for (const d of data.decisions) await put(`decision ${d.id}`, () => persist.decisions.add(d));
-for (const n of data.retroNotes) await put(`retro note ${n.id}`, () => persist.retroNotes.add(n));
-for (const a of data.retroActions) await put(`retro action ${a.id}`, () => persist.retroActions.add(a));
-for (const d of data.demoItems) await put(`demo item ${d.id}`, () => persist.demoItems.add(d));
-for (const f of data.clientFeedback) await put(`feedback ${f.id}`, () => persist.clientFeedback.add(f));
-for (const t of data.reportTemplateMaster) await put(`template ${t.id}`, () => persist.reportTemplates.add(t));
-for (const q of data.reportQueueSeed) await put(`queue ${q.id}`, () => persist.reportQueue.add(q));
+for (const t of data.tasks)
+  await put(`task ${t.id}`, () => persist.tasks.add(t));
+for (const d of data.decisions)
+  await put(`decision ${d.id}`, () => persist.decisions.add(d));
+for (const n of data.retroNotes)
+  await put(`retro note ${n.id}`, () => persist.retroNotes.add(n));
+for (const a of data.retroActions)
+  await put(`retro action ${a.id}`, () => persist.retroActions.add(a));
+for (const d of data.demoItems)
+  await put(`demo item ${d.id}`, () => persist.demoItems.add(d));
+for (const f of data.clientFeedback)
+  await put(`feedback ${f.id}`, () => persist.clientFeedback.add(f));
+for (const t of data.reportTemplateMaster)
+  await put(`template ${t.id}`, () => persist.reportTemplates.add(t));
+for (const q of data.reportQueueSeed)
+  await put(`queue ${q.id}`, () => persist.reportQueue.add(q));
 // The API reads `all`, `write` and `read` from a role's permissions; the seed
 // only knows the UI's capability flags. Merge, or the administrator loses the
 // authority this script is running on.
@@ -105,17 +120,26 @@ for (const [key, values] of Object.entries(data.masterLists)) {
     await put(`list ${key}/${v}`, () => persist.addMasterValue(key, v, i));
   }
 }
-await put("settings", () => persist.saveSettings(data.workspaceDefaults, data.defaultDodTemplate));
+await put("settings", () =>
+  persist.saveSettings(data.workspaceDefaults, data.defaultDodTemplate),
+);
 
 // Accounts last: a member row must exist for the email match at sign-in.
 for (const m of data.members) {
   if (m.email.toLowerCase() === adminEmail.toLowerCase()) continue;
   await put(`account ${m.email}`, async () => {
     const { error, response } = await api.POST("/users", {
-      body: { email: m.email, password: memberPassword, name: m.name },
+      body: {
+        email: m.email,
+        password: memberPassword,
+        name: m.name,
+        memberId: m.id,
+      },
     });
     if (error || !response.ok) {
-      throw new Error((error as { error?: string })?.error ?? `HTTP ${response.status}`);
+      throw new Error(
+        (error as { error?: string })?.error ?? `HTTP ${response.status}`,
+      );
     }
   });
 }

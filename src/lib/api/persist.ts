@@ -748,6 +748,35 @@ export const removeMasterValue = (key: string, value: string) =>
     "removing the value",
   );
 
+// ----------------------------------------------------------------- logins ---
+
+export interface Login {
+  memberId: string | null;
+  email: string;
+}
+
+/** Every account, so the Members page can tell who can sign in. Admin only. */
+export async function listLogins(): Promise<Login[]> {
+  const { data, error, response } = await api.GET("/users", {
+    params: { query: { limit: 1000 } },
+  });
+  if (error || !response.ok || !data)
+    throw apiError(error, "loading accounts failed");
+  return data.map((u) => ({
+    memberId: u.memberId ?? null,
+    email: u.email ?? "",
+  }));
+}
+
+/** An admin creates the login a member signs in with. The password is shown once. */
+export const createLogin = (body: {
+  email: string;
+  name: string;
+  password: string;
+  role: string;
+  memberId: string;
+}) => ok(api.POST("/users", { body }), "creating the login");
+
 /** Put a deleted subtree back from the trash, in one server-side transaction. */
 export const restoreTrash = (trashId: string) =>
   ok(

@@ -186,6 +186,8 @@ interface PrototypeState {
   dataSource: "api" | "seed";
   // --- auth: a backend session in api mode, a member id in seed mode ---
   currentUser: Member | null;
+  /** Api mode: the signed-in account holds the admin role. */
+  isAdmin: boolean;
   authHydrated: boolean;
   /** Seed mode: sign in as a member, no password. */
   login: (memberId: string) => void;
@@ -1165,6 +1167,7 @@ export function PrototypeProvider({ children }: { children: React.ReactNode }) {
       value={{
         dataSource,
         currentUser,
+        isAdmin: profile?.role === "admin",
         authHydrated,
         login,
         signIn,

@@ -293,7 +293,7 @@ func (s *Server) deleteModule(c echo.Context) error {
 	var trashID string
 	if err := s.deleteTx(c.Request().Context(), func(q *db.Queries, tx pgx.Tx) error {
 		var err error
-		if trashID, err = s.stashTree(c.Request().Context(), c, q, tx, "module", id); err != nil {
+		if trashID, err = s.stashTree(c, q, tx, "module", id); err != nil {
 			return err
 		}
 		return q.DeleteModule(c.Request().Context(), id)
