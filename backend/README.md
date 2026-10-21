@@ -251,8 +251,9 @@ Endpoint groups, all under `/api/v1`:
 | tasks | `/sprints/{id}/tasks`, `/tasks/{id}`, `/tasks/{id}/column`, `/tasks/{id}/dod` | yes (list) |
 | members | `/members`, `/members/{id}` | yes |
 | decisions | `/modules/{id}/decisions`, `/decisions/{id}` | yes |
+| reviews | `/retro-notes`, `/retro-actions`, `/demo-items`, `/client-feedback` (+ `/{id}`), each filterable by `?sprintId=` | yes |
 | reports | `/report-templates`, `/report-queue`, `/generated-reports` | queue + generated |
-| settings | `/roles`, `/lists/{key}`, `/settings` | yes (except `/settings`, a singleton) |
+| settings | `/roles`, `/lists`, `/lists/{key}`, `/lists/{key}/{value}`, `/settings` | yes (except `/settings` and `/lists`, singletons) |
 | users | `/users`, `/users/{id}` | yes |
 | auth | `/auth/register`, `/auth/verify`, `/auth/resend-verification`, `/auth/login` | — |
 | probes | `/livez`, `/readyz`, `/healthz` — at the root, not under `/api/v1` | — |

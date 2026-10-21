@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"time"
 )
 
 const archiveClient = `-- name: ArchiveClient :execrows
@@ -103,19 +104,21 @@ INSERT INTO projects (
     client_id,
     name,
     objective,
+    start_date,
     status
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
-RETURNING id, client_id, name, objective, status, created_at, updated_at
+RETURNING id, client_id, name, objective, status, created_at, updated_at, start_date
 `
 
 type CreateProjectParams struct {
-	ID        string `json:"id"`
-	ClientID  string `json:"clientId"`
-	Name      string `json:"name"`
-	Objective string `json:"objective"`
-	Status    string `json:"status"`
+	ID        string    `json:"id"`
+	ClientID  string    `json:"clientId"`
+	Name      string    `json:"name"`
+	Objective string    `json:"objective"`
+	StartDate time.Time `json:"startDate"`
+	Status    string    `json:"status"`
 }
 
 // --------------------------------------------------------------- projects ---
@@ -125,6 +128,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		arg.ClientID,
 		arg.Name,
 		arg.Objective,
+		arg.StartDate,
 		arg.Status,
 	)
 	var i Project
@@ -136,6 +140,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartDate,
 	)
 	return i, err
 }
@@ -189,7 +194,7 @@ func (q *Queries) GetClient(ctx context.Context, id string) (Client, error) {
 }
 
 const getProject = `-- name: GetProject :one
-SELECT id, client_id, name, objective, status, created_at, updated_at FROM projects
+SELECT id, client_id, name, objective, status, created_at, updated_at, start_date FROM projects
 WHERE id = $1
 `
 
@@ -204,6 +209,7 @@ func (q *Queries) GetProject(ctx context.Context, id string) (Project, error) {
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartDate,
 	)
 	return i, err
 }
@@ -260,7 +266,7 @@ func (q *Queries) ListClients(ctx context.Context, arg ListClientsParams) ([]Cli
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT id, client_id, name, objective, status, created_at, updated_at FROM projects
+SELECT id, client_id, name, objective, status, created_at, updated_at, start_date FROM projects
 ORDER BY name, id
 LIMIT $2 OFFSET $1
 `
@@ -287,6 +293,7 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StartDate,
 		); err != nil {
 			return nil, err
 		}
@@ -299,7 +306,7 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 }
 
 const listProjectsByClient = `-- name: ListProjectsByClient :many
-SELECT id, client_id, name, objective, status, created_at, updated_at FROM projects
+SELECT id, client_id, name, objective, status, created_at, updated_at, start_date FROM projects
 WHERE client_id = $1
 ORDER BY name, id
 LIMIT $3 OFFSET $2
@@ -328,6 +335,7 @@ func (q *Queries) ListProjectsByClient(ctx context.Context, arg ListProjectsByCl
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StartDate,
 		); err != nil {
 			return nil, err
 		}
@@ -431,18 +439,20 @@ SET
     client_id  = COALESCE($1, client_id),
     name       = COALESCE($2, name),
     objective  = COALESCE($3, objective),
-    status     = COALESCE($4, status),
+    start_date = COALESCE($4, start_date),
+    status     = COALESCE($5, status),
     updated_at = now()
-WHERE id = $5
-RETURNING id, client_id, name, objective, status, created_at, updated_at
+WHERE id = $6
+RETURNING id, client_id, name, objective, status, created_at, updated_at, start_date
 `
 
 type UpdateProjectParams struct {
-	ClientID  *string `json:"clientId"`
-	Name      *string `json:"name"`
-	Objective *string `json:"objective"`
-	Status    *string `json:"status"`
-	ID        string  `json:"id"`
+	ClientID  *string    `json:"clientId"`
+	Name      *string    `json:"name"`
+	Objective *string    `json:"objective"`
+	StartDate *time.Time `json:"startDate"`
+	Status    *string    `json:"status"`
+	ID        string     `json:"id"`
 }
 
 func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {
@@ -450,6 +460,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		arg.ClientID,
 		arg.Name,
 		arg.Objective,
+		arg.StartDate,
 		arg.Status,
 		arg.ID,
 	)
@@ -462,6 +473,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartDate,
 	)
 	return i, err
 }

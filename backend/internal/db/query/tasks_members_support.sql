@@ -14,8 +14,8 @@ INSERT INTO tasks (
     estimate,
     board_column,
     priority,
-    blocked_reason,
-    blocked_days,
+    due_date,
+    blockers,
     off_goal
 )
 SELECT
@@ -28,8 +28,8 @@ SELECT
     sqlc.arg('estimate'),
     sqlc.arg('board_column'),
     sqlc.arg('priority'),
-    sqlc.narg('blocked_reason'),
-    sqlc.narg('blocked_days'),
+    sqlc.narg('due_date'),
+    sqlc.arg('blockers'),
     sqlc.arg('off_goal')
 FROM sprints s
 JOIN backlog_items bi
@@ -48,7 +48,7 @@ WHERE id = $1;
 -- JOIN: an unassigned task is a real state (assignee_id is nullable).
 SELECT t.id, t.sprint_id, t.backlog_item_id, t.title, t.component_name,
        t.assignee_id, t.estimate, t.board_column, t.priority,
-       t.blocked_reason, t.blocked_days, t.off_goal, t.created_at, t.updated_at,
+       t.due_date, t.blockers, t.off_goal, t.created_at, t.updated_at,
        m.name AS assignee_name
 FROM tasks t
 LEFT JOIN members m ON m.id = t.assignee_id
@@ -66,8 +66,8 @@ SET title           = COALESCE(sqlc.narg('title'), title),
     estimate        = COALESCE(sqlc.narg('estimate'), estimate),
     board_column    = COALESCE(sqlc.narg('board_column'), board_column),
     priority        = COALESCE(sqlc.narg('priority'), priority),
-    blocked_reason  = COALESCE(sqlc.narg('blocked_reason'), blocked_reason),
-    blocked_days    = COALESCE(sqlc.narg('blocked_days'), blocked_days),
+    due_date        = COALESCE(sqlc.narg('due_date'), due_date),
+    blockers        = COALESCE(sqlc.narg('blockers'), blockers),
     off_goal        = COALESCE(sqlc.narg('off_goal'), off_goal),
     updated_at      = now()
 WHERE id = sqlc.arg('id')
@@ -214,12 +214,14 @@ ORDER BY name, id
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
 
 -- name: UpsertReportTemplate :one
-INSERT INTO report_templates (id, name, audience, visibility, sections)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO report_templates (id, name, audience, frequency, visibility, formats, sections)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (id) DO UPDATE
 SET name       = EXCLUDED.name,
     audience   = EXCLUDED.audience,
+    frequency  = EXCLUDED.frequency,
     visibility = EXCLUDED.visibility,
+    formats    = EXCLUDED.formats,
     sections   = EXCLUDED.sections,
     updated_at = now()
 RETURNING *;
@@ -330,6 +332,20 @@ SELECT * FROM master_lists
 WHERE key = sqlc.arg('key')
 ORDER BY position, value
 LIMIT sqlc.arg('lim') OFFSET sqlc.arg('off');
+
+-- name: ListAllMasterValues :many
+-- Every list at once, for the settings screens that load them all on entry.
+SELECT * FROM master_lists
+ORDER BY key, position, value;
+
+-- name: RenameMasterValue :one
+-- The primary key is (key, value), so a rename is an update of the key itself.
+-- A rename onto an existing value fails the unique check, which the handler
+-- reports as a 409 the same way an add does.
+UPDATE master_lists
+SET value = sqlc.arg('new_value')
+WHERE key = sqlc.arg('key') AND value = sqlc.arg('old_value')
+RETURNING *;
 
 -- name: AddMasterValue :one
 INSERT INTO master_lists (key, value, position)

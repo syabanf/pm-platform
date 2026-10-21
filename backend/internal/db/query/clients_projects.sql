@@ -72,9 +72,10 @@ INSERT INTO projects (
     client_id,
     name,
     objective,
+    start_date,
     status
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
 RETURNING *;
 
@@ -99,6 +100,7 @@ SET
     client_id  = COALESCE(sqlc.narg('client_id'), client_id),
     name       = COALESCE(sqlc.narg('name'), name),
     objective  = COALESCE(sqlc.narg('objective'), objective),
+    start_date = COALESCE(sqlc.narg('start_date'), start_date),
     status     = COALESCE(sqlc.narg('status'), status),
     updated_at = now()
 WHERE id = sqlc.arg('id')

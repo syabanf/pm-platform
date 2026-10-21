@@ -570,4 +570,20 @@ func jsonObjectOrEmpty(raw json.RawMessage) json.RawMessage {
 }
 
 // ptr returns a pointer to v — handy for optional/nullable columns.
+// jsonArrayOrEmpty is jsonObjectOrEmpty for a list column: an omitted or
+// null blob stores an empty array, never SQL NULL.
+func jsonArrayOrEmpty(raw json.RawMessage) json.RawMessage {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return json.RawMessage(`[]`)
+	}
+	return trimmed
+}
+
+// todayUTC is the value a DATE column gets when the request left it out.
+func todayUTC() time.Time {
+	now := time.Now().UTC()
+	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+}
+
 func ptr[T any](v T) *T { return &v }

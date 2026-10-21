@@ -3,6 +3,7 @@ package httpapi
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -75,21 +76,22 @@ type createTaskRequest struct {
 	Estimate      *int32  `json:"estimate"`
 	BoardColumn   *string `json:"boardColumn"`
 	Priority      *string `json:"priority"`
-	BlockedReason *string `json:"blockedReason"`
-	BlockedDays   *int32  `json:"blockedDays"`
-	OffGoal       *bool   `json:"offGoal"`
+	DueDate       *string `json:"dueDate"`
+	// Everything standing in the task's way: [{id, category, text, days}].
+	Blockers json.RawMessage `json:"blockers"`
+	OffGoal  *bool           `json:"offGoal"`
 }
 
 type updateTaskRequest struct {
-	Title         *string `json:"title"`
-	ComponentName *string `json:"componentName"`
-	AssigneeID    *string `json:"assigneeId"`
-	Estimate      *int32  `json:"estimate"`
-	BoardColumn   *string `json:"boardColumn"`
-	Priority      *string `json:"priority"`
-	BlockedReason *string `json:"blockedReason"`
-	BlockedDays   *int32  `json:"blockedDays"`
-	OffGoal       *bool   `json:"offGoal"`
+	Title         *string         `json:"title"`
+	ComponentName *string         `json:"componentName"`
+	AssigneeID    *string         `json:"assigneeId"`
+	Estimate      *int32          `json:"estimate"`
+	BoardColumn   *string         `json:"boardColumn"`
+	Priority      *string         `json:"priority"`
+	DueDate       *string         `json:"dueDate"`
+	Blockers      json.RawMessage `json:"blockers"`
+	OffGoal       *bool           `json:"offGoal"`
 }
 
 type moveTaskRequest struct {
@@ -138,6 +140,10 @@ func (s *Server) createTask(c echo.Context) error {
 	}
 	boardColumn := orDefault(deref(req.BoardColumn), "selected")
 	priority := orDefault(deref(req.Priority), "medium")
+	dueDate, err := parseDate(req.DueDate)
+	if err != nil {
+		return err
+	}
 
 	ctx := c.Request().Context()
 	row, err := s.q.CreateTask(ctx, db.CreateTaskParams{
@@ -150,8 +156,8 @@ func (s *Server) createTask(c echo.Context) error {
 		Estimate:      deref(req.Estimate),
 		BoardColumn:   boardColumn,
 		Priority:      priority,
-		BlockedReason: req.BlockedReason,
-		BlockedDays:   req.BlockedDays,
+		DueDate:       dueDate,
+		Blockers:      jsonArrayOrEmpty(req.Blockers),
 		OffGoal:       deref(req.OffGoal),
 	})
 	if err != nil {
@@ -189,6 +195,10 @@ func (s *Server) updateTask(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	dueDate, err := parseDate(req.DueDate)
+	if err != nil {
+		return err
+	}
 
 	// Partial update: renaming a card while someone else drags it to another
 	// column no longer sends it back to where it started.
@@ -200,8 +210,8 @@ func (s *Server) updateTask(c echo.Context) error {
 		Estimate:      req.Estimate,
 		BoardColumn:   req.BoardColumn,
 		Priority:      req.Priority,
-		BlockedReason: req.BlockedReason,
-		BlockedDays:   req.BlockedDays,
+		DueDate:       dueDate,
+		Blockers:      req.Blockers,
 		OffGoal:       req.OffGoal,
 	}
 

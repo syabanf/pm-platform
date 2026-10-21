@@ -33,8 +33,10 @@ func (s *Server) registerSettingsRoutes(g *echo.Group) {
 	g.GET("/roles", s.listRoles)
 	g.PUT("/roles", s.upsertRole)
 
+	g.GET("/lists", s.listAllMasterValues)
 	g.GET("/lists/:key", s.listMasterValues)
 	g.POST("/lists/:key", s.addMasterValue)
+	g.PATCH("/lists/:key/:value", s.renameMasterValue)
 	g.DELETE("/lists/:key/:value", s.deleteMasterValue)
 
 	g.GET("/settings", s.getWorkspaceSettings)
@@ -58,8 +60,11 @@ type upsertReportTemplateRequest struct {
 	ID         string   `json:"id"`
 	Name       string   `json:"name"`
 	Audience   string   `json:"audience"`
+	Frequency  string   `json:"frequency"`
 	Visibility string   `json:"visibility"`
-	Sections   []string `json:"sections"`
+	Formats    []string `json:"formats"`
+	// [{id, title, enabled, body, autoBlock}], in report order.
+	Sections json.RawMessage `json:"sections"`
 }
 
 func (s *Server) listReportTemplates(c echo.Context) error {
@@ -88,16 +93,18 @@ func (s *Server) upsertReportTemplate(c echo.Context) error {
 	if req.ID == "" {
 		req.ID = newSettingsID("tpl")
 	}
-	if req.Sections == nil {
-		req.Sections = []string{}
+	if req.Formats == nil {
+		req.Formats = []string{}
 	}
 
 	row, err := s.q.UpsertReportTemplate(c.Request().Context(), db.UpsertReportTemplateParams{
 		ID:         req.ID,
 		Name:       req.Name,
 		Audience:   req.Audience,
+		Frequency:  req.Frequency,
 		Visibility: orDefault(req.Visibility, "internal"),
-		Sections:   req.Sections,
+		Formats:    req.Formats,
+		Sections:   jsonArrayOrEmpty(req.Sections),
 	})
 	if err != nil {
 		return dbErr(err)
@@ -260,8 +267,7 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 		return err
 	}
 	if generatedOn == nil {
-		now := time.Now().UTC()
-		generatedOn = ptr(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC))
+		generatedOn = ptr(todayUTC())
 	}
 	if req.ID == "" {
 		req.ID = newSettingsID("rep")
@@ -353,6 +359,52 @@ func (s *Server) upsertRole(c echo.Context) error {
 type addMasterValueRequest struct {
 	Value    string `json:"value"`
 	Position int32  `json:"position"`
+}
+
+type renameMasterValueRequest struct {
+	Value string `json:"value"`
+}
+
+// listAllMasterValues returns every list as {key: [values]}, ordered by
+// position: the settings pages load them all on entry, and ten lists are
+// one request this way instead of ten.
+func (s *Server) listAllMasterValues(c echo.Context) error {
+	rows, err := s.q.ListAllMasterValues(c.Request().Context())
+	if err != nil {
+		return dbErr(err)
+	}
+	lists := map[string][]string{}
+	for _, r := range rows {
+		lists[r.Key] = append(lists[r.Key], r.Value)
+	}
+	return c.JSON(http.StatusOK, lists)
+}
+
+func (s *Server) renameMasterValue(c echo.Context) error {
+	key, err := param(c, "key")
+	if err != nil {
+		return err
+	}
+	oldValue, err := param(c, "value")
+	if err != nil {
+		return err
+	}
+	req, err := bind[renameMasterValueRequest](c)
+	if err != nil {
+		return err
+	}
+	if req.Value == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "value is required")
+	}
+	row, err := s.q.RenameMasterValue(c.Request().Context(), db.RenameMasterValueParams{
+		Key:      key,
+		OldValue: oldValue,
+		NewValue: req.Value,
+	})
+	if err != nil {
+		return dbErr(err)
+	}
+	return c.JSON(http.StatusOK, row)
 }
 
 func (s *Server) listMasterValues(c echo.Context) error {

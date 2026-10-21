@@ -36,6 +36,8 @@ type Querier interface {
 	CreateBacklogItem(ctx context.Context, arg CreateBacklogItemParams) (BacklogItem, error)
 	// ---------------------------------------------------------------- clients ---
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
+	// -------------------------------------------------------- client_feedback ---
+	CreateClientFeedback(ctx context.Context, arg CreateClientFeedbackParams) (ClientFeedback, error)
 	// ============================================================================
 	// components (UI "Component")
 	// ============================================================================
@@ -44,6 +46,8 @@ type Querier interface {
 	CreateComponent(ctx context.Context, arg CreateComponentParams) (Component, error)
 	// -------------------------------------------------------------- decisions ---
 	CreateDecision(ctx context.Context, arg CreateDecisionParams) (Decision, error)
+	// ------------------------------------------------------------- demo_items ---
+	CreateDemoItem(ctx context.Context, arg CreateDemoItemParams) (DemoItem, error)
 	// ------------------------------------------------------ generated_reports ---
 	// A report may only cite a sprint of the module it reports on; without the
 	// guard a report on one client's component could link to another client's sprint,
@@ -66,6 +70,12 @@ type Querier interface {
 	// --------------------------------------------------------------- projects ---
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
 	CreateReportQueueItem(ctx context.Context, arg CreateReportQueueItemParams) (ReportQueue, error)
+	// ---------------------------------------------------------- retro_actions ---
+	CreateRetroAction(ctx context.Context, arg CreateRetroActionParams) (RetroAction, error)
+	// Retro and review records. Each list takes an optional sprint filter: the
+	// store loads a whole workspace on entry, the retro page loads one sprint.
+	// ------------------------------------------------------------ retro_notes ---
+	CreateRetroNote(ctx context.Context, arg CreateRetroNoteParams) (RetroNote, error)
 	// --------------------------------------------------------------- sessions ---
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateSprint(ctx context.Context, arg CreateSprintParams) (Sprint, error)
@@ -90,8 +100,10 @@ type Querier interface {
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) (EmailVerificationToken, error)
 	DeleteBacklogItem(ctx context.Context, id string) error
 	DeleteClient(ctx context.Context, id string) error
+	DeleteClientFeedback(ctx context.Context, id string) (int64, error)
 	DeleteComponent(ctx context.Context, id string) error
 	DeleteDecision(ctx context.Context, id string) error
+	DeleteDemoItem(ctx context.Context, id string) (int64, error)
 	DeleteExpiredSessions(ctx context.Context) (int64, error)
 	DeleteMasterValue(ctx context.Context, arg DeleteMasterValueParams) error
 	DeleteMember(ctx context.Context, id string) error
@@ -99,6 +111,8 @@ type Querier interface {
 	DeleteProject(ctx context.Context, id string) error
 	DeleteReportQueueItem(ctx context.Context, id string) error
 	DeleteReportTemplate(ctx context.Context, id string) error
+	DeleteRetroAction(ctx context.Context, id string) (int64, error)
+	DeleteRetroNote(ctx context.Context, id string) (int64, error)
 	DeleteSession(ctx context.Context, tokenHash string) (int64, error)
 	// Every session for a user — "log out everywhere", and the clean slate a
 	// password reset must leave (a stolen session must not outlive the reset).
@@ -139,13 +153,17 @@ type Querier interface {
 	InvalidateUserVerificationTokens(ctx context.Context, userID string) error
 	ListActivity(ctx context.Context, arg ListActivityParams) ([]ActivityLog, error)
 	ListActivityForTarget(ctx context.Context, arg ListActivityForTargetParams) ([]ActivityLog, error)
+	// Every list at once, for the settings screens that load them all on entry.
+	ListAllMasterValues(ctx context.Context) ([]MasterList, error)
 	ListBacklogItemsByComponent(ctx context.Context, arg ListBacklogItemsByComponentParams) ([]BacklogItem, error)
 	ListBacklogItemsByModule(ctx context.Context, arg ListBacklogItemsByModuleParams) ([]BacklogItem, error)
+	ListClientFeedback(ctx context.Context, arg ListClientFeedbackParams) ([]ClientFeedback, error)
 	// Active clients by default; pass archived=true to list the archived ones (the
 	// restore screen). One query keeps the two views from drifting apart.
 	ListClients(ctx context.Context, arg ListClientsParams) ([]Client, error)
 	ListComponentsByModule(ctx context.Context, arg ListComponentsByModuleParams) ([]Component, error)
 	ListDecisionsByModule(ctx context.Context, arg ListDecisionsByModuleParams) ([]Decision, error)
+	ListDemoItems(ctx context.Context, arg ListDemoItemsParams) ([]DemoItem, error)
 	ListGeneratedReportsByModule(ctx context.Context, arg ListGeneratedReportsByModuleParams) ([]GeneratedReport, error)
 	// ----------------------------------------------------------- master_lists ---
 	ListMasterValues(ctx context.Context, arg ListMasterValuesParams) ([]MasterList, error)
@@ -159,6 +177,8 @@ type Querier interface {
 	ListReportQueue(ctx context.Context, arg ListReportQueueParams) ([]ReportQueue, error)
 	// ------------------------------------------------------- report_templates ---
 	ListReportTemplates(ctx context.Context, arg ListReportTemplatesParams) ([]ReportTemplate, error)
+	ListRetroActions(ctx context.Context, arg ListRetroActionsParams) ([]RetroAction, error)
+	ListRetroNotes(ctx context.Context, arg ListRetroNotesParams) ([]RetroNote, error)
 	// ------------------------------------------------------------------ roles ---
 	ListRoles(ctx context.Context, arg ListRolesParams) ([]Role, error)
 	ListSprintBacklogItems(ctx context.Context, arg ListSprintBacklogItemsParams) ([]ListSprintBacklogItemsRow, error)
@@ -229,6 +249,10 @@ type Querier interface {
 	RecordFailedLogin(ctx context.Context, arg RecordFailedLoginParams) (RecordFailedLoginRow, error)
 	RemoveSprintBacklogItem(ctx context.Context, arg RemoveSprintBacklogItemParams) error
 	RemoveSprintMember(ctx context.Context, arg RemoveSprintMemberParams) error
+	// The primary key is (key, value), so a rename is an update of the key itself.
+	// A rename onto an existing value fails the unique check, which the handler
+	// reports as a 409 the same way an add does.
+	RenameMasterValue(ctx context.Context, arg RenameMasterValueParams) (MasterList, error)
 	RestoreClient(ctx context.Context, id string) (int64, error)
 	// The pointer may only name a sprint of this very module. A mismatch matches
 	// no row, which the handler reports as a 400 rather than silently storing it.
@@ -246,10 +270,12 @@ type Querier interface {
 	// named is never rewritten. Two concurrent PATCHes of different fields both
 	// land instead of the second silently reverting the first.
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
+	UpdateClientFeedback(ctx context.Context, arg UpdateClientFeedbackParams) (ClientFeedback, error)
 	UpdateComponent(ctx context.Context, arg UpdateComponentParams) (Component, error)
 	UpdateComponentStatus(ctx context.Context, arg UpdateComponentStatusParams) (Component, error)
 	// Partial update (see UpdateClient).
 	UpdateDecision(ctx context.Context, arg UpdateDecisionParams) (Decision, error)
+	UpdateDemoItem(ctx context.Context, arg UpdateDemoItemParams) (DemoItem, error)
 	// Partial update (see UpdateClient).
 	UpdateMember(ctx context.Context, arg UpdateMemberParams) (Member, error)
 	// Partial update (see UpdateClient). client_id is never taken from the caller —
@@ -262,6 +288,8 @@ type Querier interface {
 	UpdateModule(ctx context.Context, arg UpdateModuleParams) (Module, error)
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error)
 	UpdateReportQueueStatus(ctx context.Context, arg UpdateReportQueueStatusParams) (ReportQueue, error)
+	UpdateRetroAction(ctx context.Context, arg UpdateRetroActionParams) (RetroAction, error)
+	UpdateRetroNote(ctx context.Context, arg UpdateRetroNoteParams) (RetroNote, error)
 	// Partial update (see UpdateClient).
 	UpdateSprint(ctx context.Context, arg UpdateSprintParams) (Sprint, error)
 	// Partial update (see UpdateClient): moving a card and renaming it at the same

@@ -63,6 +63,7 @@ type createProjectRequest struct {
 	ClientID  string  `json:"clientId"`
 	Name      string  `json:"name"`
 	Objective *string `json:"objective"`
+	StartDate *string `json:"startDate"`
 	Status    *string `json:"status"`
 }
 
@@ -70,6 +71,7 @@ type updateProjectRequest struct {
 	ClientID  *string `json:"clientId"`
 	Name      *string `json:"name"`
 	Objective *string `json:"objective"`
+	StartDate *string `json:"startDate"`
 	Status    *string `json:"status"`
 }
 
@@ -314,11 +316,19 @@ func (s *Server) createProject(c echo.Context) error {
 		id = newProjectID()
 	}
 
+	startDate, err := parseDate(req.StartDate)
+	if err != nil {
+		return err
+	}
+	if startDate == nil {
+		startDate = ptr(todayUTC())
+	}
 	arg := db.CreateProjectParams{
 		ID:        id,
 		ClientID:  req.ClientID,
 		Name:      req.Name,
 		Objective: deref(req.Objective),
+		StartDate: *startDate,
 		Status:    orDefault(deref(req.Status), "discovery"),
 	}
 
@@ -351,11 +361,16 @@ func (s *Server) updateProject(c echo.Context) error {
 		return err
 	}
 
+	startDate, err := parseDate(req.StartDate)
+	if err != nil {
+		return err
+	}
 	arg := db.UpdateProjectParams{
 		ID:        id,
 		ClientID:  req.ClientID,
 		Name:      req.Name,
 		Objective: req.Objective,
+		StartDate: startDate,
 		Status:    req.Status,
 	}
 

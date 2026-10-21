@@ -948,6 +948,170 @@ export interface paths {
         patch: operations["updateDecision"];
         trace?: never;
     };
+    "/retro-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List retro notes
+         * @description A page of the set, oldest first. Filter by `sprintId` for one sprint.
+         */
+        get: operations["listRetroNotes"];
+        put?: never;
+        /** Add to retro notes */
+        post: operations["createRetroNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/retro-notes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete one of retro notes */
+        delete: operations["deleteRetroNote"];
+        options?: never;
+        head?: never;
+        /** Update one of retro notes */
+        patch: operations["updateRetroNote"];
+        trace?: never;
+    };
+    "/retro-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List retro actions
+         * @description A page of the set, oldest first. Filter by `sprintId` for one sprint.
+         */
+        get: operations["listRetroActions"];
+        put?: never;
+        /** Add to retro actions */
+        post: operations["createRetroAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/retro-actions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete one of retro actions */
+        delete: operations["deleteRetroAction"];
+        options?: never;
+        head?: never;
+        /** Update one of retro actions */
+        patch: operations["updateRetroAction"];
+        trace?: never;
+    };
+    "/demo-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List demo items
+         * @description A page of the set, oldest first. Filter by `sprintId` for one sprint.
+         */
+        get: operations["listDemoItems"];
+        put?: never;
+        /** Add to demo items */
+        post: operations["createDemoItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/demo-items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete one of demo items */
+        delete: operations["deleteDemoItem"];
+        options?: never;
+        head?: never;
+        /** Update one of demo items */
+        patch: operations["updateDemoItem"];
+        trace?: never;
+    };
+    "/client-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List client feedback
+         * @description A page of the set, oldest first. Filter by `sprintId` for one sprint.
+         */
+        get: operations["listClientFeedback"];
+        put?: never;
+        /** Add to client feedback */
+        post: operations["createClientFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/client-feedback/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete one of client feedback */
+        delete: operations["deleteClientFeedback"];
+        options?: never;
+        head?: never;
+        /** Update one of client feedback */
+        patch: operations["updateClientFeedback"];
+        trace?: never;
+    };
     "/report-templates": {
         parameters: {
             query?: never;
@@ -1119,12 +1283,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read every master list at once
+         * @description `{key: [values]}`, each list in `position` order. The settings pages load them all on entry.
+         */
+        get: operations["listAllMasterValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{key}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The list to read, e.g. `priority`, `task-status`, `industry`. */
+                /** @description The list to read, e.g. `industries`, `priorities`, `skillTags`. */
                 key: string;
             };
             cookie?: never;
@@ -1160,7 +1344,11 @@ export interface paths {
         delete: operations["deleteMasterValue"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename a master list value
+         * @description The value is the row's key, so this moves the row. Records that carried the old value are not rewritten.
+         */
+        patch: operations["renameMasterValue"];
         trace?: never;
     };
     "/settings": {
@@ -1672,6 +1860,8 @@ export interface components {
             clientId?: string;
             name?: string;
             objective?: string;
+            /** @description When delivery starts; its year is the folder the project files under. */
+            startDate?: components["schemas"]["DateOnly"];
             status?: components["schemas"]["ProjectStatus"];
             createdAt?: components["schemas"]["Timestamp"];
             updatedAt?: components["schemas"]["Timestamp"];
@@ -1681,6 +1871,8 @@ export interface components {
             clientId: string;
             name: string;
             objective?: string;
+            /** @description Defaults to today. */
+            startDate?: components["schemas"]["DateOnly"];
             status?: components["schemas"]["ProjectStatus"];
         };
         ProjectUpdate: {
@@ -1688,6 +1880,7 @@ export interface components {
             clientId?: string;
             name?: string;
             objective?: string;
+            startDate?: components["schemas"]["DateOnly"];
             status?: components["schemas"]["ProjectStatus"];
         };
         Module: {
@@ -1903,8 +2096,10 @@ export interface components {
             boardColumn?: components["schemas"]["BoardColumn"];
             /** @description Free text; the UI offers low, medium, high. */
             priority?: string;
-            blockedReason?: string | null;
-            blockedDays?: number | null;
+            /** @description The day the task is meant to be finished. */
+            dueDate?: components["schemas"]["DateOnly"] | null;
+            /** @description Everything standing in the task's way; the board colours by the count. */
+            blockers?: components["schemas"]["Blocker"][];
             offGoal?: boolean;
             createdAt?: components["schemas"]["Timestamp"];
             updatedAt?: components["schemas"]["Timestamp"];
@@ -1920,8 +2115,8 @@ export interface components {
             boardColumn?: components["schemas"]["BoardColumn"];
             /** @default medium */
             priority: string;
-            blockedReason?: string;
-            blockedDays?: number;
+            dueDate?: components["schemas"]["DateOnly"];
+            blockers?: components["schemas"]["Blocker"][];
             /** @default false */
             offGoal: boolean;
         };
@@ -1932,9 +2127,18 @@ export interface components {
             estimate?: number;
             boardColumn?: components["schemas"]["BoardColumn"];
             priority?: string;
-            blockedReason?: string;
-            blockedDays?: number;
+            dueDate?: components["schemas"]["DateOnly"];
+            /** @description Replaces the whole list. */
+            blockers?: components["schemas"]["Blocker"][];
             offGoal?: boolean;
+        };
+        Blocker: {
+            id: string;
+            /** @description From the blockerCategories master list. */
+            category: string;
+            text: string;
+            /** @description How long it has been standing. */
+            days?: number;
         };
         TaskDodItem: {
             taskId?: string;
@@ -2012,15 +2216,123 @@ export interface components {
             owner?: string;
             status?: components["schemas"]["DecisionStatus"];
         };
+        /** @enum {string} */
+        RetroNoteKind: "went-well" | "needs-improvement";
+        /** @enum {string} */
+        RetroActionStatus: "open" | "done";
+        /** @description One line under Went Well or Needs Improvement. */
+        RetroNote: {
+            id?: string;
+            sprintId?: string;
+            kind?: components["schemas"]["RetroNoteKind"];
+            text?: string;
+            createdAt?: components["schemas"]["Timestamp"];
+            updatedAt?: components["schemas"]["Timestamp"];
+        };
+        RetroNoteCreate: {
+            id?: string;
+            sprintId: string;
+            kind?: components["schemas"]["RetroNoteKind"];
+            text: string;
+        };
+        RetroNoteUpdate: {
+            kind?: components["schemas"]["RetroNoteKind"];
+            text?: string;
+        };
+        /** @description An improvement the team committed to, with a member's name against it. */
+        RetroAction: {
+            id?: string;
+            sprintId?: string;
+            action?: string;
+            /** @description A member id. */
+            ownerId?: string | null;
+            due?: components["schemas"]["DateOnly"] | null;
+            status?: components["schemas"]["RetroActionStatus"];
+            createdAt?: components["schemas"]["Timestamp"];
+            updatedAt?: components["schemas"]["Timestamp"];
+        };
+        RetroActionCreate: {
+            id?: string;
+            sprintId: string;
+            action: string;
+            ownerId?: string;
+            due?: components["schemas"]["DateOnly"];
+            status?: components["schemas"]["RetroActionStatus"];
+        };
+        RetroActionUpdate: {
+            action?: string;
+            ownerId?: string;
+            due?: components["schemas"]["DateOnly"];
+            status?: components["schemas"]["RetroActionStatus"];
+        };
+        /** @description One line of the sprint review's demo checklist. */
+        DemoItem: {
+            id?: string;
+            sprintId?: string;
+            label?: string;
+            done?: boolean;
+            createdAt?: components["schemas"]["Timestamp"];
+            updatedAt?: components["schemas"]["Timestamp"];
+        };
+        DemoItemCreate: {
+            id?: string;
+            sprintId: string;
+            label: string;
+            /** @default false */
+            done: boolean;
+        };
+        DemoItemUpdate: {
+            label?: string;
+            done?: boolean;
+        };
+        /** @description Something the client said at the review, and what was done about it. */
+        ClientFeedback: {
+            id?: string;
+            sprintId?: string;
+            /** @description Who said it. */
+            fromName?: string;
+            note?: string;
+            disposition?: string;
+            createdAt?: components["schemas"]["Timestamp"];
+            updatedAt?: components["schemas"]["Timestamp"];
+        };
+        ClientFeedbackCreate: {
+            id?: string;
+            sprintId: string;
+            /** @description Who said it; stored as fromName. */
+            from?: string;
+            note: string;
+            disposition?: string;
+        };
+        ClientFeedbackUpdate: {
+            from?: string;
+            note?: string;
+            disposition?: string;
+        };
         ReportTemplate: {
             id?: string;
             /** @description Unique. */
             name?: string;
             audience?: string;
+            /** @description From the reportFrequencies master list. */
+            frequency?: string;
             visibility?: components["schemas"]["TemplateVisibility"];
-            sections?: string[];
+            /** @description From the reportFormats master list. */
+            formats?: string[];
+            sections?: components["schemas"]["ReportSection"][];
             createdAt?: components["schemas"]["Timestamp"];
             updatedAt?: components["schemas"]["Timestamp"];
+        };
+        /** @description One numbered section of a report, as configured on its template. */
+        ReportSection: {
+            id: string;
+            title: string;
+            /** @description Unchecked sections stay on the template but are left out of the report. */
+            enabled: boolean;
+            /** @description Prose; may contain {{tokens}}. */
+            body: string;
+            /** @description A key into the report block registry */
+            autoBlock: string;
         };
         ReportQueueItem: {
             id?: string;
@@ -4260,6 +4572,446 @@ export interface operations {
             413: components["responses"]["TooLarge"];
         };
     };
+    listRetroNotes: {
+        parameters: {
+            query?: {
+                sprintId?: string;
+                /** @description Page size. Clamped to 1000; anything unparseable falls back to the default. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Rows to skip. Postgres walks and discards them, so deep offsets get
+                 *     progressively more expensive — prefer narrowing by parent id. Values
+                 *     above 1,000,000 are refused with a 400 rather than silently answered
+                 *     with a different page.
+                 */
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of retro notes. */
+            200: {
+                headers: {
+                    "X-Has-More": components["headers"]["XHasMore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroNote"][];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createRetroNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetroNoteCreate"];
+            };
+        };
+        responses: {
+            /** @description The created record. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroNote"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
+    deleteRetroNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    updateRetroNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetroNoteUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroNote"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
+    listRetroActions: {
+        parameters: {
+            query?: {
+                sprintId?: string;
+                /** @description Page size. Clamped to 1000; anything unparseable falls back to the default. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Rows to skip. Postgres walks and discards them, so deep offsets get
+                 *     progressively more expensive — prefer narrowing by parent id. Values
+                 *     above 1,000,000 are refused with a 400 rather than silently answered
+                 *     with a different page.
+                 */
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of retro actions. */
+            200: {
+                headers: {
+                    "X-Has-More": components["headers"]["XHasMore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroAction"][];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createRetroAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetroActionCreate"];
+            };
+        };
+        responses: {
+            /** @description The created record. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroAction"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
+    deleteRetroAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    updateRetroAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetroActionUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroAction"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
+    listDemoItems: {
+        parameters: {
+            query?: {
+                sprintId?: string;
+                /** @description Page size. Clamped to 1000; anything unparseable falls back to the default. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Rows to skip. Postgres walks and discards them, so deep offsets get
+                 *     progressively more expensive — prefer narrowing by parent id. Values
+                 *     above 1,000,000 are refused with a 400 rather than silently answered
+                 *     with a different page.
+                 */
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of demo items. */
+            200: {
+                headers: {
+                    "X-Has-More": components["headers"]["XHasMore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoItem"][];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createDemoItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemoItemCreate"];
+            };
+        };
+        responses: {
+            /** @description The created record. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoItem"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
+    deleteDemoItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    updateDemoItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemoItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoItem"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
+    listClientFeedback: {
+        parameters: {
+            query?: {
+                sprintId?: string;
+                /** @description Page size. Clamped to 1000; anything unparseable falls back to the default. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Rows to skip. Postgres walks and discards them, so deep offsets get
+                 *     progressively more expensive — prefer narrowing by parent id. Values
+                 *     above 1,000,000 are refused with a 400 rather than silently answered
+                 *     with a different page.
+                 */
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of client feedback. */
+            200: {
+                headers: {
+                    "X-Has-More": components["headers"]["XHasMore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientFeedback"][];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createClientFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientFeedbackCreate"];
+            };
+        };
+        responses: {
+            /** @description The created record. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientFeedback"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
+    deleteClientFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    updateClientFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientFeedbackUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientFeedback"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+        };
+    };
     listReportTemplates: {
         parameters: {
             query?: {
@@ -4304,8 +5056,10 @@ export interface operations {
                     id?: string;
                     name: string;
                     audience?: string;
+                    frequency?: string;
                     visibility?: components["schemas"]["TemplateVisibility"];
-                    sections?: string[];
+                    formats?: string[];
+                    sections?: components["schemas"]["ReportSection"][];
                 };
             };
         };
@@ -4622,6 +5376,29 @@ export interface operations {
             413: components["responses"]["TooLarge"];
         };
     };
+    listAllMasterValues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every list, keyed by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
+                    };
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
     listMasterValues: {
         parameters: {
             query?: {
@@ -4637,7 +5414,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The list to read, e.g. `priority`, `task-status`, `industry`. */
+                /** @description The list to read, e.g. `industries`, `priorities`, `skillTags`. */
                 key: string;
             };
             cookie?: never;
@@ -4661,7 +5438,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The list to read, e.g. `priority`, `task-status`, `industry`. */
+                /** @description The list to read, e.g. `industries`, `priorities`, `skillTags`. */
                 key: string;
             };
             cookie?: never;
@@ -4710,6 +5487,39 @@ export interface operations {
             };
             409: components["responses"]["Conflict"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    renameMasterValue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                value: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The new value. */
+                    value: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The renamed value. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MasterListValue"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getWorkspaceSettings: {

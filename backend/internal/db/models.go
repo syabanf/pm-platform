@@ -57,6 +57,16 @@ type Client struct {
 	ArchivedAt   pgtype.Timestamptz `json:"archivedAt"`
 }
 
+type ClientFeedback struct {
+	ID          string             `json:"id"`
+	SprintID    string             `json:"sprintId"`
+	FromName    string             `json:"fromName"`
+	Note        string             `json:"note"`
+	Disposition string             `json:"disposition"`
+	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
+}
+
 type Component struct {
 	ID        string             `json:"id"`
 	ModuleID  string             `json:"moduleId"`
@@ -76,6 +86,15 @@ type Decision struct {
 	Detail    string             `json:"detail"`
 	Owner     string             `json:"owner"`
 	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type DemoItem struct {
+	ID        string             `json:"id"`
+	SprintID  string             `json:"sprintId"`
+	Label     string             `json:"label"`
+	Done      bool               `json:"done"`
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
 }
@@ -157,6 +176,7 @@ type Project struct {
 	Status    string             `json:"status"`
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
+	StartDate time.Time          `json:"startDate"`
 }
 
 type ReportQueue struct {
@@ -177,9 +197,31 @@ type ReportTemplate struct {
 	Name       string             `json:"name"`
 	Audience   string             `json:"audience"`
 	Visibility string             `json:"visibility"`
-	Sections   []string           `json:"sections"`
 	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
+	Frequency  string             `json:"frequency"`
+	Formats    []string           `json:"formats"`
+	Sections   json.RawMessage    `json:"sections"`
+}
+
+type RetroAction struct {
+	ID        string             `json:"id"`
+	SprintID  string             `json:"sprintId"`
+	Action    string             `json:"action"`
+	OwnerID   *string            `json:"ownerId"`
+	Due       *time.Time         `json:"due"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type RetroNote struct {
+	ID        string             `json:"id"`
+	SprintID  string             `json:"sprintId"`
+	Kind      string             `json:"kind"`
+	Text      string             `json:"text"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type Role struct {
@@ -245,11 +287,11 @@ type Task struct {
 	Estimate      int32              `json:"estimate"`
 	BoardColumn   string             `json:"boardColumn"`
 	Priority      string             `json:"priority"`
-	BlockedReason *string            `json:"blockedReason"`
-	BlockedDays   *int32             `json:"blockedDays"`
 	OffGoal       bool               `json:"offGoal"`
 	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
+	DueDate       *time.Time         `json:"dueDate"`
+	Blockers      json.RawMessage    `json:"blockers"`
 }
 
 type TaskDod struct {

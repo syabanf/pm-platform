@@ -289,8 +289,8 @@ INSERT INTO tasks (
     estimate,
     board_column,
     priority,
-    blocked_reason,
-    blocked_days,
+    due_date,
+    blockers,
     off_goal
 )
 SELECT
@@ -311,22 +311,22 @@ JOIN backlog_items bi
   ON bi.id = $11
  AND bi.module_id = s.module_id
 WHERE s.id = $12
-RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
+RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, off_goal, created_at, updated_at, due_date, blockers
 `
 
 type CreateTaskParams struct {
-	ID            string  `json:"id"`
-	Title         string  `json:"title"`
-	ComponentName string  `json:"componentName"`
-	AssigneeID    *string `json:"assigneeId"`
-	Estimate      int32   `json:"estimate"`
-	BoardColumn   string  `json:"boardColumn"`
-	Priority      string  `json:"priority"`
-	BlockedReason *string `json:"blockedReason"`
-	BlockedDays   *int32  `json:"blockedDays"`
-	OffGoal       bool    `json:"offGoal"`
-	BacklogItemID string  `json:"backlogItemId"`
-	SprintID      string  `json:"sprintId"`
+	ID            string          `json:"id"`
+	Title         string          `json:"title"`
+	ComponentName string          `json:"componentName"`
+	AssigneeID    *string         `json:"assigneeId"`
+	Estimate      int32           `json:"estimate"`
+	BoardColumn   string          `json:"boardColumn"`
+	Priority      string          `json:"priority"`
+	DueDate       *time.Time      `json:"dueDate"`
+	Blockers      json.RawMessage `json:"blockers"`
+	OffGoal       bool            `json:"offGoal"`
+	BacklogItemID string          `json:"backlogItemId"`
+	SprintID      string          `json:"sprintId"`
 }
 
 // ------------------------------------------------------------------ tasks ---
@@ -342,8 +342,8 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		arg.Estimate,
 		arg.BoardColumn,
 		arg.Priority,
-		arg.BlockedReason,
-		arg.BlockedDays,
+		arg.DueDate,
+		arg.Blockers,
 		arg.OffGoal,
 		arg.BacklogItemID,
 		arg.SprintID,
@@ -359,11 +359,11 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.Estimate,
 		&i.BoardColumn,
 		&i.Priority,
-		&i.BlockedReason,
-		&i.BlockedDays,
 		&i.OffGoal,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DueDate,
+		&i.Blockers,
 	)
 	return i, err
 }
@@ -511,7 +511,7 @@ func (q *Queries) GetMember(ctx context.Context, id string) (Member, error) {
 }
 
 const getTask = `-- name: GetTask :one
-SELECT id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at FROM tasks
+SELECT id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, off_goal, created_at, updated_at, due_date, blockers FROM tasks
 WHERE id = $1
 `
 
@@ -528,11 +528,11 @@ func (q *Queries) GetTask(ctx context.Context, id string) (Task, error) {
 		&i.Estimate,
 		&i.BoardColumn,
 		&i.Priority,
-		&i.BlockedReason,
-		&i.BlockedDays,
 		&i.OffGoal,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DueDate,
+		&i.Blockers,
 	)
 	return i, err
 }
@@ -555,6 +555,32 @@ func (q *Queries) GetWorkspaceSettings(ctx context.Context) (WorkspaceSetting, e
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listAllMasterValues = `-- name: ListAllMasterValues :many
+SELECT key, value, position FROM master_lists
+ORDER BY key, position, value
+`
+
+// Every list at once, for the settings screens that load them all on entry.
+func (q *Queries) ListAllMasterValues(ctx context.Context) ([]MasterList, error) {
+	rows, err := q.db.Query(ctx, listAllMasterValues)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MasterList{}
+	for rows.Next() {
+		var i MasterList
+		if err := rows.Scan(&i.Key, &i.Value, &i.Position); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listDecisionsByModule = `-- name: ListDecisionsByModule :many
@@ -769,7 +795,7 @@ func (q *Queries) ListReportQueue(ctx context.Context, arg ListReportQueueParams
 
 const listReportTemplates = `-- name: ListReportTemplates :many
 
-SELECT id, name, audience, visibility, sections, created_at, updated_at FROM report_templates
+SELECT id, name, audience, visibility, created_at, updated_at, frequency, formats, sections FROM report_templates
 ORDER BY name, id
 LIMIT $2 OFFSET $1
 `
@@ -794,9 +820,11 @@ func (q *Queries) ListReportTemplates(ctx context.Context, arg ListReportTemplat
 			&i.Name,
 			&i.Audience,
 			&i.Visibility,
-			&i.Sections,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Frequency,
+			&i.Formats,
+			&i.Sections,
 		); err != nil {
 			return nil, err
 		}
@@ -882,7 +910,7 @@ func (q *Queries) ListTaskDod(ctx context.Context, arg ListTaskDodParams) ([]Tas
 const listTasksBySprint = `-- name: ListTasksBySprint :many
 SELECT t.id, t.sprint_id, t.backlog_item_id, t.title, t.component_name,
        t.assignee_id, t.estimate, t.board_column, t.priority,
-       t.blocked_reason, t.blocked_days, t.off_goal, t.created_at, t.updated_at,
+       t.due_date, t.blockers, t.off_goal, t.created_at, t.updated_at,
        m.name AS assignee_name
 FROM tasks t
 LEFT JOIN members m ON m.id = t.assignee_id
@@ -907,8 +935,8 @@ type ListTasksBySprintRow struct {
 	Estimate      int32              `json:"estimate"`
 	BoardColumn   string             `json:"boardColumn"`
 	Priority      string             `json:"priority"`
-	BlockedReason *string            `json:"blockedReason"`
-	BlockedDays   *int32             `json:"blockedDays"`
+	DueDate       *time.Time         `json:"dueDate"`
+	Blockers      json.RawMessage    `json:"blockers"`
 	OffGoal       bool               `json:"offGoal"`
 	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
@@ -937,8 +965,8 @@ func (q *Queries) ListTasksBySprint(ctx context.Context, arg ListTasksBySprintPa
 			&i.Estimate,
 			&i.BoardColumn,
 			&i.Priority,
-			&i.BlockedReason,
-			&i.BlockedDays,
+			&i.DueDate,
+			&i.Blockers,
 			&i.OffGoal,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -985,7 +1013,7 @@ UPDATE tasks
 SET board_column = $2,
     updated_at   = now()
 WHERE id = $1
-RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
+RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, off_goal, created_at, updated_at, due_date, blockers
 `
 
 type MoveTaskParams struct {
@@ -1006,12 +1034,35 @@ func (q *Queries) MoveTask(ctx context.Context, arg MoveTaskParams) (Task, error
 		&i.Estimate,
 		&i.BoardColumn,
 		&i.Priority,
-		&i.BlockedReason,
-		&i.BlockedDays,
 		&i.OffGoal,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DueDate,
+		&i.Blockers,
 	)
+	return i, err
+}
+
+const renameMasterValue = `-- name: RenameMasterValue :one
+UPDATE master_lists
+SET value = $1
+WHERE key = $2 AND value = $3
+RETURNING key, value, position
+`
+
+type RenameMasterValueParams struct {
+	NewValue string `json:"newValue"`
+	Key      string `json:"key"`
+	OldValue string `json:"oldValue"`
+}
+
+// The primary key is (key, value), so a rename is an update of the key itself.
+// A rename onto an existing value fails the unique check, which the handler
+// reports as a 409 the same way an add does.
+func (q *Queries) RenameMasterValue(ctx context.Context, arg RenameMasterValueParams) (MasterList, error) {
+	row := q.db.QueryRow(ctx, renameMasterValue, arg.NewValue, arg.Key, arg.OldValue)
+	var i MasterList
+	err := row.Scan(&i.Key, &i.Value, &i.Position)
 	return i, err
 }
 
@@ -1220,25 +1271,25 @@ SET title           = COALESCE($1, title),
     estimate        = COALESCE($4, estimate),
     board_column    = COALESCE($5, board_column),
     priority        = COALESCE($6, priority),
-    blocked_reason  = COALESCE($7, blocked_reason),
-    blocked_days    = COALESCE($8, blocked_days),
+    due_date        = COALESCE($7, due_date),
+    blockers        = COALESCE($8, blockers),
     off_goal        = COALESCE($9, off_goal),
     updated_at      = now()
 WHERE id = $10
-RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, blocked_reason, blocked_days, off_goal, created_at, updated_at
+RETURNING id, sprint_id, backlog_item_id, title, component_name, assignee_id, estimate, board_column, priority, off_goal, created_at, updated_at, due_date, blockers
 `
 
 type UpdateTaskParams struct {
-	Title         *string `json:"title"`
-	ComponentName *string `json:"componentName"`
-	AssigneeID    *string `json:"assigneeId"`
-	Estimate      *int32  `json:"estimate"`
-	BoardColumn   *string `json:"boardColumn"`
-	Priority      *string `json:"priority"`
-	BlockedReason *string `json:"blockedReason"`
-	BlockedDays   *int32  `json:"blockedDays"`
-	OffGoal       *bool   `json:"offGoal"`
-	ID            string  `json:"id"`
+	Title         *string         `json:"title"`
+	ComponentName *string         `json:"componentName"`
+	AssigneeID    *string         `json:"assigneeId"`
+	Estimate      *int32          `json:"estimate"`
+	BoardColumn   *string         `json:"boardColumn"`
+	Priority      *string         `json:"priority"`
+	DueDate       *time.Time      `json:"dueDate"`
+	Blockers      json.RawMessage `json:"blockers"`
+	OffGoal       *bool           `json:"offGoal"`
+	ID            string          `json:"id"`
 }
 
 // Partial update (see UpdateClient): moving a card and renaming it at the same
@@ -1251,8 +1302,8 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, e
 		arg.Estimate,
 		arg.BoardColumn,
 		arg.Priority,
-		arg.BlockedReason,
-		arg.BlockedDays,
+		arg.DueDate,
+		arg.Blockers,
 		arg.OffGoal,
 		arg.ID,
 	)
@@ -1267,33 +1318,37 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, e
 		&i.Estimate,
 		&i.BoardColumn,
 		&i.Priority,
-		&i.BlockedReason,
-		&i.BlockedDays,
 		&i.OffGoal,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DueDate,
+		&i.Blockers,
 	)
 	return i, err
 }
 
 const upsertReportTemplate = `-- name: UpsertReportTemplate :one
-INSERT INTO report_templates (id, name, audience, visibility, sections)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO report_templates (id, name, audience, frequency, visibility, formats, sections)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (id) DO UPDATE
 SET name       = EXCLUDED.name,
     audience   = EXCLUDED.audience,
+    frequency  = EXCLUDED.frequency,
     visibility = EXCLUDED.visibility,
+    formats    = EXCLUDED.formats,
     sections   = EXCLUDED.sections,
     updated_at = now()
-RETURNING id, name, audience, visibility, sections, created_at, updated_at
+RETURNING id, name, audience, visibility, created_at, updated_at, frequency, formats, sections
 `
 
 type UpsertReportTemplateParams struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	Audience   string   `json:"audience"`
-	Visibility string   `json:"visibility"`
-	Sections   []string `json:"sections"`
+	ID         string          `json:"id"`
+	Name       string          `json:"name"`
+	Audience   string          `json:"audience"`
+	Frequency  string          `json:"frequency"`
+	Visibility string          `json:"visibility"`
+	Formats    []string        `json:"formats"`
+	Sections   json.RawMessage `json:"sections"`
 }
 
 func (q *Queries) UpsertReportTemplate(ctx context.Context, arg UpsertReportTemplateParams) (ReportTemplate, error) {
@@ -1301,7 +1356,9 @@ func (q *Queries) UpsertReportTemplate(ctx context.Context, arg UpsertReportTemp
 		arg.ID,
 		arg.Name,
 		arg.Audience,
+		arg.Frequency,
 		arg.Visibility,
+		arg.Formats,
 		arg.Sections,
 	)
 	var i ReportTemplate
@@ -1310,9 +1367,11 @@ func (q *Queries) UpsertReportTemplate(ctx context.Context, arg UpsertReportTemp
 		&i.Name,
 		&i.Audience,
 		&i.Visibility,
-		&i.Sections,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Frequency,
+		&i.Formats,
+		&i.Sections,
 	)
 	return i, err
 }

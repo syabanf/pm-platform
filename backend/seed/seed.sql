@@ -178,7 +178,7 @@ ON CONFLICT DO NOTHING;
 -- ------------------------------------------------------------------ tasks ---
 INSERT INTO tasks (id, sprint_id, backlog_item_id, title, component_name,
                    assignee_id, estimate, board_column, priority,
-                   blocked_reason, blocked_days, off_goal)
+                   blockers, off_goal)
 SELECT
     s.id || '-tsk-' || t,
     s.id,
@@ -194,8 +194,12 @@ SELECT
          ELSE (ARRAY['selected','ready','in-progress','in-review','qa','done','blocked'])[1 + t % 7]
     END,
     (ARRAY['low','medium','high'])[1 + t % 3],
-    CASE WHEN t % 13 = 0 THEN 'Waiting on vendor firmware' ELSE NULL END,
-    CASE WHEN t % 13 = 0 THEN t % 5 ELSE NULL END,
+    CASE WHEN t % 13 = 0 THEN jsonb_build_array(jsonb_build_object(
+             'id', s.id || '-tsk-' || t || '-blk-1',
+             'category', 'External / vendor',
+             'text', 'Waiting on vendor firmware',
+             'days', t % 5))
+         ELSE '[]'::jsonb END,
     t % 11 = 0
 FROM sprints s, generate_series(1, :tasks_per) t;
 

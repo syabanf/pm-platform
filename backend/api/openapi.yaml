@@ -65,6 +65,8 @@ tags:
     description: People who can be assigned work.
   - name: decisions
     description: The decision log for a module.
+  - name: reviews
+    description: Retrospective notes and actions, demo checklist and client feedback, per sprint.
   - name: reports
     description: Report templates, the queue, and generated reports.
   - name: settings
@@ -1416,6 +1418,307 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  # ------------------------------------------------------------- reviews ---
+  /retro-notes:
+    get:
+      tags: [reviews]
+      summary: List retro notes
+      description: A page of the set, oldest first. Filter by `sprintId` for one sprint.
+      operationId: listRetroNotes
+      parameters:
+        - name: sprintId
+          in: query
+          required: false
+          schema: { type: string }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of retro notes.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RetroNote' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [reviews]
+      summary: Add to retro notes
+      operationId: createRetroNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RetroNoteCreate' }
+      responses:
+        '201':
+          description: The created record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RetroNote' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /retro-notes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [reviews]
+      summary: Update one of retro notes
+      operationId: updateRetroNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RetroNoteUpdate' }
+      responses:
+        '200':
+          description: The updated record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RetroNote' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [reviews]
+      summary: Delete one of retro notes
+      operationId: deleteRetroNote
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /retro-actions:
+    get:
+      tags: [reviews]
+      summary: List retro actions
+      description: A page of the set, oldest first. Filter by `sprintId` for one sprint.
+      operationId: listRetroActions
+      parameters:
+        - name: sprintId
+          in: query
+          required: false
+          schema: { type: string }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of retro actions.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RetroAction' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [reviews]
+      summary: Add to retro actions
+      operationId: createRetroAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RetroActionCreate' }
+      responses:
+        '201':
+          description: The created record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RetroAction' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /retro-actions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [reviews]
+      summary: Update one of retro actions
+      operationId: updateRetroAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RetroActionUpdate' }
+      responses:
+        '200':
+          description: The updated record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RetroAction' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [reviews]
+      summary: Delete one of retro actions
+      operationId: deleteRetroAction
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /demo-items:
+    get:
+      tags: [reviews]
+      summary: List demo items
+      description: A page of the set, oldest first. Filter by `sprintId` for one sprint.
+      operationId: listDemoItems
+      parameters:
+        - name: sprintId
+          in: query
+          required: false
+          schema: { type: string }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of demo items.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DemoItem' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [reviews]
+      summary: Add to demo items
+      operationId: createDemoItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DemoItemCreate' }
+      responses:
+        '201':
+          description: The created record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DemoItem' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /demo-items/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [reviews]
+      summary: Update one of demo items
+      operationId: updateDemoItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DemoItemUpdate' }
+      responses:
+        '200':
+          description: The updated record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DemoItem' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [reviews]
+      summary: Delete one of demo items
+      operationId: deleteDemoItem
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /client-feedback:
+    get:
+      tags: [reviews]
+      summary: List client feedback
+      description: A page of the set, oldest first. Filter by `sprintId` for one sprint.
+      operationId: listClientFeedback
+      parameters:
+        - name: sprintId
+          in: query
+          required: false
+          schema: { type: string }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: A page of client feedback.
+          headers:
+            X-Has-More: { $ref: '#/components/headers/XHasMore' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ClientFeedback' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [reviews]
+      summary: Add to client feedback
+      operationId: createClientFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientFeedbackCreate' }
+      responses:
+        '201':
+          description: The created record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFeedback' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /client-feedback/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [reviews]
+      summary: Update one of client feedback
+      operationId: updateClientFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientFeedbackUpdate' }
+      responses:
+        '200':
+          description: The updated record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFeedback' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [reviews]
+      summary: Delete one of client feedback
+      operationId: deleteClientFeedback
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   # ------------------------------------------------------------- reports ---
   /report-templates:
     get:
@@ -1451,8 +1754,10 @@ paths:
                 id: { type: string }
                 name: { type: string }
                 audience: { type: string }
+                frequency: { type: string }
                 visibility: { $ref: '#/components/schemas/TemplateVisibility' }
-                sections: { type: array, items: { type: string } }
+                formats: { type: array, items: { type: string } }
+                sections: { type: array, items: { $ref: '#/components/schemas/ReportSection' } }
       responses:
         '200':
           description: The template.
@@ -1666,13 +1971,31 @@ paths:
         '413': { $ref: '#/components/responses/TooLarge' }
         '400': { $ref: '#/components/responses/BadRequest' }
 
+  /lists:
+    get:
+      tags: [settings]
+      summary: Read every master list at once
+      description: '`{key: [values]}`, each list in `position` order. The settings pages load them all on entry.'
+      operationId: listAllMasterValues
+      responses:
+        '200':
+          description: Every list, keyed by name.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { type: string }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   /lists/{key}:
     parameters:
       - name: key
         in: path
         required: true
         schema: { type: string }
-        description: 'The list to read, e.g. `priority`, `task-status`, `industry`.'
+        description: 'The list to read, e.g. `industries`, `priorities`, `skillTags`.'
     get:
       tags: [settings]
       summary: Read a master list
@@ -1725,6 +2048,29 @@ paths:
         in: path
         required: true
         schema: { type: string }
+    patch:
+      tags: [settings]
+      summary: Rename a master list value
+      description: The value is the row's key, so this moves the row. Records that carried the old value are not rewritten.
+      operationId: renameMasterValue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value: { type: string, description: The new value. }
+      responses:
+        '200':
+          description: The renamed value.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MasterListValue' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
     delete:
       tags: [settings]
       summary: Remove a value from a master list
@@ -2456,6 +2802,7 @@ components:
         clientId: { type: string }
         name: { type: string }
         objective: { type: string }
+        startDate: { $ref: '#/components/schemas/DateOnly', description: 'When delivery starts; its year is the folder the project files under.' }
         status: { $ref: '#/components/schemas/ProjectStatus' }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
@@ -2467,6 +2814,7 @@ components:
         clientId: { type: string }
         name: { type: string }
         objective: { type: string }
+        startDate: { $ref: '#/components/schemas/DateOnly', description: Defaults to today. }
         status: { $ref: '#/components/schemas/ProjectStatus' }
     ProjectUpdate:
       type: object
@@ -2474,6 +2822,7 @@ components:
         clientId: { type: string, description: 'Moves the project, and its modules follow.' }
         name: { type: string }
         objective: { type: string }
+        startDate: { $ref: '#/components/schemas/DateOnly' }
         status: { $ref: '#/components/schemas/ProjectStatus' }
 
     # ------------------------------------------- modules (UI "Components") ---
@@ -2718,8 +3067,11 @@ components:
         estimate: { type: integer, minimum: 0 }
         boardColumn: { $ref: '#/components/schemas/BoardColumn' }
         priority: { type: string, description: 'Free text; the UI offers low, medium, high.' }
-        blockedReason: { type: [string, 'null'] }
-        blockedDays: { type: [integer, 'null'], minimum: 0 }
+        dueDate: { oneOf: [{ $ref: '#/components/schemas/DateOnly' }, { type: 'null' }], description: The day the task is meant to be finished. }
+        blockers:
+          type: array
+          description: Everything standing in the task's way; the board colours by the count.
+          items: { $ref: '#/components/schemas/Blocker' }
         offGoal: { type: boolean }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
@@ -2735,8 +3087,8 @@ components:
         estimate: { type: integer, minimum: 0 }
         boardColumn: { $ref: '#/components/schemas/BoardColumn' }
         priority: { type: string, default: medium }
-        blockedReason: { type: string }
-        blockedDays: { type: integer, minimum: 0 }
+        dueDate: { $ref: '#/components/schemas/DateOnly' }
+        blockers: { type: array, items: { $ref: '#/components/schemas/Blocker' } }
         offGoal: { type: boolean, default: false }
     TaskUpdate:
       type: object
@@ -2747,9 +3099,17 @@ components:
         estimate: { type: integer, minimum: 0 }
         boardColumn: { $ref: '#/components/schemas/BoardColumn' }
         priority: { type: string }
-        blockedReason: { type: string }
-        blockedDays: { type: integer, minimum: 0 }
+        dueDate: { $ref: '#/components/schemas/DateOnly' }
+        blockers: { type: array, description: Replaces the whole list., items: { $ref: '#/components/schemas/Blocker' } }
         offGoal: { type: boolean }
+    Blocker:
+      type: object
+      required: [id, category, text]
+      properties:
+        id: { type: string }
+        category: { type: string, description: From the blockerCategories master list. }
+        text: { type: string }
+        days: { type: integer, minimum: 0, description: How long it has been standing. }
     TaskDodItem:
       type: object
       properties:
@@ -2833,6 +3193,111 @@ components:
         owner: { type: string }
         status: { $ref: '#/components/schemas/DecisionStatus' }
 
+    # ----------------------------------------------------------- reviews ---
+    RetroNoteKind: { type: string, enum: [went-well, needs-improvement] }
+    RetroActionStatus: { type: string, enum: [open, done] }
+    RetroNote:
+      type: object
+      description: One line under Went Well or Needs Improvement.
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        kind: { $ref: '#/components/schemas/RetroNoteKind' }
+        text: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    RetroNoteCreate:
+      type: object
+      required: [sprintId, text]
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        kind: { $ref: '#/components/schemas/RetroNoteKind' }
+        text: { type: string }
+    RetroNoteUpdate:
+      type: object
+      properties:
+        kind: { $ref: '#/components/schemas/RetroNoteKind' }
+        text: { type: string }
+    RetroAction:
+      type: object
+      description: An improvement the team committed to, with a member's name against it.
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        action: { type: string }
+        ownerId: { type: [string, 'null'], description: A member id. }
+        due: { oneOf: [{ $ref: '#/components/schemas/DateOnly' }, { type: 'null' }] }
+        status: { $ref: '#/components/schemas/RetroActionStatus' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    RetroActionCreate:
+      type: object
+      required: [sprintId, action]
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        action: { type: string }
+        ownerId: { type: string }
+        due: { $ref: '#/components/schemas/DateOnly' }
+        status: { $ref: '#/components/schemas/RetroActionStatus' }
+    RetroActionUpdate:
+      type: object
+      properties:
+        action: { type: string }
+        ownerId: { type: string }
+        due: { $ref: '#/components/schemas/DateOnly' }
+        status: { $ref: '#/components/schemas/RetroActionStatus' }
+    DemoItem:
+      type: object
+      description: One line of the sprint review's demo checklist.
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        label: { type: string }
+        done: { type: boolean }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    DemoItemCreate:
+      type: object
+      required: [sprintId, label]
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        label: { type: string }
+        done: { type: boolean, default: false }
+    DemoItemUpdate:
+      type: object
+      properties:
+        label: { type: string }
+        done: { type: boolean }
+    ClientFeedback:
+      type: object
+      description: Something the client said at the review, and what was done about it.
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        fromName: { type: string, description: Who said it. }
+        note: { type: string }
+        disposition: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ClientFeedbackCreate:
+      type: object
+      required: [sprintId, note]
+      properties:
+        id: { type: string }
+        sprintId: { type: string }
+        from: { type: string, description: Who said it; stored as fromName. }
+        note: { type: string }
+        disposition: { type: string }
+    ClientFeedbackUpdate:
+      type: object
+      properties:
+        from: { type: string }
+        note: { type: string }
+        disposition: { type: string }
+
     # ----------------------------------------------------------- reports ---
     ReportTemplate:
       type: object
@@ -2840,10 +3305,22 @@ components:
         id: { type: string }
         name: { type: string, description: Unique. }
         audience: { type: string }
+        frequency: { type: string, description: From the reportFrequencies master list. }
         visibility: { $ref: '#/components/schemas/TemplateVisibility' }
-        sections: { type: array, items: { type: string } }
+        formats: { type: array, items: { type: string }, description: From the reportFormats master list. }
+        sections: { type: array, items: { $ref: '#/components/schemas/ReportSection' } }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ReportSection:
+      type: object
+      required: [id, title, enabled, body, autoBlock]
+      description: One numbered section of a report, as configured on its template.
+      properties:
+        id: { type: string }
+        title: { type: string }
+        enabled: { type: boolean, description: Unchecked sections stay on the template but are left out of the report. }
+        body: { type: string, description: 'Prose; may contain {{tokens}}.' }
+        autoBlock: { type: string, description: A key into the report block registry, or "" for prose only. }
     ReportQueueItem:
       type: object
       properties:
