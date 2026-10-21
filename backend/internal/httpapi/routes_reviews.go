@@ -94,7 +94,7 @@ func (s *Server) createRetroNote(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "text is required")
 	}
 	row, err := s.q.CreateRetroNote(c.Request().Context(), db.CreateRetroNoteParams{
-		ID:       orDefault(req.ID, newSettingsID("rn")),
+		ID:       orDefault(req.ID, newID("rn")),
 		SprintID: req.SprintID,
 		Kind:     orDefault(req.Kind, "went-well"),
 		Text:     req.Text,
@@ -180,7 +180,7 @@ func (s *Server) createRetroAction(c echo.Context) error {
 		return err
 	}
 	row, err := s.q.CreateRetroAction(c.Request().Context(), db.CreateRetroActionParams{
-		ID:       orDefault(req.ID, newSettingsID("ra")),
+		ID:       orDefault(req.ID, newID("ra")),
 		SprintID: req.SprintID,
 		Action:   req.Action,
 		OwnerID:  req.OwnerID,
@@ -264,7 +264,7 @@ func (s *Server) createDemoItem(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "label is required")
 	}
 	row, err := s.q.CreateDemoItem(c.Request().Context(), db.CreateDemoItemParams{
-		ID:       orDefault(req.ID, newSettingsID("demo")),
+		ID:       orDefault(req.ID, newID("demo")),
 		SprintID: req.SprintID,
 		Label:    req.Label,
 		Done:     req.Done,
@@ -344,7 +344,7 @@ func (s *Server) createClientFeedback(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "note is required")
 	}
 	row, err := s.q.CreateClientFeedback(c.Request().Context(), db.CreateClientFeedbackParams{
-		ID:          orDefault(req.ID, newSettingsID("cf")),
+		ID:          orDefault(req.ID, newID("cf")),
 		SprintID:    req.SprintID,
 		FromName:    req.From,
 		Note:        req.Note,

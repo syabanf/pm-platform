@@ -1,12 +1,9 @@
 package httpapi
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
@@ -45,15 +42,6 @@ func (s *Server) registerSettingsRoutes(g *echo.Group) {
 
 // ------------------------------------------------------------- local utils ---
 
-// newSettingsID generates a short, unique TEXT id for settings-owned rows.
-func newSettingsID(prefix string) string {
-	var b [8]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return prefix + "-" + time.Now().UTC().Format("20060102150405.000000000")
-	}
-	return prefix + "-" + hex.EncodeToString(b[:])
-}
-
 // ---------------------------------------------------------- report_templates ---
 
 type upsertReportTemplateRequest struct {
@@ -91,7 +79,7 @@ func (s *Server) upsertReportTemplate(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
 	}
 	if req.ID == "" {
-		req.ID = newSettingsID("tpl")
+		req.ID = newID("tpl")
 	}
 	if req.Formats == nil {
 		req.Formats = []string{}
@@ -185,7 +173,7 @@ func (s *Server) createReportQueueItem(c echo.Context) error {
 		return err
 	}
 	if req.ID == "" {
-		req.ID = newSettingsID("rq")
+		req.ID = newID("rq")
 	}
 
 	row, err := s.q.CreateReportQueueItem(c.Request().Context(), db.CreateReportQueueItemParams{
@@ -287,7 +275,7 @@ func (s *Server) createGeneratedReport(c echo.Context) error {
 		generatedOn = ptr(todayUTC())
 	}
 	if req.ID == "" {
-		req.ID = newSettingsID("rep")
+		req.ID = newID("rep")
 	}
 
 	row, err := s.q.CreateGeneratedReport(c.Request().Context(), db.CreateGeneratedReportParams{
@@ -356,7 +344,7 @@ func (s *Server) upsertRole(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "label is required")
 	}
 	if req.ID == "" {
-		req.ID = newSettingsID("role")
+		req.ID = newID("role")
 	}
 	permissions := jsonObjectOrEmpty(req.Permissions)
 

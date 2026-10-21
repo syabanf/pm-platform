@@ -1,13 +1,9 @@
 package httpapi
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
@@ -16,15 +12,6 @@ import (
 )
 
 // ---------------------------------------------------------------- ids ---
-
-// newPrefixedID builds a unique TEXT id with the given prefix.
-func newPrefixedID(prefix string) string {
-	var b [8]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return prefix + "_" + strconv.FormatInt(time.Now().UnixNano(), 36)
-	}
-	return prefix + "_" + strconv.FormatInt(time.Now().UnixMilli(), 36) + hex.EncodeToString(b[:])
-}
 
 // ------------------------------------------------------------ requests ---
 
@@ -160,7 +147,7 @@ func (s *Server) createModule(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newPrefixedID("prd")
+		id = newID("prd")
 	}
 
 	// health has a CHECK (0..100) and DEFAULT 100; an absent value must not
@@ -340,7 +327,7 @@ func (s *Server) createComponent(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newPrefixedID("mod")
+		id = newID("mod")
 	}
 
 	ctx := c.Request().Context()

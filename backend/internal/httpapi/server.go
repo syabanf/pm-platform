@@ -4,6 +4,8 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -520,6 +522,17 @@ func paged[T any](c echo.Context, rows []T, limit int32) error {
 // a plain YYYY-MM-DD — what <input type="date"> produces, and what this API
 // documents — failed during binding and was reported as "invalid JSON body",
 // blaming the envelope for a value it never reached.
+// newID mints a TEXT id: the prefix, a second-resolution timestamp and 8
+// random bytes, so ids sort roughly by creation and never collide. Every
+// table that lets the caller omit the id gets its own prefix.
+func newID(prefix string) string {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return prefix + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return prefix + "-" + strconv.FormatInt(time.Now().Unix(), 36) + "-" + hex.EncodeToString(b[:])
+}
+
 // isEmpty reports a field that was sent as "" (clear it), as opposed to one
 // left out of the body (keep it).
 func isEmpty(raw *string) bool { return raw != nil && *raw == "" }

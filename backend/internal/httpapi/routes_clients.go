@@ -1,12 +1,8 @@
 package httpapi
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
@@ -15,18 +11,6 @@ import (
 )
 
 // ------------------------------------------------------------------- ids ---
-
-// newClientScopedID builds a unique TEXT id with the given prefix.
-func newClientScopedID(prefix string) string {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		return prefix + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
-	}
-	return prefix + "-" + strconv.FormatInt(time.Now().Unix(), 36) + "-" + hex.EncodeToString(buf)
-}
-
-func newClientID() string  { return newClientScopedID("cli") }
-func newProjectID() string { return newClientScopedID("prj") }
 
 // --------------------------------------------------------------- requests ---
 
@@ -134,7 +118,7 @@ func (s *Server) createClient(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newClientID()
+		id = newID("cli")
 	}
 	actionNeeded := req.ActionNeeded
 	if actionNeeded == nil {
@@ -319,7 +303,7 @@ func (s *Server) createProject(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newProjectID()
+		id = newID("prj")
 	}
 
 	startDate, err := parseDate(req.StartDate)

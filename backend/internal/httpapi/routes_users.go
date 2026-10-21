@@ -107,14 +107,6 @@ func hashToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func newUserID() string {
-	var b [8]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return "usr-" + time.Now().UTC().Format("20060102150405.000000000")
-	}
-	return "usr-" + hex.EncodeToString(b[:])
-}
-
 // role and memberId are deliberately absent. Nothing authenticates this
 // request — there are no sessions yet — so a caller choosing its own role was
 // simply an unauthenticated way to mint an administrator, which is exactly the
@@ -224,7 +216,7 @@ func (s *Server) createUser(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newUserID()
+		id = newID("usr")
 	}
 
 	row, err := s.q.CreateUser(c.Request().Context(), db.CreateUserParams{
@@ -567,7 +559,7 @@ func (s *Server) register(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	user, err := s.q.CreateUser(ctx, db.CreateUserParams{
-		ID:           newUserID(),
+		ID:           newID("usr"),
 		Email:        email,
 		PasswordHash: string(hash),
 		Name:         name,

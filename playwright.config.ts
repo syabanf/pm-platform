@@ -6,9 +6,8 @@ import { defineConfig, devices } from "@playwright/test";
  * The server runs in seed mode (NEXT_PUBLIC_DATA_SOURCE=seed): the in-memory
  * store, not the backend. That makes these tests hermetic for free: every
  * fresh page load is the pristine seed, so there is no fixture setup, no
- * teardown, and no way for one test to leak into another. The one spec that
- * talks to the backend (backend-wiring) goes through the proxy and skips when
- * nothing answers.
+ * teardown, and no way for one test to leak into another. The backend has its
+ * own e2e suite in Go.
  *
  * In CI the server is the production build — `next build && next start` —
  * because that is what ships; HMR-mode quirks are not worth catching. Locally

@@ -99,7 +99,7 @@ func (s *Server) stashTree(c echo.Context, q *db.Queries, tx pgx.Tx, kind, rootI
 	if auth := currentUser(c); auth != nil {
 		deletedBy = auth.Email
 	}
-	id := newPrefixedID("trash")
+	id := newID("trash")
 	if err := q.InsertTrash(ctx, db.InsertTrashParams{
 		ID: id, Kind: kind, RootID: rootID, Label: label, Payload: raw, DeletedBy: deletedBy,
 	}); err != nil {

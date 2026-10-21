@@ -1,8 +1,6 @@
 package httpapi
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,15 +14,6 @@ import (
 )
 
 // ------------------------------------------------------------------ ids ---
-
-// newTaskScopedID builds a short unique TEXT id with the given prefix.
-func newTaskScopedID(prefix string) string {
-	var b [8]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return prefix + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
-	}
-	return prefix + "-" + strconv.FormatInt(time.Now().Unix(), 36) + "-" + hex.EncodeToString(b[:])
-}
 
 // parseTaskScopedDate accepts an RFC3339 timestamp or a plain YYYY-MM-DD date.
 func parseTaskScopedDate(s string) (time.Time, error) {
@@ -136,7 +125,7 @@ func (s *Server) createTask(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newTaskScopedID("tsk")
+		id = newID("tsk")
 	}
 	boardColumn := orDefault(deref(req.BoardColumn), "selected")
 	priority := orDefault(deref(req.Priority), "medium")
@@ -415,7 +404,7 @@ func (s *Server) createMember(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newTaskScopedID("mbr")
+		id = newID("mbr")
 	}
 	roleLabel := deref(req.RoleLabel)
 	if roleLabel == "" {
@@ -565,7 +554,7 @@ func (s *Server) createDecision(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newTaskScopedID("dec")
+		id = newID("dec")
 	}
 	status := orDefault(deref(req.Status), "open")
 

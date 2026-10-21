@@ -1,12 +1,8 @@
 package httpapi
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
@@ -15,16 +11,6 @@ import (
 )
 
 // ------------------------------------------------------------------ ids ---
-
-// newSprintScopedID mints a TEXT id for sprint/backlog rows: a prefix, a
-// millisecond timestamp and 4 random bytes. Self-contained on purpose.
-func newSprintScopedID(prefix string) string {
-	buf := make([]byte, 4)
-	if _, err := rand.Read(buf); err != nil {
-		return fmt.Sprintf("%s_%d", prefix, time.Now().UnixNano())
-	}
-	return fmt.Sprintf("%s_%d_%s", prefix, time.Now().UnixMilli(), hex.EncodeToString(buf))
-}
 
 // --------------------------------------------------------------- bodies ---
 
@@ -192,7 +178,7 @@ func (s *Server) createSprint(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newSprintScopedID("spr")
+		id = newID("spr")
 	}
 
 	workingDays := int32(10)
@@ -592,7 +578,7 @@ func (s *Server) createBacklogItem(c echo.Context) error {
 
 	id := deref(req.ID)
 	if id == "" {
-		id = newSprintScopedID("bli")
+		id = newID("bli")
 	}
 
 	acceptance := req.AcceptanceCriteria
